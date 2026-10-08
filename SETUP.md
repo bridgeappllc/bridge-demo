@@ -5,8 +5,8 @@
 - ✅ Supabase project **`bridge`** created on the **Free** plan ($0/month) in org `bridgeappllc`. Region **us-west-1**, ref `gozjxubvvzxkkoxxvldo`, URL `https://gozjxubvvzxkkoxxvldo.supabase.co`.
 - ✅ Schema applied as migration `bridge_v1` (`supabase/migrations/20261008000000_bridge_v1.sql`). The security advisor reports no issues. Realtime is enabled for messages, members, answers, and ratings.
 - ✅ `index.html` config is filled in with the project URL and the **publishable** key.
-- ❌ **Still needed from Paul: turn on anonymous sign-ins.** Supabase Dashboard → project `bridge` → **Authentication → Sign In / Providers** → turn on **"Allow anonymous sign-ins"** → **Save**. The app can't sign anyone in until this is on, so the live switch-over is waiting on it.
-- After that: run the hosted smoke test, merge `real-backend` → `main`, and re-test on GitHub Pages (steps below).
+- ✅ Anonymous sign-ins are on (Paul turned this on in the dashboard).
+- ✅ The hosted two-phone smoke test passes, including Realtime. `real-backend` is merged to `main`, and https://bridgeappllc.github.io/bridge-demo/ is the real app. The old prototype is at `/bridge-demo/demo.html`.
 
 Backend: **Supabase** (free tier): Postgres + row-level security + anonymous sign-ins + realtime.
 The frontend stays a single static `index.html` on GitHub Pages.

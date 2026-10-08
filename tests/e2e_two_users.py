@@ -124,7 +124,7 @@ with sync_playwright() as p:
 
     # --- Unconfigured build shows setup notice instead of breaking
     html = open(os.path.join(HERE, "..", "index.html"), encoding="utf8").read()
-    html = re.sub(r'SUPABASE_URL: "[^"]*"', 'SUPABASE_URL: ""', html, 1)
+    html = re.sub(r'SUPABASE_URL: "[^"]*"', 'SUPABASE_URL: ""', html, count=1)
     tmp = tempfile.NamedTemporaryFile("w", suffix=".html", delete=False); tmp.write(html); tmp.close()
     raw = br.new_context().new_page(); raw.goto("file://" + tmp.name); expect(raw.get_by_text("Almost ready")).to_be_visible(timeout=T); step("Unconfigured build shows an 'Almost ready' notice")
 
