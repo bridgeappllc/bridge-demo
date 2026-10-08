@@ -270,7 +270,7 @@ async function loadPreview(t){try{const p=await API.preview(t);DB.pv[t]=p;if(p&&
 // one-time move of library items saved on this device (older app version) into the account
 async function migrateLocal(){const items=legacyItems();if(!PROFILE||!items.length)return;
  try{await API.importLib(items.map(c=>({url:normUrl(c.url).slice(0,2000),title:String(c.title||c.url).slice(0,300),category:String(c.cat||"").slice(0,40),kind:String(c.type||kindOf(c.url)).slice(0,20),creator:c.creator==="Added by you"?"":String(c.creator||"").slice(0,120),note:String(c.note||"").slice(0,300)})).filter(r=>/^https?:\/\//i.test(r.url)));
-  S.clips=S.clips.filter(c=>c.ex);save();DB.lib=null;toast(`Moved ${items.length} saved item${items.length>1?"s":""} into your online library`)}catch(e){console.warn("library migration failed; will retry",e)}}
+  S.clips=S.clips.filter(c=>c.ex);save();loadLib();toast(`Moved ${items.length} saved item${items.length>1?"s":""} into your online library`)}catch(e){console.warn("library migration failed; will retry",e)}}
 function onRoute(){if(unwatch){unwatch();unwatch=null}render();if(!CONFIGURED)return;const v=viewOf(),{id}=parse();
  if(v==="bridges"){loadList();unwatch=API.watch(null,loadList,10000)}
  if(v==="profile"){loadList();loadLib();unwatch=API.watch(null,()=>{loadList();loadLib()},10000)}
