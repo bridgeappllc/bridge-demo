@@ -13,7 +13,7 @@ from playwright.sync_api import sync_playwright, expect
 BASE = os.environ.get("BASE", "http://127.0.0.1:8080/")
 P, S, E = os.environ.get("P", "SmokePaul"), os.environ.get("S", "SmokeSam"), os.environ.get("E", "SmokeEve")
 REALTIME = os.environ.get("REALTIME") == "1"
-HERE = os.path.dirname(os.path.abspath(__file__)); SHOTS = os.path.join(HERE, "shots"); os.makedirs(SHOTS, exist_ok=True)
+HERE = os.path.dirname(os.path.abspath(__file__)); SHOTS = os.environ.get("SHOTS_DIR") or os.path.join(HERE, "shots"); os.makedirs(SHOTS, exist_ok=True)
 T = 20000
 results = []
 def step(name): results.append(name); print("  ✓", name, flush=True)
@@ -27,9 +27,12 @@ with sync_playwright() as p:
     for c, who in ((paulc, "paul"), (samc, "sam"), (evec, "eve")):
         pg = c.new_page(); pg.on("dialog", lambda d: d.accept())
         pg.on("pageerror", lambda e, who=who: errors.append(f"{who}: {e}"))
+        pg.on("console", lambda m, who=who: print(f"    [{who} console.{m.type}] {m.text[:200]}", flush=True) if m.type in ("error",) and "realtime" not in m.text.lower() and "websocket" not in m.text.lower() else None)
         pages.append(pg)
     paul, sam, eve = pages
-    shot = lambda pg, n: pg.screenshot(path=f"{SHOTS}/{n}.png", full_page=True)
+    def shot(pg, n):
+        try: pg.screenshot(path=f"{SHOTS}/{n}.png", timeout=15000)
+        except Exception as e: print(f"    (screenshot {n} skipped: {str(e).splitlines()[0][:80]})")
 
     # --- Paul signs up and creates a bridge from a pasted link
     paul.goto(BASE); paul.click("#sbtn"); paul.fill("#nm", P); paul.click("#nok")
@@ -44,7 +47,7 @@ with sync_playwright() as p:
     link, token = m.group(1), m.group(2)
     assert link.startswith(BASE.rstrip("/")), (link, BASE)
     assert "Smoke test video" in invite and "youtube.com" in invite and "$5" in invite
-    shot(paul, "01-paul-invite"); step(f"Bridge created; invite text includes unique link {link[:60]}…")
+    paul.locator("#itxt").scroll_into_view_if_needed(); paul.evaluate("window.scrollBy(0,120); const t=document.querySelector('#itxt'); t.scrollTop=t.scrollHeight"); shot(paul, "01-paul-invite"); step(f"Bridge created; invite text includes unique link {link[:60]}…")
     paul.click("#cp"); assert paul.evaluate("navigator.clipboard.readText()") == invite; step("Copy invite text puts it on the clipboard")
     paul.click("#nx")
     expect(paul.get_by_text("Answer three questions")).to_be_visible(timeout=T)
@@ -88,19 +91,25 @@ with sync_playwright() as p:
     expect(paul.get_by_text("Redpilled 8")).to_be_visible(timeout=T)
     paul.fill("#ct", "The second half. Want to call?"); paul.press("#ct", "Enter")
     expect(sam.locator(".bub:not(.me)").last).to_have_text("The second half. Want to call?", timeout=T)
-    shot(paul, "04-paul-chat"); shot(sam, "05-sam-chat"); step("Chat works both ways (stored, shows up for the other person)")
+    [pg.evaluate("window.scrollTo(0,document.body.scrollHeight)") for pg in (paul, sam)]; shot(paul, "04-paul-chat"); shot(sam, "05-sam-chat"); step("Chat works both ways (stored, shows up for the other person)")
     bridge_path = re.search(r"#bridge/([0-9a-f-]{36})", paul.url).group(1)
 
     if REALTIME:  # reload both with polling ~disabled (10 min) so only Realtime can deliver
         for pg in (paul, sam): pg.goto(BASE + "?poll=600000#bridge/" + bridge_path + "/3")
-        for pg in (paul, sam): pg.wait_for_function("window.__bridgeRealtime==='SUBSCRIBED'", timeout=T)
-        paul.wait_for_timeout(1500)
+        for pg in (paul, sam): pg.wait_for_function("window.__bridgeRealtime==='SUBSCRIBED' && window.__bridgeRealtimePg==='ok'", timeout=T)
         t0 = time.time(); sam.fill("#ct", "realtime ping"); sam.click("#cs")
         expect(paul.locator(".bub:not(.me)").last).to_have_text("realtime ping", timeout=10000)
         dt = time.time() - t0
         t0 = time.time(); paul.fill("#ct", "realtime pong"); paul.click("#cs")
         expect(sam.locator(".bub:not(.me)").last).to_have_text("realtime pong", timeout=10000)
         step(f"Realtime delivers chat both ways with polling disabled ({dt:.1f}s / {time.time()-t0:.1f}s)")
+        # navigate between steps inside the bridge (re-creates the channel), then check again
+        paul.click(".steps button:has-text('Rate')"); expect(paul.get_by_text("Ratings")).to_be_visible(timeout=T)
+        paul.click(".steps button:has-text('Talk')"); expect(paul.get_by_text("💬 Talk")).to_be_visible(timeout=T)
+        paul.wait_for_function("window.__bridgeRealtime==='SUBSCRIBED' && window.__bridgeRealtimePg==='ok'", timeout=T)
+        sam.fill("#ct", "still live after navigating?"); sam.click("#cs")
+        expect(paul.locator(".bub:not(.me)").last).to_have_text("still live after navigating?", timeout=10000)
+        step("Realtime still works after in-bridge step navigation (polling disabled)")
     assert paul.get_by_text("Good point. I see it differently").count() == 0; step("No simulated replies")
 
     # --- Your Bridges shows progress for both; persists across reload
