@@ -105,7 +105,7 @@ const API={
  async rate(id,v){ok(await sb.from("ratings").insert({bridge_id:id,user_id:ME,score:v}))},
  async send(id,t){ok(await sb.from("messages").insert({bridge_id:id,user_id:ME,body:t}))},
  // live updates: Supabase Realtime when available + polling fallback
- watch(id,cb,ms){let ch=null;if(id){try{ch=sb.channel("bridge:"+id);for(const t of["messages","bridge_members","answers","ratings"])ch.on("postgres_changes",{event:"*",schema:"public",table:t,filter:"bridge_id=eq."+id},()=>cb());ch.subscribe(st=>{window.__bridgeRealtime=st})}catch(e){ch=null}}
+ watch(id,cb,ms){let ch=null;if(id){try{ch=sb.channel("bridge:"+id+":"+Math.random().toString(36).slice(2));for(const t of["messages","bridge_members","answers","ratings"])ch.on("postgres_changes",{event:"*",schema:"public",table:t,filter:"bridge_id=eq."+id},()=>cb());ch.on("system",{},m=>{if(m&&m.extension==="postgres_changes")window.__bridgeRealtimePg=m.status});window.__bridgeRealtimePg=null;ch.subscribe(st=>{window.__bridgeRealtime=st})}catch(e){ch=null}}
   const iv=setInterval(()=>{if(!document.hidden)cb()},ms||4000);return()=>{clearInterval(iv);if(ch)sb.removeChannel(ch)}}};
 
 /* ---------- helpers ---------- */
@@ -201,10 +201,12 @@ const app=!["welcome","topics","setup","invite"].includes(v);$("#hd").innerHTML=
 $("#nav").style.display=app?"flex":"none";const tab={bridges:"bridges",bridge:"bridges",new:"new",profile:"profile",clip:"profile"}[v];
 $("#nav").innerHTML=["bridges","new","profile"].map(k=>`<button class="${k===tab?"on":""}" onclick="go('${k}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">${IC[k]}</svg>${NAVL[k]}</button>`).join("");
 $("#app").innerHTML=V[v](id,sp);if(keep)restore(keep);else if(key!==lastKey)window.scrollTo(0,0);lastKey=key;(B[v]||(()=>{}))(id,sp);
+if(v==="bridge")shown.d[id]=sig(DB.d[id]);if(v==="bridges"||v==="profile")shown.list=sig(DB.list);
 if(v==="bridge"&&$("#chat")){const n=DB.d[id].messages.length;if(n!==lastMsgCount&&(!keep||n>lastMsgCount))window.scrollTo(0,document.body.scrollHeight);lastMsgCount=n}else lastMsgCount=-1}
 const sig=o=>JSON.stringify(o);
-async function loadList(){try{const l=await API.list();const ch=sig(l)!==sig(DB.list);DB.list=l;if(ch)render(true)}catch(e){fail(e)}}
-async function loadBridge(id){try{const d=await API.get(id);const ch=sig(d)!==sig(DB.d[id]);DB.d[id]=d;if(ch&&parse().id===id)render(true)}catch(e){fail(e)}}
+const shown={list:undefined,d:{}}; // data as of the last successful render (so a failed render self-heals on the next poll)
+async function loadList(){try{const l=await API.list();DB.list=l;if(sig(l)!==shown.list)render(true)}catch(e){fail(e)}}
+async function loadBridge(id){try{const d=await API.get(id);DB.d[id]=d;if(parse().id===id&&sig(d)!==shown.d[id])render(true)}catch(e){fail(e)}}
 async function loadPreview(t){try{const p=await API.preview(t);DB.pv[t]=p;if(p&&p.is_member&&PROFILE){go("bridge/"+p.bridge_id);return}render(true)}catch(e){DB.pv[t]=null;fail(e)}}
 function onRoute(){if(unwatch){unwatch();unwatch=null}render();if(!CONFIGURED)return;const v=viewOf(),{id}=parse();
  if(v==="bridges"||v==="profile"){loadList();unwatch=API.watch(null,loadList,10000)}
