@@ -1,5 +1,18 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!DOCTYPE html><html lang="en"><head>
+<script>
+/* ============================ BRIDGE CONFIG ============================
+   Fill these two values from Supabase → Project Settings → API Keys
+   (see SETUP.md). Both are safe to publish: data is protected by
+   row-level security in supabase/schema.sql.                          */
+window.BRIDGE_CONFIG = {
+  SUPABASE_URL: "https://gozjxubvvzxkkoxxvldo.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_lvSFzAIz68Cc5T-w6FEMDw_ZI0pYDZP"   // publishable (public) key — never put the secret/service_role key here
+};
+/* ======================================================================= */
+</script>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Bridge</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js"></script>
 <style>
 :root{--n:#14213d;--b:#2f6fd6;--bl:#eaf1fc;--m:#5b6680;--l:#e3e8f2;--g:#1f9d55;--r:#d64545}
 *{box-sizing:border-box}html,body{margin:0;background:#eef2f8}
@@ -37,9 +50,17 @@ a{color:var(--b)}.row{display:flex;gap:8px;align-items:center}
 .steps button i{display:block;height:6px;border-radius:3px;background:var(--l);margin-bottom:5px}.steps .done i{background:var(--g)}.steps .done{color:var(--g)}.steps .cur i{background:var(--b)}.steps .cur{color:var(--b);font-weight:700}.steps .lk{opacity:.5}
 .tabs.sc{overflow-x:auto}.tabs.sc button{flex:none;padding:10px 12px;font-size:.88rem}
 .big{font-size:1.15rem;padding:16px}
+.prog{font-size:.8rem;color:var(--m);margin-top:4px}.prog b{color:var(--n)}
+.who{font-size:.7rem;color:var(--m);margin:8px 0 -4px}
+.qa{border-left:3px solid var(--l);padding:2px 0 2px 10px;margin:6px 0}.qa.fr{border-color:var(--b)}
+.note{background:#fff4e0;color:#7a4a00;border-radius:12px;padding:10px 12px;font-size:.85rem;margin:10px 0}
 </style></head><body><div id="phone"><header id="hd"></header><main id="app"></main><nav id="nav"></nav></div>
 <script>
-const KEY="bridge_demo_v3",FRIEND="Sam";
+const CFG=window.BRIDGE_CONFIG||{};
+const CONFIGURED=!!(CFG.SUPABASE_URL&&CFG.SUPABASE_ANON_KEY&&window.supabase);
+const sb=CONFIGURED?supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:"bridge-auth"}}):null;
+const KEY="bridge_real_v1";
+const POLL_MS=+new URLSearchParams(location.search).get("poll")||4000; // ?poll=ms is only used by tests
 const LOGO='<svg viewBox="0 0 48 32" width="40" height="27" fill="none" stroke-linecap="round"><path d="M4 28 C10 6 38 6 44 28" stroke="#2f6fd6" stroke-width="4"/><path d="M12 28 C16 15 32 15 36 28" stroke="#14213d" stroke-width="3.5"/><path d="M2 28h44" stroke="#14213d" stroke-width="3"/></svg>';
 const LOCK='<svg viewBox="0 0 24 24" fill="none" stroke="#14213d" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
 const IC={bridges:'<path d="M2 18C6 7 18 7 22 18M2 18h20M7 18v-4M12 18v-6M17 18v-4"/>',new:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',profile:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/>'};
@@ -49,93 +70,181 @@ const QS=["What's one specific moment, insight, or story that stuck with you the
 const STEPS=["Invite","Answer","Rate","Talk"];
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-function seed(){return{user:null,topics:[],sent:3,read:5,clips:[
+const safeUrl=u=>/^https?:\/\//i.test(String(u||""))?u:"#";
+const kindOf=url=>/youtu|vimeo|video/i.test(url)?"Video":/podcast|spotify|\.mp3/i.test(url)?"Podcast":"Article";
+
+/* ---------- local-only data (library / discover). Bridges live in Supabase. ---------- */
+function seedLocal(){return{topics:[],clips:[
 {id:"k1",ex:1,title:"The Thermostat Debate: Two Scientists Disagree",creator:"Open Lens Media (fictional)",type:"Video",cat:"Science",url:"https://example.com/video/thermostat-debate",rating:4.6,votes:212,lib:1},
 {id:"k2",ex:1,title:"Is 'Trump Derangement Syndrome' a Real Thing?",creator:"The Middle Ground Pod (fictional)",type:"Podcast",cat:"Politics",url:"https://example.com/podcast/tds-episode",rating:5.8,votes:347,lib:1},
 {id:"k3",ex:1,title:"Who Pays for Student Debt Forgiveness?",creator:"Main Street Economics (fictional)",type:"Article",cat:"Economics",url:"https://example.com/article/student-debt",rating:5.1,votes:98,lib:0},
 {id:"k4",ex:1,title:"Faith and Politics at the Dinner Table",creator:"Common Table Stories (fictional)",type:"Podcast",cat:"Religion",url:"https://example.com/podcast/dinner-table",rating:4.9,votes:156,lib:0},
-{id:"k5",ex:1,title:"What Schools Should Teach About History",creator:"Classroom Voices (fictional)",type:"Video",cat:"Education",url:"https://example.com/video/history-class",rating:3.8,votes:120,lib:0}],
-bridges:[
-{id:"b1",ex:1,friend:FRIEND,clip:"k2",reward:"",ans:null,rate:null,chat:[]},
-{id:"b2",ex:1,friend:"Jordan",clip:"k1",reward:"5",ans:["The part where both scientists agreed on the data but not the solution.","I agreed that cheap energy matters for families.","They disagree on the fix more than the facts. It reinforced that I should look at costs too."],rate:5,chat:[{me:0,t:"Funny how differently we heard the same video."},{me:1,t:"Right? Now I actually want to hear your take."}]}]}}
-let S;try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}if(!S||!S.clips)S=seed();
+{id:"k5",ex:1,title:"What Schools Should Teach About History",creator:"Classroom Voices (fictional)",type:"Video",cat:"Education",url:"https://example.com/video/history-class",rating:3.8,votes:120,lib:0}]}}
+let S;try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}if(!S||!S.clips)S=seedLocal();
 const save=()=>localStorage.setItem(KEY,JSON.stringify(S));save();
-const clip=id=>S.clips.find(c=>c.id===id),br=id=>S.bridges.find(b=>b.id===id);
+const clip=id=>S.clips.find(c=>c.id===id);
+
+/* ---------- backend adapter (Supabase) ---------- */
+let ME=null,PROFILE=null,DB={list:null,d:{},pv:{}};
+const ok=({data,error})=>{if(error)throw error;return data};
+const BCOLS="id,invite_token,created_by,clip_title,clip_url,clip_type,clip_cat,clip_creator,friend_label,reward,created_at,bridge_members(user_id,display_name,role,answered_at,rated_at)";
+const API={
+ async boot(){const {data}=await sb.auth.getSession();const s=data.session;if(!s)return;ME=s.user.id;
+  PROFILE=ok(await sb.from("profiles").select("id,display_name,topics").eq("id",ME).maybeSingle());if(PROFILE)S.topics=PROFILE.topics||[]},
+ async ensureUser(){if(ME)return;const d=ok(await sb.auth.signInAnonymously());ME=d.user.id},
+ async saveProfile(p){await this.ensureUser();const row={display_name:p.display_name??PROFILE?.display_name,topics:p.topics??PROFILE?.topics??[]};
+  if(PROFILE)ok(await sb.from("profiles").update({...row,updated_at:new Date().toISOString()}).eq("id",ME));else ok(await sb.from("profiles").insert({id:ME,...row}));PROFILE={id:ME,...row}},
+ async signOut(){await sb.auth.signOut();ME=null;PROFILE=null;DB={list:null,d:{},pv:{}}},
+ async createBridge(o){return ok(await sb.rpc("create_bridge",{p_display_name:PROFILE.display_name,p_clip_title:o.title,p_clip_url:o.url,p_clip_type:o.type,p_clip_cat:o.cat||"",p_clip_creator:o.creator||"",p_friend_label:o.friend||"",p_reward:o.reward||""}))},
+ async preview(t){const d=ok(await sb.rpc("preview_bridge",{p_token:t}));return(d&&d[0])||null},
+ async join(t,name){return ok(await sb.rpc("join_bridge",{p_token:t,p_display_name:name}))},
+ async list(){return ok(await sb.from("bridges").select(BCOLS).order("created_at",{ascending:false}))},
+ async get(id){const[b,a,r,m]=await Promise.all([sb.from("bridges").select(BCOLS).eq("id",id).maybeSingle(),sb.from("answers").select("user_id,a1,a2,a3").eq("bridge_id",id),sb.from("ratings").select("user_id,score").eq("bridge_id",id),sb.from("messages").select("id,user_id,body,created_at").eq("bridge_id",id).order("id")]);
+  return{b:ok(b),answers:ok(a),ratings:ok(r),messages:ok(m)}},
+ async answer(id,a){ok(await sb.from("answers").insert({bridge_id:id,user_id:ME,a1:a[0],a2:a[1],a3:a[2]}))},
+ async rate(id,v){ok(await sb.from("ratings").insert({bridge_id:id,user_id:ME,score:v}))},
+ async send(id,t){ok(await sb.from("messages").insert({bridge_id:id,user_id:ME,body:t}))},
+ // live updates: Supabase Realtime when available + polling fallback
+ watch(id,cb,ms){let ch=null;if(id){try{ch=sb.channel("bridge:"+id);for(const t of["messages","bridge_members","answers","ratings"])ch.on("postgres_changes",{event:"*",schema:"public",table:t,filter:"bridge_id=eq."+id},()=>cb());ch.subscribe(st=>{window.__bridgeRealtime=st})}catch(e){ch=null}}
+  const iv=setInterval(()=>{if(!document.hidden)cb()},ms||4000);return()=>{clearInterval(iv);if(ch)sb.removeChannel(ch)}}};
+
+/* ---------- helpers ---------- */
 const lbl=v=>v<3.5?"Propaganda":v>6.5?"Redpilled":"Neutral";
 const emo=v=>["😠","😠","😒","😕","🤔","😐","🙂","😊","😃","🤯","🔥"][Math.round(v)];
-function toast(t){$$(".toast").forEach(x=>x.remove());const d=document.createElement("div");d.className="toast";d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),2000)}
+function toast(t){$$(".toast").forEach(x=>x.remove());const d=document.createElement("div");d.className="toast";d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),2600)}
+const fail=e=>{console.error(e);toast(e&&e.message?e.message:"Something went wrong — try again")};
 function copy(t){(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast("Copied to clipboard"),()=>prompt("Copy this:",t))}
+function share(t){if(navigator.share)navigator.share({text:t}).catch(()=>{});else copy(t)}
 const go=h=>location.hash=h;
-// stage: 1 Answer, 2 Rate, 3 Talk (0 Invite is done once bridge exists)
-const stage=b=>!b.ans?1:b.rate==null?2:3;
-const inviteTxt=(b,c)=>`Meet me on the Bridge: listen to "${c.title}" in the next 3 days.\n${c.url}${b.reward>0?`\nI'll send you $${b.reward} when you finish it. (example reward)`:""}\nThen let's answer 3 quick questions, rate it, and talk about where we see it differently.`;
+const busy=(el,on)=>{if(el){el.disabled=on;if(on){el.dataset.t=el.textContent;el.textContent="…"}else if(el.dataset.t)el.textContent=el.dataset.t}};
+const inviteLink=b=>location.origin+location.pathname+"#b/"+b.invite_token;
+const inviteTxt=b=>`Meet me on the Bridge: listen to "${b.clip_title}" in the next 3 days.\n${b.clip_url}${+b.reward>0?`\nI'll send you $${b.reward} when you finish it.`:""}\nThen join me here to answer 3 quick questions, rate it, and talk about where we see it differently:\n${inviteLink(b)}`;
+const meOf=b=>(b.bridge_members||[]).find(m=>m.user_id===ME),frOf=b=>(b.bridge_members||[]).find(m=>m.user_id!==ME);
+const frName=b=>{const f=frOf(b);return f?f.display_name:(meOf(b)?.role==="owner"?(b.friend_label||"your friend"):"your friend")};
+// stage for me: 1 Answer, 2 Rate, 3 Talk (0 Invite is done once the bridge exists)
+const stage=m=>!m||!m.answered_at?1:!m.rated_at?2:3;
+const progTxt=(m,invited)=>!m?`${esc(invited)}: <b>not joined yet</b>`:`${m.user_id===ME?"You":esc(m.display_name)}: ${m.rated_at?"<b>✓ answered · ✓ rated</b>":m.answered_at?"<b>✓ answered</b> · rating next":"joined · answering next"}`;
 function scale(v){return `<div class="scale"><i style="left:${v*10}%"></i></div><div class="sl"><span>Propaganda</span><span>Neutral</span><span>Redpilled</span></div>`}
-function stepbar(cur,reach,id){return `<div class="steps">${STEPS.map((t,i)=>{const cl=i<reach?"done":i===cur?"cur":i>reach?"lk":"";return `<button class="${cl}${i===cur?" cur":""}" ${id&&i<=reach?`onclick="go('bridge/${id}/${i}')"`:""}><i></i>${i<reach?"✓ ":i>reach?"🔒 ":""}${t}</button>`}).join("")}</div>`}
-function clipCard(c){return `<div class="card" style="cursor:pointer" onclick="go('clip/${c.id}')">${c.ex?'<span class="tag ex">Example</span>':""}<span class="tag">${c.cat}</span><span class="tag">${c.type}</span>
+function stepbar(cur,reach,id,first){return `<div class="steps">${STEPS.map((t,i)=>{if(i===0&&first)t=first;const cl=i<reach?"done":i===cur?"cur":i>reach?"lk":"";return `<button class="${cl}${i===cur?" cur":""}" ${id&&i<=reach?`onclick="go('bridge/${id}/${i}')"`:""}><i></i>${i<reach?"✓ ":i>reach?"🔒 ":""}${t}</button>`}).join("")}</div>`}
+function clipCard(c){return `<div class="card" style="cursor:pointer" onclick="go('clip/${c.id}')">${c.ex?'<span class="tag ex">Example</span>':""}<span class="tag">${esc(c.cat)}</span><span class="tag">${esc(c.type)}</span>
 <div style="font-weight:700;font-size:1.05rem;margin:8px 0 2px">${esc(c.title)}</div><div class="mut sm">${esc(c.creator)}</div>
 <div class="sm" style="margin-top:10px">Community rating: <b>${lbl(c.rating)} ${c.rating.toFixed(1)}</b> <span class="mut">(${c.votes})</span></div>${scale(c.rating)}</div>`}
-let feedCat="All",profTab="Library";
+const loading='<p class="mut c" style="padding-top:40px">Loading…</p>';
+const bridgeCard=b=>{const me=meOf(b),fr=frOf(b),st=stage(me);return `<div class="card" style="cursor:pointer" onclick="go('bridge/${b.id}')"><span class="tag">${esc(b.clip_type)}</span>${me&&me.role==="friend"?'<span class="tag">Invited by '+esc(fr?fr.display_name:"friend")+"</span>":""}<div style="font-weight:700;margin:6px 0 2px">You & ${esc(frName(b))}</div><div class="mut sm">${esc(b.clip_title)}</div>
+${stepbar(st,st)}<div class="sm">${st===3?"💬 Chat open":"Next: <b>"+STEPS[st]+"</b>"}</div><div class="prog">${progTxt(me)}<br>${progTxt(fr,frName(b))}</div></div>`};
+let feedCat="All",profTab="Library",lastMsgCount=-1;
+
+/* ---------- views ---------- */
 const V={
+setup(){return `<h1>Almost ready</h1><div class="note">The backend isn't connected yet. Fill in <b>SUPABASE_URL</b> and <b>SUPABASE_ANON_KEY</b> in the config block at the top of <code>index.html</code> (see SETUP.md).</div>`},
 welcome(){return `<div class="c" style="padding-top:30px">${LOGO.replace('width="40" height="27"','width="96" height="64"')}<h1 style="font-size:2.4rem">Bridge</h1>
 <p style="font-weight:700;font-size:1.25rem;margin:0 0 10px">We don't have to agree to understand each other.</p><p class="mut" style="font-size:1.05rem">Listen to the same thing, show you listened, then talk about where you see it differently.</p>
 <div id="su" style="margin-top:36px"><button class="btn" id="sbtn">Sign Up Free</button><button class="btn o" id="lbtn">I Have an Account</button></div><p class="mut sm">Privacy Policy | Terms of Service</p></div>`},
 topics(){return `<h1>Pick your topics</h1><p class="mut">Choose 3 or more.</p><div class="grid">${TOPICS.map(([t,e])=>`<button class="topic${S.topics.includes(t)?" on":""}" data-t="${t}"><span>${e}</span>${t}</button>`).join("")}</div>
 <button class="btn" id="tgo" ${S.topics.length<3?"disabled":""}>Continue (${S.topics.length}/3)</button><button class="btn o" onclick="go('bridges')">Skip</button>`},
-bridges(){return `<h1>Your Bridges</h1><p class="mut">Invite a friend, listen, answer, rate, then talk.</p><button class="btn big" onclick="go('new')">🌉 Meet Me on the Bridge</button>
-${S.bridges.map(b=>{const c=clip(b.clip),st=stage(b);return `<div class="card" style="cursor:pointer" onclick="go('bridge/${b.id}')">${b.ex?'<span class="tag ex">Example</span>':""}<div style="font-weight:700;margin:6px 0 2px">You & ${esc(b.friend)}</div><div class="mut sm">${esc(c?c.title:"")}</div>
-${stepbar(st,st)}<div class="sm">${st===3?"💬 Chat open":"Next: <b>"+STEPS[st]+"</b>"}</div></div>`}).join("")}`},
-new(pre){return stepbar(0,0)+`<h1>Meet Me on the Bridge</h1><p class="mut">Pick something for you and a friend to listen to.</p><label>Pick a clip</label><select id="mclip"><option value="">— Paste a new link instead —</option>${S.clips.map(c=>`<option value="${c.id}" ${c.id===(pre||"k2")?"selected":""}>${esc(c.title)}</option>`).join("")}</select>
-<div id="paste" style="display:none"><label>Link (URL)</label><input id="murl" type="url" placeholder="https://…"><label>Title</label><input id="mtitle" placeholder="What is it called?"></div>
-<label>Friend's name</label><input id="mfriend" value="${FRIEND}"><label>Listen reward (optional)</label><div class="row"><span style="font-weight:700">$</span><input id="mrew" type="number" min="0" step="1" placeholder="e.g. 5"></div><p class="mut sm">Example only — no payments are made in this demo.</p>
+invite(tok){const p=DB.pv[tok];if(p===undefined)return loading;
+ if(!p)return `<div class="c" style="padding-top:30px">${LOGO}<h1>Invite not found</h1><p class="mut">This invite link doesn't work. Ask your friend to send it again.</p><a class="btn o" href="#bridges">Go to Bridge</a></div>`;
+ if(p.member_count>=2&&!p.is_member)return `<div class="c" style="padding-top:30px">${LOGO}<h1>This bridge is full</h1><p class="mut">${esc(p.owner_name)}'s bridge already has two people. Ask them for a new invite.</p><a class="btn o" href="#bridges">Go to Bridge</a></div>`;
+ return `<div class="c" style="padding-top:18px">${LOGO.replace('width="40" height="27"','width="72" height="48"')}<h1 style="font-size:1.7rem">${esc(p.owner_name)} invited you to meet on the Bridge</h1><p class="mut">We don't have to agree to understand each other.</p></div>
+<div class="card"><span class="tag">${esc(p.clip_type)}</span><div style="font-weight:700;font-size:1.05rem;margin:8px 0">${esc(p.clip_title)}</div><a class="btn o s" href="${esc(safeUrl(p.clip_url))}" target="_blank" rel="noopener">Open link ↗</a></div>
+${stepbar(0,0,null,"Join")}<p class="mut sm">Listen to it, answer 3 quick questions, rate it, then talk about where you see it differently. You'll see ${esc(p.owner_name)}'s answers after you share yours.</p>
+<label>Your name</label><input id="jname" placeholder="Your first name" maxlength="40" value="${esc(PROFILE?PROFILE.display_name:"")}"><button class="btn big" id="jgo">Join the bridge</button><p class="mut sm c">No password needed. Your bridge is saved on this device.</p>`},
+bridges(){const L=DB.list;return `<h1>Your Bridges</h1><p class="mut">Invite a friend, listen, answer, rate, then talk.</p><button class="btn big" onclick="go('new')">🌉 Meet Me on the Bridge</button>
+${L===null?loading:L.length?L.map(bridgeCard).join(""):'<div class="card c"><p style="font-weight:700;margin:4px 0">No bridges yet</p><p class="mut sm">Pick something to listen to, then text the invite link to a friend.</p></div>'}`},
+new(pre){const sel=pre&&clip(pre)?pre:"";return stepbar(0,0)+`<h1>Meet Me on the Bridge</h1><p class="mut">Pick something for you and a friend to listen to.</p><label>Pick a clip</label><select id="mclip"><option value="">— Paste a new link —</option>${S.clips.filter(c=>c.lib||c.id===sel).map(c=>`<option value="${c.id}" ${c.id===sel?"selected":""}>${esc(c.title)}${c.ex?" (example)":""}</option>`).join("")}</select>
+<div id="paste" style="display:${sel?"none":"block"}"><label>Link (URL)</label><input id="murl" type="url" placeholder="https://…"><label>Title</label><input id="mtitle" placeholder="What is it called?" maxlength="300"></div>
+<label>Friend's name</label><input id="mfriend" placeholder="e.g. Sam" maxlength="40"><label>Listen reward (optional)</label><div class="row"><span style="font-weight:700">$</span><input id="mrew" type="number" min="0" step="1" placeholder="e.g. 5"></div><p class="mut sm"><span class="tag ex">Coming soon</span> In-app payments aren't live. An amount here only adds a line to your invite.</p>
 <button class="btn" id="mgo">Create invite</button><div id="mout"></div>`},
-bridge(id,sp){const b=br(id);if(!b)return"<p>Not found</p>";const st=stage(b);let cur=sp==null||sp===""?st:Math.min(+sp,st);if(!(cur>=1))cur=0;const c=clip(b.clip);
-let h=`${b.ex?'<span class="tag ex">Example</span>':""}<p class="mut sm" style="margin:6px 0">You & ${esc(b.friend)} · <a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.title)}</a></p>`+stepbar(cur,st,id);
-if(cur===0)h+=`<h2>Invite sent</h2><textarea rows="6" readonly>${esc(inviteTxt(b,c))}</textarea><button class="btn o" onclick="copy(inviteTxt(br('${id}'),clip(br('${id}').clip)))">Copy invite text</button><button class="btn" onclick="go('bridge/${id}/1')">Next: Answer</button>`;
-if(cur===1){const a=b.ans||["","",""];h+=`<h2>Answer three questions</h2><p class="mut sm">About “${esc(c.title)}”. <a href="${esc(c.url)}" target="_blank" rel="noopener">Open link ↗</a></p>${QS.map((q,i)=>`<label class="sm">${i+1}. ${q}</label><textarea rows="3" class="q">${esc(a[i])}</textarea>`).join("")}
-<p class="sm" id="qhint" style="color:var(--r)"></p><button class="btn" id="qsave">Save answers · Next: Rate</button>`}
-if(cur===2){const v=b.rate??5;h+=`<h2>Rate it</h2><div class="card"><div class="emo" id="emo">${emo(v)}</div><div class="c" style="font-weight:700" id="rl">${lbl(v)} · ${v}</div><input type="range" id="rs" min="0" max="10" value="${v}"><div class="sl"><span>Propaganda</span><span>Neutral</span><span>Redpilled</span></div></div>
-<div class="card"><b>Community rating</b> <span class="mut sm">${c.votes} ratings</span><div style="margin-top:6px">${lbl(c.rating)} ${c.rating.toFixed(1)}</div>${scale(c.rating)}</div><button class="btn" id="rsave">Save rating · Unlock chat</button>`}
-if(cur===3)h+=`<h2>💬 Talk</h2><div class="card sm" style="background:var(--bl);border:0">Your rating: <b>${lbl(b.rate)} ${b.rate}</b></div><div id="chat">${b.chat.map(m=>`<div class="bub ${m.me?"me":""}">${esc(m.t)}</div>`).join("")||'<p class="mut sm">You both listened. Start the conversation: where do you see it differently?</p>'}</div><div class="row"><input id="ct" placeholder="Add your thought…"><button class="btn s" id="cs">Send</button></div>`;
-else h+=`<div class="lock" style="margin-top:16px">${LOCK}<div style="font-weight:700;margin-top:6px">Chat locked</div><p class="mut sm">Unlocks after you answer the questions and rate the clip.</p></div>`;
-return h},
-clip(id){const c=clip(id);if(!c)return"<p>Not found</p>";return `${c.ex?'<span class="tag ex">Example</span>':""}<span class="tag">${c.cat}</span><span class="tag">${c.type}</span><h1 style="font-size:1.5rem">${esc(c.title)}</h1><p class="mut sm">${esc(c.creator)}</p>
-${c.note?`<div class="card sm"><b>Your note:</b> ${esc(c.note)}</div>`:""}<a class="btn o" href="${esc(c.url)}" target="_blank" rel="noopener">Open link ↗</a>
+bridge(id,sp){const D=DB.d[id];if(D===undefined)return loading;if(!D||!D.b)return `<h1>Bridge not found</h1><p class="mut">It may have been deleted, or you're not a member. Open the invite link to join.</p>`;
+ const b=D.b,me=meOf(b),fr=frOf(b);if(!me)return "<p>Not a member</p>";const st=stage(me),fn=esc(frName(b));let cur=sp==null||sp===""?st:Math.min(+sp,st);if(!(cur>=1))cur=0;
+ const myA=D.answers.find(a=>a.user_id===ME),frA=fr&&D.answers.find(a=>a.user_id===fr.user_id),myR=D.ratings.find(r=>r.user_id===ME),frR=fr&&D.ratings.find(r=>r.user_id===fr.user_id);
+ let h=`<p class="mut sm" style="margin:6px 0">You & ${fn} · <a href="${esc(safeUrl(b.clip_url))}" target="_blank" rel="noopener">${esc(b.clip_title)}</a></p>`+stepbar(cur,st,id,me.role==="friend"?"Joined":"Invite");
+ const frStatus=(what,done)=>!fr?`${fn} hasn't joined yet.`:done?`🔒 ${fn} has ${what} — submit yours to see theirs.`:`${fn} hasn't ${what} yet.`;
+ if(cur===0){if(me.role==="owner")h+=`<h2>${fr?"✓ "+fn+" joined":"Invite "+fn}</h2>${fr?"":'<p class="mut sm">Text this to your friend. The link at the end lets them join this bridge.</p>'}<textarea rows="9" readonly id="itxt">${esc(inviteTxt(b))}</textarea><button class="btn o" id="cpi">Copy invite text</button>${navigator.share?'<button class="btn o" id="shi">Share…</button>':""}<button class="btn" onclick="go('bridge/${id}/1')">Next: Answer</button>`;
+  else h+=`<h2>✓ You joined ${fn}'s bridge</h2><p class="mut">Listen to <a href="${esc(safeUrl(b.clip_url))}" target="_blank" rel="noopener">${esc(b.clip_title)}</a>, then answer three questions.</p><button class="btn" onclick="go('bridge/${id}/1')">Next: Answer</button>`}
+ if(cur===1){if(!myA)h+=`<h2>Answer three questions</h2><p class="mut sm">About “${esc(b.clip_title)}”. <a href="${esc(safeUrl(b.clip_url))}" target="_blank" rel="noopener">Open link ↗</a></p>${QS.map((q,i)=>`<label class="sm">${i+1}. ${q}</label><textarea rows="3" class="q" maxlength="4000"></textarea>`).join("")}
+<p class="sm mut">${frStatus("answered",fr&&fr.answered_at)}</p><p class="sm" id="qhint" style="color:var(--r)"></p><button class="btn" id="qsave">Submit answers · Next: Rate</button>`;
+  else h+=`<h2>Answers</h2>${QS.map((q,i)=>`<div class="card"><div class="sm" style="font-weight:600">${i+1}. ${q}</div><div class="who">You</div><div class="qa">${esc(myA["a"+(i+1)])}</div>${frA?`<div class="who">${fn}</div><div class="qa fr">${esc(frA["a"+(i+1)])}</div>`:""}</div>`).join("")}
+${frA?"":`<p class="sm mut">${!fr?fn+" hasn't joined yet — you'll see their answers here when they do.":fn+" hasn't answered yet — you'll see their answers here when they do."}</p>`}<button class="btn" onclick="go('bridge/${id}/2')">${myR?"See ratings":"Next: Rate"}</button>`}
+ if(cur===2){if(!myR){const v=5;h+=`<h2>Rate it</h2><div class="card"><div class="emo" id="emo">${emo(v)}</div><div class="c" style="font-weight:700" id="rl">${lbl(v)} · ${v}</div><input type="range" id="rs" min="0" max="10" value="${v}"><div class="sl"><span>Propaganda</span><span>Neutral</span><span>Redpilled</span></div></div>
+<p class="sm mut">${frStatus("rated",fr&&fr.rated_at)}</p><button class="btn" id="rsave">Save rating · Unlock chat</button>`}
+  else h+=`<h2>Ratings</h2><div class="card"><b>You</b> · ${lbl(myR.score)} ${myR.score}${scale(myR.score)}</div>${frR?`<div class="card"><b>${fn}</b> · ${lbl(frR.score)} ${frR.score}${scale(frR.score)}</div>`:`<p class="sm mut">${!fr?fn+" hasn't joined yet.":fn+" hasn't rated yet."}</p>`}<button class="btn" onclick="go('bridge/${id}/3')">Next: Talk</button>`}
+ if(cur===3){let prev=null;h+=`<h2>💬 Talk</h2><div class="card sm" style="background:var(--bl);border:0">Your rating: <b>${lbl(myR.score)} ${myR.score}</b><br>${fn}: ${frR?`<b>${lbl(frR.score)} ${frR.score}</b>`:"<span class='mut'>hasn't rated yet — they'll see the chat once they do</span>"}</div><div id="chat">${D.messages.map(m=>{const mine=m.user_id===ME,who=mine?"":(m.user_id!==prev?`<div class="who">${fn}</div>`:"");prev=m.user_id;return who+`<div class="bub ${mine?"me":""}">${esc(m.body)}</div>`}).join("")||'<p class="mut sm">Start the conversation: where do you see it differently?</p>'}</div><div class="row"><input id="ct" placeholder="Add your thought…" maxlength="2000"><button class="btn s" id="cs">Send</button></div>`}
+ else h+=`<div class="lock" style="margin-top:16px">${LOCK}<div style="font-weight:700;margin-top:6px">Chat locked</div><p class="mut sm">Unlocks after you answer the questions and rate the clip.</p></div>`;
+ return h},
+clip(id){const c=clip(id);if(!c)return"<p>Not found</p>";return `${c.ex?'<span class="tag ex">Example</span>':""}<span class="tag">${esc(c.cat)}</span><span class="tag">${esc(c.type)}</span><h1 style="font-size:1.5rem">${esc(c.title)}</h1><p class="mut sm">${esc(c.creator)}</p>
+${c.note?`<div class="card sm"><b>Your note:</b> ${esc(c.note)}</div>`:""}<a class="btn o" href="${esc(safeUrl(c.url))}" target="_blank" rel="noopener">Open link ↗</a>
 <div class="card"><b>Community rating</b> <span class="mut sm">${c.votes} ratings</span><div style="margin-top:6px">${lbl(c.rating)} ${c.rating.toFixed(1)}</div>${scale(c.rating)}</div>
 ${c.lib?"":`<button class="btn o" onclick="clip('${id}').lib=1;save();toast('Added to Library');render()">Add to Library</button>`}<button class="btn" onclick="go('new/${id}')">🌉 Meet me on the Bridge with this</button>`},
-profile(){const lib=S.clips.filter(c=>c.lib);let body="";
+profile(){const lib=S.clips.filter(c=>c.lib),L=DB.list||[];let body="";
 if(profTab==="Library")body=lib.map(clipCard).join("")||'<p class="mut">Library is empty.</p>';
 if(profTab==="Add")body=`<label>Link (URL)</label><input id="aurl" type="url" placeholder="https://…"><label>Title</label><input id="atitle" placeholder="What is it called?"><label>Category</label><select id="acat">${TOPICS.map(t=>`<option>${t[0]}</option>`).join("")}</select>
 <label>Personal note</label><textarea id="anote" rows="4" maxlength="300" placeholder="Why does this matter to you?"></textarea><div class="mut sm" style="text-align:right"><span id="cnt">0</span>/300</div><button class="btn" id="asave">Save to Library</button>`;
 if(profTab==="Discover"){let l=[...S.clips].sort((a,b)=>b.votes-a.votes);if(feedCat==="Mine")l=l.filter(c=>S.topics.includes(c.cat));else if(feedCat!=="All")l=l.filter(c=>c.cat===feedCat);
 body=`<div class="chips">${["All",...(S.topics.length?["Mine"]:[]),...TOPICS.map(t=>t[0])].map(c=>`<button class="chip${c===feedCat?" on":""}" data-cat="${c}">${c==="Mine"?"My topics":c}</button>`).join("")}</div><p class="mut sm"><span class="tag ex">Example content</span></p>${l.map(clipCard).join("")||'<p class="mut">Nothing here.</p>'}`}
-if(profTab==="Bridges")body=S.bridges.map(b=>`<div class="card" onclick="go('bridge/${b.id}')" style="cursor:pointer"><b>You & ${esc(b.friend)}</b> <span class="mut sm">· ${stage(b)===3?"Chat open":"Next: "+STEPS[stage(b)]}</span></div>`).join("");
-if(profTab==="Settings")body=`<div class="card"><b>Demo settings</b><p class="mut sm">This is a clickable prototype. All content is example data saved only on this device.</p><button class="btn o" id="reset">Reset demo</button></div>`;
-return `<div class="c"><div style="width:72px;height:72px;border-radius:50%;background:var(--bl);margin:6px auto;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:700;color:var(--b)">${esc((S.user||"?")[0].toUpperCase())}</div><h1 style="font-size:1.5rem;margin:4px 0">${esc(S.user)}</h1><p class="mut sm" style="margin:0 0 10px">${S.topics.join(" · ")||"No topics picked"}</p></div>
-<div class="stat"><div><b>${S.sent}</b><span class="sm">Sent</span></div><div><b>${S.read}</b><span class="sm">Read</span></div></div>
+if(profTab==="Bridges")body=L.map(b=>`<div class="card" onclick="go('bridge/${b.id}')" style="cursor:pointer"><b>You & ${esc(frName(b))}</b> <span class="mut sm">· ${stage(meOf(b))===3?"Chat open":"Next: "+STEPS[stage(meOf(b))]}</span></div>`).join("")||'<p class="mut">No bridges yet.</p>';
+if(profTab==="Settings")body=`<div class="card"><b>Your name</b><input id="pname" maxlength="40" value="${esc(PROFILE.display_name)}" style="margin-top:8px"><button class="btn o s" id="psave">Save name</button><p class="mut sm">Used for new bridges you start or join.</p></div>
+<div class="card"><b>Account</b><p class="mut sm">You're signed in with a guest account on this device — no password needed. Your bridges are saved online, but only this browser can open them (don't clear site data). Email sign-in for other devices is coming soon.</p><button class="btn o" id="sout">Sign out</button></div>
+<div class="card"><b>Library</b><p class="mut sm">Your library and example clips are saved only on this device.</p><button class="btn o" id="reset">Reset library</button></div>`;
+return `<div class="c"><div style="width:72px;height:72px;border-radius:50%;background:var(--bl);margin:6px auto;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:700;color:var(--b)">${esc((PROFILE.display_name||"?")[0].toUpperCase())}</div><h1 style="font-size:1.5rem;margin:4px 0">${esc(PROFILE.display_name)}</h1><p class="mut sm" style="margin:0 0 10px">${esc(S.topics.join(" · "))||"No topics picked"}</p></div>
+<div class="stat"><div><b>${L.filter(b=>b.created_by===ME).length}</b><span class="sm">Sent</span></div><div><b>${L.filter(b=>meOf(b)?.rated_at).length}</b><span class="sm">Read</span></div></div>
 <div class="tabs sc" style="margin-top:14px">${["Library","Add","Discover","Bridges","Settings"].map(t=>`<button class="${t===profTab?"on":""}" data-pt="${t}">${t}</button>`).join("")}</div>${body}`}};
-function render(){const [r,id,sp]=(location.hash.slice(1)||"").split("/");let v=r;if(!S.user)v="welcome";else if(!V[v]||v==="welcome")v="bridges";
-const app=v!=="welcome"&&v!=="topics";$("#hd").innerHTML=LOGO+`<b>Bridge</b><span class="sp"></span>${S.user?`<span class="mut sm">Hi, ${esc(S.user)}</span>`:""}`;
+
+/* ---------- router / render ---------- */
+let lastKey="",unwatch=null;
+const parse=()=>{const [r,id,sp]=(location.hash.slice(1)||"").split("/");return{r,id,sp}};
+function viewOf(){const {r}=parse();if(!CONFIGURED)return"setup";if(r==="b")return"invite";if(!PROFILE)return"welcome";if(!V[r]||["welcome","setup","invite"].includes(r))return"bridges";return r}
+function snapshot(){const els=$$("#app input,#app textarea,#app select");const a=document.activeElement;return{vals:els.map(e=>e.value),focus:els.indexOf(a),sel:a&&a.selectionStart!=null?[a.selectionStart,a.selectionEnd]:null,y:window.scrollY}}
+function restore(s){const els=$$("#app input,#app textarea,#app select");if(els.length===s.vals.length)els.forEach((e,i)=>{if(e.type!=="hidden"&&!e.readOnly)e.value=s.vals[i]});const f=els[s.focus];if(f){f.focus();if(s.sel)try{f.setSelectionRange(...s.sel)}catch(e){}}window.scrollTo(0,s.y)}
+function render(refresh){const {id,sp}=parse(),v=viewOf(),key=v+"/"+id+"/"+(sp||"");const keep=refresh&&key===lastKey?snapshot():null;
+const app=!["welcome","topics","setup","invite"].includes(v);$("#hd").innerHTML=LOGO+`<b>Bridge</b><span class="sp"></span>${PROFILE?`<span class="mut sm">Hi, ${esc(PROFILE.display_name)}</span>`:""}`;
 $("#nav").style.display=app?"flex":"none";const tab={bridges:"bridges",bridge:"bridges",new:"new",profile:"profile",clip:"profile"}[v];
 $("#nav").innerHTML=["bridges","new","profile"].map(k=>`<button class="${k===tab?"on":""}" onclick="go('${k}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">${IC[k]}</svg>${NAVL[k]}</button>`).join("");
-$("#app").innerHTML=V[v](id,sp);window.scrollTo(0,0);(B[v]||(()=>{}))(id,sp)}
+$("#app").innerHTML=V[v](id,sp);if(keep)restore(keep);else if(key!==lastKey)window.scrollTo(0,0);lastKey=key;(B[v]||(()=>{}))(id,sp);
+if(v==="bridge"&&$("#chat")){const n=DB.d[id].messages.length;if(n!==lastMsgCount&&(!keep||n>lastMsgCount))window.scrollTo(0,document.body.scrollHeight);lastMsgCount=n}else lastMsgCount=-1}
+const sig=o=>JSON.stringify(o);
+async function loadList(){try{const l=await API.list();const ch=sig(l)!==sig(DB.list);DB.list=l;if(ch)render(true)}catch(e){fail(e)}}
+async function loadBridge(id){try{const d=await API.get(id);const ch=sig(d)!==sig(DB.d[id]);DB.d[id]=d;if(ch&&parse().id===id)render(true)}catch(e){fail(e)}}
+async function loadPreview(t){try{const p=await API.preview(t);DB.pv[t]=p;if(p&&p.is_member&&PROFILE){go("bridge/"+p.bridge_id);return}render(true)}catch(e){DB.pv[t]=null;fail(e)}}
+function onRoute(){if(unwatch){unwatch();unwatch=null}render();if(!CONFIGURED)return;const v=viewOf(),{id}=parse();
+ if(v==="bridges"||v==="profile"){loadList();unwatch=API.watch(null,loadList,10000)}
+ if(v==="bridge"){loadBridge(id);unwatch=API.watch(id,()=>loadBridge(id),POLL_MS)}
+ if(v==="invite")loadPreview(id)}
+
+/* ---------- behaviour ---------- */
 const B={
-welcome(){const ask=(t,ret)=>{$("#su").innerHTML=`<label style="text-align:left">${t}</label><input id="nm" placeholder="Your name" value="Paul"><button class="btn" id="nok">Continue</button>`;$("#nm").focus();$("#nok").onclick=()=>{const n=$("#nm").value.trim();if(!n)return toast("Please enter your name");S.user=n;save();go(ret?"bridges":"topics");render()}};
-$("#sbtn").onclick=()=>ask("What's your name?");$("#lbtn").onclick=()=>ask("Welcome back — your name",1)},
-topics(){$$(".topic").forEach(b=>b.onclick=()=>{const t=b.dataset.t;S.topics=S.topics.includes(t)?S.topics.filter(x=>x!==t):[...S.topics,t];save();render()});$("#tgo").onclick=()=>go("bridges")},
+welcome(){const ask=(t,ret,hint)=>{$("#su").innerHTML=`<label style="text-align:left">${t}</label><input id="nm" placeholder="Your name" maxlength="40">${hint?`<p class="mut sm" style="text-align:left">${hint}</p>`:""}<button class="btn" id="nok">Continue</button>`;$("#nm").focus();
+ const done=async()=>{const n=$("#nm").value.trim();if(!n)return toast("Please enter your name");busy($("#nok"),true);try{await API.saveProfile({display_name:n,topics:S.topics});go(ret?"bridges":"topics");onRoute()}catch(e){busy($("#nok"),false);fail(e)}};$("#nok").onclick=done;$("#nm").onkeydown=e=>{if(e.key==="Enter")done()}};
+ $("#sbtn").onclick=()=>ask("What's your name?");$("#lbtn").onclick=()=>ask("Welcome back — your name",1,"Accounts are saved per device for now, so on a new phone or browser you'll start fresh. Email sign-in is coming soon.")},
+topics(){$$(".topic").forEach(b=>b.onclick=()=>{const t=b.dataset.t;S.topics=S.topics.includes(t)?S.topics.filter(x=>x!==t):[...S.topics,t];save();render()});
+ $("#tgo").onclick=async()=>{try{await API.saveProfile({topics:S.topics})}catch(e){fail(e)}go("bridges")}},
+invite(tok){const j=$("#jgo");if(!j)return;const doJoin=async()=>{const n=$("#jname").value.trim();if(!n)return toast("Please enter your name");busy(j,true);
+ try{if(!PROFILE)await API.saveProfile({display_name:n,topics:[]});else await API.ensureUser();const id=await API.join(tok,n);DB.list=null;toast("You're on the bridge 🌉");go("bridge/"+id+"/1")}catch(e){busy(j,false);fail(e)}};
+ j.onclick=doJoin;$("#jname").onkeydown=e=>{if(e.key==="Enter")doJoin()}},
 new(){const sel=$("#mclip");sel.onchange=()=>$("#paste").style.display=sel.value?"none":"block";
-$("#mgo").onclick=()=>{let c=clip(sel.value);if(!c){const url=$("#murl").value.trim();if(!url)return toast("Paste a link or pick a clip");const t=/youtu|vimeo|video/i.test(url)?"Video":/podcast|spotify|\.mp3/i.test(url)?"Podcast":"Article";
-c={id:"k"+Date.now(),title:$("#mtitle").value.trim()||url,creator:"Added by you",type:t,cat:S.topics[0]||"Politics",url,rating:5,votes:0,lib:1};S.clips.unshift(c)}
-const f=$("#mfriend").value.trim()||"Friend",b={id:"b"+Date.now(),friend:f,clip:c.id,reward:$("#mrew").value,ans:null,rate:null,chat:[]};S.bridges.unshift(b);S.sent++;save();
-const txt=inviteTxt(b,c);$("#mout").innerHTML=`<div class="card"><b>Invite for ${esc(f)}</b><textarea rows="6" readonly id="itxt">${esc(txt)}</textarea><button class="btn o" id="cp">Copy invite text</button><button class="btn" id="nx" onclick="go('bridge/${b.id}/1')">Next: Answer 3 questions</button></div>`;$("#cp").onclick=()=>copy(txt);$("#mgo").style.display="none"}},
-bridge(id,sp){const b=br(id);if(!b)return;
-$$(".q").forEach(t=>t.oninput=()=>$("#qhint").textContent="");const q=$("#qsave");if(q)q.onclick=()=>{const a=$$(".q").map(t=>t.value.trim());if(a.some(x=>x.length<3))return $("#qhint").textContent="Please answer all three questions to continue.";b.ans=a;save();go(`bridge/${id}/2`)};
+$("#mgo").onclick=async()=>{let c=clip(sel.value);if(!c){let url=$("#murl").value.trim();if(!url)return toast("Paste a link or pick a clip");if(!/^https?:\/\//i.test(url))url="https://"+url;
+ c={id:"k"+Date.now(),title:$("#mtitle").value.trim()||url,creator:"Added by you",type:kindOf(url),cat:S.topics[0]||"Politics",url,rating:5,votes:0,lib:1,_new:1}}
+ const f=$("#mfriend").value.trim(),rew=$("#mrew").value.trim();busy($("#mgo"),true);
+ try{const b=await API.createBridge({title:c.title.slice(0,300),url:c.url,type:c.type,cat:c.cat,creator:c.ex?"":c.creator,friend:f,reward:rew&&+rew>0?String(Math.round(+rew)):""});
+  if(c._new){delete c._new;S.clips.unshift(c);save()}b.bridge_members=[{user_id:ME,display_name:PROFILE.display_name,role:"owner"}];DB.list=null;
+  const txt=inviteTxt(b);$("#mout").innerHTML=`<div class="card"><b>Invite for ${esc(f||"your friend")}</b><p class="mut sm">Text this to your friend. The link at the end lets them join.</p><textarea rows="9" readonly id="itxt">${esc(txt)}</textarea><button class="btn o" id="cp">Copy invite text</button>${navigator.share?'<button class="btn o" id="sh">Share…</button>':""}<button class="btn" id="nx" onclick="go('bridge/${b.id}/1')">Next: Answer 3 questions</button></div>`;
+  $("#cp").onclick=()=>copy(txt);if($("#sh"))$("#sh").onclick=()=>share(txt);$("#mgo").style.display="none"}catch(e){busy($("#mgo"),false);fail(e)}}},
+bridge(id){const D=DB.d[id];if(!D||!D.b)return;const b=D.b;
+if($("#cpi"))$("#cpi").onclick=()=>copy(inviteTxt(b));if($("#shi"))$("#shi").onclick=()=>share(inviteTxt(b));
+$$(".q").forEach(t=>t.oninput=()=>$("#qhint").textContent="");const q=$("#qsave");if(q)q.onclick=async()=>{const a=$$(".q").map(t=>t.value.trim());if(a.some(x=>x.length<3))return $("#qhint").textContent="Please answer all three questions to continue.";
+ if(!confirm("Submit your answers? You can't edit them afterwards."))return;busy(q,true);try{await API.answer(id,a);await loadBridge(id);go(`bridge/${id}/2`)}catch(e){busy(q,false);fail(e)}};
 const rs=$("#rs");if(rs){rs.oninput=e=>{const v=+e.target.value;$("#emo").textContent=emo(v);$("#rl").textContent=lbl(v)+" · "+v};
-$("#rsave").onclick=()=>{const v=+rs.value,c=clip(b.clip);if(b.rate==null){c.rating=(c.rating*c.votes+v)/(c.votes+1);c.votes++;S.read++}b.rate=v;save();toast("Chat unlocked 💬");go(`bridge/${id}/3`)}}
-const cs=$("#cs");if(cs){const send=()=>{const t=$("#ct").value.trim();if(!t)return;b.chat.push({me:1,t});save();render();setTimeout(()=>{b.chat.push({me:0,t:["Good point. I see it differently, but I get where you're coming from.","What do you think is the biggest thing we see differently?","I hadn't thought of it that way. Tell me more."][b.chat.length%3]});save();if(location.hash.startsWith("#bridge/"+b.id))render()},1200)};cs.onclick=send;$("#ct").onkeydown=e=>{if(e.key==="Enter")send()}}},
+ $("#rsave").onclick=async()=>{busy($("#rsave"),true);try{await API.rate(id,+rs.value);await loadBridge(id);toast("Chat unlocked 💬");go(`bridge/${id}/3`)}catch(e){busy($("#rsave"),false);fail(e)}}}
+const cs=$("#cs");if(cs){let sending=false;const send=async()=>{const t=$("#ct").value.trim();if(!t||sending)return;sending=true;cs.disabled=true;try{await API.send(id,t);$("#ct").value="";await loadBridge(id)}catch(e){fail(e)}sending=false;if($("#cs"))$("#cs").disabled=false;if($("#ct"))$("#ct").focus()};cs.onclick=send;$("#ct").onkeydown=e=>{if(e.key==="Enter")send()}}},
 profile(){$$("[data-pt]").forEach(b=>b.onclick=()=>{profTab=b.dataset.pt;render()});$$("[data-cat]").forEach(b=>b.onclick=()=>{feedCat=b.dataset.cat;render()});
-const an=$("#anote");if(an){an.oninput=e=>$("#cnt").textContent=e.target.value.length;$("#asave").onclick=()=>{const url=$("#aurl").value.trim();if(!url)return toast("Please paste a link");
-const t=/youtu|vimeo|video/i.test(url)?"Video":/podcast|spotify|\.mp3/i.test(url)?"Podcast":"Article";const c={id:"k"+Date.now(),title:$("#atitle").value.trim()||url,creator:"Added by you",type:t,cat:$("#acat").value,url,note:an.value.trim(),rating:5,votes:0,lib:1};
+const an=$("#anote");if(an){an.oninput=e=>$("#cnt").textContent=e.target.value.length;$("#asave").onclick=()=>{let url=$("#aurl").value.trim();if(!url)return toast("Please paste a link");if(!/^https?:\/\//i.test(url))url="https://"+url;
+const c={id:"k"+Date.now(),title:$("#atitle").value.trim()||url,creator:"Added by you",type:kindOf(url),cat:$("#acat").value,url,note:an.value.trim(),rating:5,votes:0,lib:1};
 S.clips.unshift(c);save();toast("Saved to your Library");go("clip/"+c.id)}}
-const r=$("#reset");if(r)r.onclick=()=>{if(confirm("Reset the demo? This clears your name and all changes.")){localStorage.removeItem(KEY);S=seed();save();profTab="Library";go("");render()}}}};
-window.onhashchange=render;render();
+const ps=$("#psave");if(ps)ps.onclick=async()=>{const n=$("#pname").value.trim();if(!n)return toast("Please enter your name");try{await API.saveProfile({display_name:n});toast("Saved");render()}catch(e){fail(e)}};
+const so=$("#sout");if(so)so.onclick=async()=>{if(!confirm("Sign out? With a guest account you won't be able to get back to your bridges on this device."))return;try{await API.signOut()}catch(e){}go("");onRoute()};
+const r=$("#reset");if(r)r.onclick=()=>{if(confirm("Reset your library? This clears clips saved on this device (your bridges are not affected)."))  {localStorage.removeItem(KEY);S=seedLocal();S.topics=PROFILE.topics||[];save();profTab="Library";render()}}}};
+
+/* ---------- boot ---------- */
+(async()=>{const qb=new URLSearchParams(location.search).get("b");if(qb){history.replaceState(null,"",location.pathname+"#b/"+encodeURIComponent(qb))}
+$("#app").innerHTML=loading;if(CONFIGURED){try{await API.boot()}catch(e){fail(e)}}window.onhashchange=onRoute;onRoute()})();
 </script></body></html>

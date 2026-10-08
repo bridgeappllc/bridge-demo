@@ -1,0 +1,141 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bridge</title>
+<style>
+:root{--n:#14213d;--b:#2f6fd6;--bl:#eaf1fc;--m:#5b6680;--l:#e3e8f2;--g:#1f9d55;--r:#d64545}
+*{box-sizing:border-box}html,body{margin:0;background:#eef2f8}
+body{font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--n);line-height:1.4}
+#phone{max-width:430px;min-height:100vh;margin:0 auto;background:#fff;position:relative;box-shadow:0 0 40px rgba(20,33,61,.08)}
+@media(min-width:600px){#phone{margin:20px auto;min-height:calc(100vh - 40px);border-radius:28px;overflow:hidden}}
+header{position:sticky;top:0;z-index:5;background:#fff;display:flex;align-items:center;gap:8px;padding:14px 18px;border-bottom:1px solid var(--l)}
+header b{font-size:1.25rem}header .sp{flex:1}
+main{padding:16px 18px 100px}
+nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;display:flex;background:#fff;border-top:1px solid var(--l);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;border:0;background:none;padding:9px 0 11px;font:inherit;font-size:.75rem;color:var(--m);display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
+nav button svg{width:22px;height:22px}nav button.on{color:var(--b);font-weight:700}
+h1{font-size:1.9rem;margin:10px 0 8px;line-height:1.15}h2{font-size:1.2rem;margin:18px 0 8px}
+.mut{color:var(--m)}.sm{font-size:.85rem}.c{text-align:center}
+.btn{display:block;width:100%;border:2px solid var(--b);background:var(--b);color:#fff;border-radius:999px;padding:13px;font:inherit;font-weight:700;font-size:1.05rem;cursor:pointer;margin:10px 0}
+a.btn{text-decoration:none;text-align:center}.btn.o{background:#fff;color:var(--b)}.btn.s{display:inline-block;width:auto;padding:8px 16px;font-size:.9rem;margin:4px 0}.btn:disabled{opacity:.45}
+.card{border:1px solid var(--l);border-radius:16px;padding:14px;margin:12px 0;background:#fff;box-shadow:0 2px 8px rgba(20,33,61,.04)}
+.tag{display:inline-block;font-size:.7rem;font-weight:700;border-radius:999px;padding:3px 9px;background:var(--bl);color:var(--b);margin-right:4px}
+.tag.ex{background:#fff4e0;color:#a15c00}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 8px}.chip{flex:none;border:1px solid var(--l);background:#fff;border-radius:999px;padding:7px 14px;font:inherit;font-size:.9rem;cursor:pointer;color:var(--n)}
+.chip.on{background:var(--b);border-color:var(--b);color:#fff}
+.tabs{display:flex;border-bottom:1px solid var(--l);margin-bottom:8px}.tabs button{flex:1;border:0;background:none;padding:10px;font:inherit;font-weight:600;color:var(--m);border-bottom:3px solid transparent;cursor:pointer}.tabs button.on{color:var(--b);border-color:var(--b)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.topic{border:2px solid var(--l);border-radius:16px;padding:18px 10px;text-align:center;font-weight:700;cursor:pointer;background:#fff;font:inherit;color:var(--n)}.topic span{display:block;font-size:1.8rem}.topic.on{border-color:var(--b);background:var(--bl)}
+label{display:block;font-weight:600;margin:14px 0 6px}input,textarea,select{width:100%;padding:12px;border:1px solid var(--l);border-radius:12px;font:inherit;color:var(--n);background:#fff}textarea{resize:vertical}
+.scale{position:relative;height:10px;border-radius:5px;background:linear-gradient(90deg,#d64545,#c9ced8 50%,#2f6fd6);margin:8px 0 4px}.scale i{position:absolute;top:-5px;width:20px;height:20px;border-radius:50%;background:#fff;border:3px solid var(--n);transform:translateX(-50%)}
+.sl{display:flex;justify-content:space-between;font-size:.72rem;color:var(--m)}
+input[type=range]{padding:0;border:0;accent-color:var(--b)}
+.emo{font-size:2.6rem;text-align:center}
+.lock{background:var(--bl);border-radius:16px;padding:18px;text-align:center}.lock svg{width:36px;height:36px}
+.bub{max-width:80%;padding:9px 13px;border-radius:16px;margin:6px 0;background:var(--bl)}.bub.me{margin-left:auto;background:var(--b);color:#fff}
+.stat{display:flex;gap:10px}.stat div{flex:1;background:var(--bl);border-radius:14px;padding:12px;text-align:center}.stat b{display:block;font-size:1.5rem}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--n);color:#fff;padding:10px 16px;border-radius:12px;font-size:.9rem;z-index:20}
+a{color:var(--b)}.row{display:flex;gap:8px;align-items:center}
+.steps{display:flex;gap:4px;margin:8px 0 14px}.steps button{flex:1;border:0;background:none;padding:0;font:inherit;font-size:.68rem;color:var(--m);text-align:center;cursor:pointer}
+.steps button i{display:block;height:6px;border-radius:3px;background:var(--l);margin-bottom:5px}.steps .done i{background:var(--g)}.steps .done{color:var(--g)}.steps .cur i{background:var(--b)}.steps .cur{color:var(--b);font-weight:700}.steps .lk{opacity:.5}
+.tabs.sc{overflow-x:auto}.tabs.sc button{flex:none;padding:10px 12px;font-size:.88rem}
+.big{font-size:1.15rem;padding:16px}
+</style></head><body><div id="phone"><header id="hd"></header><main id="app"></main><nav id="nav"></nav></div>
+<script>
+const KEY="bridge_demo_v3",FRIEND="Sam";
+const LOGO='<svg viewBox="0 0 48 32" width="40" height="27" fill="none" stroke-linecap="round"><path d="M4 28 C10 6 38 6 44 28" stroke="#2f6fd6" stroke-width="4"/><path d="M12 28 C16 15 32 15 36 28" stroke="#14213d" stroke-width="3.5"/><path d="M2 28h44" stroke="#14213d" stroke-width="3"/></svg>';
+const LOCK='<svg viewBox="0 0 24 24" fill="none" stroke="#14213d" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+const IC={bridges:'<path d="M2 18C6 7 18 7 22 18M2 18h20M7 18v-4M12 18v-6M17 18v-4"/>',new:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',profile:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/>'};
+const NAVL={bridges:"Bridges",new:"New Bridge",profile:"Profile"};
+const TOPICS=[["Politics","🏛️"],["Economics","📈"],["Culture","🎭"],["Education","🎓"],["Religion","🕊️"],["Science","🔬"]];
+const QS=["What's one specific moment, insight, or story that stuck with you the most—and why?","Was there anything said that you strongly agreed or disagreed with? What was it?","If you had to describe the main takeaway in one or two sentences, what would you say—and did it change or reinforce how you see the topic?"];
+const STEPS=["Invite","Answer","Rate","Talk"];
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function seed(){return{user:null,topics:[],sent:3,read:5,clips:[
+{id:"k1",ex:1,title:"The Thermostat Debate: Two Scientists Disagree",creator:"Open Lens Media (fictional)",type:"Video",cat:"Science",url:"https://example.com/video/thermostat-debate",rating:4.6,votes:212,lib:1},
+{id:"k2",ex:1,title:"Is 'Trump Derangement Syndrome' a Real Thing?",creator:"The Middle Ground Pod (fictional)",type:"Podcast",cat:"Politics",url:"https://example.com/podcast/tds-episode",rating:5.8,votes:347,lib:1},
+{id:"k3",ex:1,title:"Who Pays for Student Debt Forgiveness?",creator:"Main Street Economics (fictional)",type:"Article",cat:"Economics",url:"https://example.com/article/student-debt",rating:5.1,votes:98,lib:0},
+{id:"k4",ex:1,title:"Faith and Politics at the Dinner Table",creator:"Common Table Stories (fictional)",type:"Podcast",cat:"Religion",url:"https://example.com/podcast/dinner-table",rating:4.9,votes:156,lib:0},
+{id:"k5",ex:1,title:"What Schools Should Teach About History",creator:"Classroom Voices (fictional)",type:"Video",cat:"Education",url:"https://example.com/video/history-class",rating:3.8,votes:120,lib:0}],
+bridges:[
+{id:"b1",ex:1,friend:FRIEND,clip:"k2",reward:"",ans:null,rate:null,chat:[]},
+{id:"b2",ex:1,friend:"Jordan",clip:"k1",reward:"5",ans:["The part where both scientists agreed on the data but not the solution.","I agreed that cheap energy matters for families.","They disagree on the fix more than the facts. It reinforced that I should look at costs too."],rate:5,chat:[{me:0,t:"Funny how differently we heard the same video."},{me:1,t:"Right? Now I actually want to hear your take."}]}]}}
+let S;try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}if(!S||!S.clips)S=seed();
+const save=()=>localStorage.setItem(KEY,JSON.stringify(S));save();
+const clip=id=>S.clips.find(c=>c.id===id),br=id=>S.bridges.find(b=>b.id===id);
+const lbl=v=>v<3.5?"Propaganda":v>6.5?"Redpilled":"Neutral";
+const emo=v=>["😠","😠","😒","😕","🤔","😐","🙂","😊","😃","🤯","🔥"][Math.round(v)];
+function toast(t){$$(".toast").forEach(x=>x.remove());const d=document.createElement("div");d.className="toast";d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),2000)}
+function copy(t){(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast("Copied to clipboard"),()=>prompt("Copy this:",t))}
+const go=h=>location.hash=h;
+// stage: 1 Answer, 2 Rate, 3 Talk (0 Invite is done once bridge exists)
+const stage=b=>!b.ans?1:b.rate==null?2:3;
+const inviteTxt=(b,c)=>`Meet me on the Bridge: listen to "${c.title}" in the next 3 days.\n${c.url}${b.reward>0?`\nI'll send you $${b.reward} when you finish it. (example reward)`:""}\nThen let's answer 3 quick questions, rate it, and talk about where we see it differently.`;
+function scale(v){return `<div class="scale"><i style="left:${v*10}%"></i></div><div class="sl"><span>Propaganda</span><span>Neutral</span><span>Redpilled</span></div>`}
+function stepbar(cur,reach,id){return `<div class="steps">${STEPS.map((t,i)=>{const cl=i<reach?"done":i===cur?"cur":i>reach?"lk":"";return `<button class="${cl}${i===cur?" cur":""}" ${id&&i<=reach?`onclick="go('bridge/${id}/${i}')"`:""}><i></i>${i<reach?"✓ ":i>reach?"🔒 ":""}${t}</button>`}).join("")}</div>`}
+function clipCard(c){return `<div class="card" style="cursor:pointer" onclick="go('clip/${c.id}')">${c.ex?'<span class="tag ex">Example</span>':""}<span class="tag">${c.cat}</span><span class="tag">${c.type}</span>
+<div style="font-weight:700;font-size:1.05rem;margin:8px 0 2px">${esc(c.title)}</div><div class="mut sm">${esc(c.creator)}</div>
+<div class="sm" style="margin-top:10px">Community rating: <b>${lbl(c.rating)} ${c.rating.toFixed(1)}</b> <span class="mut">(${c.votes})</span></div>${scale(c.rating)}</div>`}
+let feedCat="All",profTab="Library";
+const V={
+welcome(){return `<div class="c" style="padding-top:30px">${LOGO.replace('width="40" height="27"','width="96" height="64"')}<h1 style="font-size:2.4rem">Bridge</h1>
+<p style="font-weight:700;font-size:1.25rem;margin:0 0 10px">We don't have to agree to understand each other.</p><p class="mut" style="font-size:1.05rem">Listen to the same thing, show you listened, then talk about where you see it differently.</p>
+<div id="su" style="margin-top:36px"><button class="btn" id="sbtn">Sign Up Free</button><button class="btn o" id="lbtn">I Have an Account</button></div><p class="mut sm">Privacy Policy | Terms of Service</p></div>`},
+topics(){return `<h1>Pick your topics</h1><p class="mut">Choose 3 or more.</p><div class="grid">${TOPICS.map(([t,e])=>`<button class="topic${S.topics.includes(t)?" on":""}" data-t="${t}"><span>${e}</span>${t}</button>`).join("")}</div>
+<button class="btn" id="tgo" ${S.topics.length<3?"disabled":""}>Continue (${S.topics.length}/3)</button><button class="btn o" onclick="go('bridges')">Skip</button>`},
+bridges(){return `<h1>Your Bridges</h1><p class="mut">Invite a friend, listen, answer, rate, then talk.</p><button class="btn big" onclick="go('new')">🌉 Meet Me on the Bridge</button>
+${S.bridges.map(b=>{const c=clip(b.clip),st=stage(b);return `<div class="card" style="cursor:pointer" onclick="go('bridge/${b.id}')">${b.ex?'<span class="tag ex">Example</span>':""}<div style="font-weight:700;margin:6px 0 2px">You & ${esc(b.friend)}</div><div class="mut sm">${esc(c?c.title:"")}</div>
+${stepbar(st,st)}<div class="sm">${st===3?"💬 Chat open":"Next: <b>"+STEPS[st]+"</b>"}</div></div>`}).join("")}`},
+new(pre){return stepbar(0,0)+`<h1>Meet Me on the Bridge</h1><p class="mut">Pick something for you and a friend to listen to.</p><label>Pick a clip</label><select id="mclip"><option value="">— Paste a new link instead —</option>${S.clips.map(c=>`<option value="${c.id}" ${c.id===(pre||"k2")?"selected":""}>${esc(c.title)}</option>`).join("")}</select>
+<div id="paste" style="display:none"><label>Link (URL)</label><input id="murl" type="url" placeholder="https://…"><label>Title</label><input id="mtitle" placeholder="What is it called?"></div>
+<label>Friend's name</label><input id="mfriend" value="${FRIEND}"><label>Listen reward (optional)</label><div class="row"><span style="font-weight:700">$</span><input id="mrew" type="number" min="0" step="1" placeholder="e.g. 5"></div><p class="mut sm">Example only — no payments are made in this demo.</p>
+<button class="btn" id="mgo">Create invite</button><div id="mout"></div>`},
+bridge(id,sp){const b=br(id);if(!b)return"<p>Not found</p>";const st=stage(b);let cur=sp==null||sp===""?st:Math.min(+sp,st);if(!(cur>=1))cur=0;const c=clip(b.clip);
+let h=`${b.ex?'<span class="tag ex">Example</span>':""}<p class="mut sm" style="margin:6px 0">You & ${esc(b.friend)} · <a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.title)}</a></p>`+stepbar(cur,st,id);
+if(cur===0)h+=`<h2>Invite sent</h2><textarea rows="6" readonly>${esc(inviteTxt(b,c))}</textarea><button class="btn o" onclick="copy(inviteTxt(br('${id}'),clip(br('${id}').clip)))">Copy invite text</button><button class="btn" onclick="go('bridge/${id}/1')">Next: Answer</button>`;
+if(cur===1){const a=b.ans||["","",""];h+=`<h2>Answer three questions</h2><p class="mut sm">About “${esc(c.title)}”. <a href="${esc(c.url)}" target="_blank" rel="noopener">Open link ↗</a></p>${QS.map((q,i)=>`<label class="sm">${i+1}. ${q}</label><textarea rows="3" class="q">${esc(a[i])}</textarea>`).join("")}
+<p class="sm" id="qhint" style="color:var(--r)"></p><button class="btn" id="qsave">Save answers · Next: Rate</button>`}
+if(cur===2){const v=b.rate??5;h+=`<h2>Rate it</h2><div class="card"><div class="emo" id="emo">${emo(v)}</div><div class="c" style="font-weight:700" id="rl">${lbl(v)} · ${v}</div><input type="range" id="rs" min="0" max="10" value="${v}"><div class="sl"><span>Propaganda</span><span>Neutral</span><span>Redpilled</span></div></div>
+<div class="card"><b>Community rating</b> <span class="mut sm">${c.votes} ratings</span><div style="margin-top:6px">${lbl(c.rating)} ${c.rating.toFixed(1)}</div>${scale(c.rating)}</div><button class="btn" id="rsave">Save rating · Unlock chat</button>`}
+if(cur===3)h+=`<h2>💬 Talk</h2><div class="card sm" style="background:var(--bl);border:0">Your rating: <b>${lbl(b.rate)} ${b.rate}</b></div><div id="chat">${b.chat.map(m=>`<div class="bub ${m.me?"me":""}">${esc(m.t)}</div>`).join("")||'<p class="mut sm">You both listened. Start the conversation: where do you see it differently?</p>'}</div><div class="row"><input id="ct" placeholder="Add your thought…"><button class="btn s" id="cs">Send</button></div>`;
+else h+=`<div class="lock" style="margin-top:16px">${LOCK}<div style="font-weight:700;margin-top:6px">Chat locked</div><p class="mut sm">Unlocks after you answer the questions and rate the clip.</p></div>`;
+return h},
+clip(id){const c=clip(id);if(!c)return"<p>Not found</p>";return `${c.ex?'<span class="tag ex">Example</span>':""}<span class="tag">${c.cat}</span><span class="tag">${c.type}</span><h1 style="font-size:1.5rem">${esc(c.title)}</h1><p class="mut sm">${esc(c.creator)}</p>
+${c.note?`<div class="card sm"><b>Your note:</b> ${esc(c.note)}</div>`:""}<a class="btn o" href="${esc(c.url)}" target="_blank" rel="noopener">Open link ↗</a>
+<div class="card"><b>Community rating</b> <span class="mut sm">${c.votes} ratings</span><div style="margin-top:6px">${lbl(c.rating)} ${c.rating.toFixed(1)}</div>${scale(c.rating)}</div>
+${c.lib?"":`<button class="btn o" onclick="clip('${id}').lib=1;save();toast('Added to Library');render()">Add to Library</button>`}<button class="btn" onclick="go('new/${id}')">🌉 Meet me on the Bridge with this</button>`},
+profile(){const lib=S.clips.filter(c=>c.lib);let body="";
+if(profTab==="Library")body=lib.map(clipCard).join("")||'<p class="mut">Library is empty.</p>';
+if(profTab==="Add")body=`<label>Link (URL)</label><input id="aurl" type="url" placeholder="https://…"><label>Title</label><input id="atitle" placeholder="What is it called?"><label>Category</label><select id="acat">${TOPICS.map(t=>`<option>${t[0]}</option>`).join("")}</select>
+<label>Personal note</label><textarea id="anote" rows="4" maxlength="300" placeholder="Why does this matter to you?"></textarea><div class="mut sm" style="text-align:right"><span id="cnt">0</span>/300</div><button class="btn" id="asave">Save to Library</button>`;
+if(profTab==="Discover"){let l=[...S.clips].sort((a,b)=>b.votes-a.votes);if(feedCat==="Mine")l=l.filter(c=>S.topics.includes(c.cat));else if(feedCat!=="All")l=l.filter(c=>c.cat===feedCat);
+body=`<div class="chips">${["All",...(S.topics.length?["Mine"]:[]),...TOPICS.map(t=>t[0])].map(c=>`<button class="chip${c===feedCat?" on":""}" data-cat="${c}">${c==="Mine"?"My topics":c}</button>`).join("")}</div><p class="mut sm"><span class="tag ex">Example content</span></p>${l.map(clipCard).join("")||'<p class="mut">Nothing here.</p>'}`}
+if(profTab==="Bridges")body=S.bridges.map(b=>`<div class="card" onclick="go('bridge/${b.id}')" style="cursor:pointer"><b>You & ${esc(b.friend)}</b> <span class="mut sm">· ${stage(b)===3?"Chat open":"Next: "+STEPS[stage(b)]}</span></div>`).join("");
+if(profTab==="Settings")body=`<div class="card"><b>Demo settings</b><p class="mut sm">This is a clickable prototype. All content is example data saved only on this device.</p><button class="btn o" id="reset">Reset demo</button></div>`;
+return `<div class="c"><div style="width:72px;height:72px;border-radius:50%;background:var(--bl);margin:6px auto;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:700;color:var(--b)">${esc((S.user||"?")[0].toUpperCase())}</div><h1 style="font-size:1.5rem;margin:4px 0">${esc(S.user)}</h1><p class="mut sm" style="margin:0 0 10px">${S.topics.join(" · ")||"No topics picked"}</p></div>
+<div class="stat"><div><b>${S.sent}</b><span class="sm">Sent</span></div><div><b>${S.read}</b><span class="sm">Read</span></div></div>
+<div class="tabs sc" style="margin-top:14px">${["Library","Add","Discover","Bridges","Settings"].map(t=>`<button class="${t===profTab?"on":""}" data-pt="${t}">${t}</button>`).join("")}</div>${body}`}};
+function render(){const [r,id,sp]=(location.hash.slice(1)||"").split("/");let v=r;if(!S.user)v="welcome";else if(!V[v]||v==="welcome")v="bridges";
+const app=v!=="welcome"&&v!=="topics";$("#hd").innerHTML=LOGO+`<b>Bridge</b><span class="sp"></span>${S.user?`<span class="mut sm">Hi, ${esc(S.user)}</span>`:""}`;
+$("#nav").style.display=app?"flex":"none";const tab={bridges:"bridges",bridge:"bridges",new:"new",profile:"profile",clip:"profile"}[v];
+$("#nav").innerHTML=["bridges","new","profile"].map(k=>`<button class="${k===tab?"on":""}" onclick="go('${k}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">${IC[k]}</svg>${NAVL[k]}</button>`).join("");
+$("#app").innerHTML=V[v](id,sp);window.scrollTo(0,0);(B[v]||(()=>{}))(id,sp)}
+const B={
+welcome(){const ask=(t,ret)=>{$("#su").innerHTML=`<label style="text-align:left">${t}</label><input id="nm" placeholder="Your name" value="Paul"><button class="btn" id="nok">Continue</button>`;$("#nm").focus();$("#nok").onclick=()=>{const n=$("#nm").value.trim();if(!n)return toast("Please enter your name");S.user=n;save();go(ret?"bridges":"topics");render()}};
+$("#sbtn").onclick=()=>ask("What's your name?");$("#lbtn").onclick=()=>ask("Welcome back — your name",1)},
+topics(){$$(".topic").forEach(b=>b.onclick=()=>{const t=b.dataset.t;S.topics=S.topics.includes(t)?S.topics.filter(x=>x!==t):[...S.topics,t];save();render()});$("#tgo").onclick=()=>go("bridges")},
+new(){const sel=$("#mclip");sel.onchange=()=>$("#paste").style.display=sel.value?"none":"block";
+$("#mgo").onclick=()=>{let c=clip(sel.value);if(!c){const url=$("#murl").value.trim();if(!url)return toast("Paste a link or pick a clip");const t=/youtu|vimeo|video/i.test(url)?"Video":/podcast|spotify|\.mp3/i.test(url)?"Podcast":"Article";
+c={id:"k"+Date.now(),title:$("#mtitle").value.trim()||url,creator:"Added by you",type:t,cat:S.topics[0]||"Politics",url,rating:5,votes:0,lib:1};S.clips.unshift(c)}
+const f=$("#mfriend").value.trim()||"Friend",b={id:"b"+Date.now(),friend:f,clip:c.id,reward:$("#mrew").value,ans:null,rate:null,chat:[]};S.bridges.unshift(b);S.sent++;save();
+const txt=inviteTxt(b,c);$("#mout").innerHTML=`<div class="card"><b>Invite for ${esc(f)}</b><textarea rows="6" readonly id="itxt">${esc(txt)}</textarea><button class="btn o" id="cp">Copy invite text</button><button class="btn" id="nx" onclick="go('bridge/${b.id}/1')">Next: Answer 3 questions</button></div>`;$("#cp").onclick=()=>copy(txt);$("#mgo").style.display="none"}},
+bridge(id,sp){const b=br(id);if(!b)return;
+$$(".q").forEach(t=>t.oninput=()=>$("#qhint").textContent="");const q=$("#qsave");if(q)q.onclick=()=>{const a=$$(".q").map(t=>t.value.trim());if(a.some(x=>x.length<3))return $("#qhint").textContent="Please answer all three questions to continue.";b.ans=a;save();go(`bridge/${id}/2`)};
+const rs=$("#rs");if(rs){rs.oninput=e=>{const v=+e.target.value;$("#emo").textContent=emo(v);$("#rl").textContent=lbl(v)+" · "+v};
+$("#rsave").onclick=()=>{const v=+rs.value,c=clip(b.clip);if(b.rate==null){c.rating=(c.rating*c.votes+v)/(c.votes+1);c.votes++;S.read++}b.rate=v;save();toast("Chat unlocked 💬");go(`bridge/${id}/3`)}}
+const cs=$("#cs");if(cs){const send=()=>{const t=$("#ct").value.trim();if(!t)return;b.chat.push({me:1,t});save();render();setTimeout(()=>{b.chat.push({me:0,t:["Good point. I see it differently, but I get where you're coming from.","What do you think is the biggest thing we see differently?","I hadn't thought of it that way. Tell me more."][b.chat.length%3]});save();if(location.hash.startsWith("#bridge/"+b.id))render()},1200)};cs.onclick=send;$("#ct").onkeydown=e=>{if(e.key==="Enter")send()}}},
+profile(){$$("[data-pt]").forEach(b=>b.onclick=()=>{profTab=b.dataset.pt;render()});$$("[data-cat]").forEach(b=>b.onclick=()=>{feedCat=b.dataset.cat;render()});
+const an=$("#anote");if(an){an.oninput=e=>$("#cnt").textContent=e.target.value.length;$("#asave").onclick=()=>{const url=$("#aurl").value.trim();if(!url)return toast("Please paste a link");
+const t=/youtu|vimeo|video/i.test(url)?"Video":/podcast|spotify|\.mp3/i.test(url)?"Podcast":"Article";const c={id:"k"+Date.now(),title:$("#atitle").value.trim()||url,creator:"Added by you",type:t,cat:$("#acat").value,url,note:an.value.trim(),rating:5,votes:0,lib:1};
+S.clips.unshift(c);save();toast("Saved to your Library");go("clip/"+c.id)}}
+const r=$("#reset");if(r)r.onclick=()=>{if(confirm("Reset the demo? This clears your name and all changes.")){localStorage.removeItem(KEY);S=seed();save();profTab="Library";go("");render()}}}};
+window.onhashchange=render;render();
+</script></body></html>
