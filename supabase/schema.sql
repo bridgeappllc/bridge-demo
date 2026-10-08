@@ -1,7 +1,10 @@
 -- =====================================================================
--- Bridge v1 — Supabase schema, row-level security, and RPCs
--- Run once in Supabase Dashboard → SQL Editor (paste the whole file → Run).
--- Safe to re-run: drops and recreates the Bridge objects (DATA IS LOST on re-run).
+-- Bridge v1 — Supabase schema, row-level security, and RPCs  (v1 ONLY)
+-- ⚠️  DO NOT RUN THIS ON THE LIVE PROJECT. It drops and recreates the Bridge
+-- objects (ALL DATA IS LOST). The live project is managed with the files in
+-- supabase/migrations/ (v1 = 20261008000000_bridge_v1.sql, v2 library + community
+-- ratings = 20261008160000_library_and_community.sql). Kept for fresh setups only;
+-- on a fresh project run it, then the v2 migration.
 --
 -- Security model
 --  * Every visitor gets a Supabase *anonymous* user (role "authenticated").

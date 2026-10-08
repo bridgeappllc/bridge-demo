@@ -106,5 +106,35 @@ check("Paul lists only his bridges", [str(r[0]) for r in run(paul, "select id fr
 denied("Paul cannot see Mallory's bridge", paul, "select * from bridges where id=%s", (str(b2),))
 check("owner can delete own bridge", run(mallory, "delete from bridges where id=%s", (str(b2),)) == 1)
 
+print("library (v2)")
+li = run(paul, "insert into library_items (url,title,category,note) values ('https://example.org/lib1','Lib one','Politics','why it matters') returning id")[0][0]
+check("owner adds a library item", li is not None)
+check("owner reads own library", len(run(paul, "select * from library_items where user_id=%s", (paul,))) == 1)
+check("bridge partner reads owner's library", [r[0] for r in run(sam, "select title from library_items where user_id=%s", (paul,))] == ["Lib one"])
+denied("outsider can't read library", eve, "select * from library_items where user_id=%s", (paul,))
+denied("anon can't read library", None, "select * from library_items")
+denied("can't add to someone else's library", sam, "insert into library_items (user_id,url,title) values (%s,'https://x.y/1','t')", (paul,))
+denied("partner can't edit owner's item", sam, "update library_items set note='x' where id=%s", (li,))
+denied("partner can't delete owner's item", sam, "delete from library_items where id=%s", (li,))
+denied("duplicate URL in own library rejected", paul, "insert into library_items (url,title) values ('https://example.org/lib1','dup')")
+check("owner edits own note", run(paul, "update library_items set note='edited' where id=%s", (li,)) == 1)
+denied("url is not editable", paul, "update library_items set url='https://evil.example' where id=%s", (li,))
+denied("bad URL scheme rejected", paul, "insert into library_items (url,title) values ('javascript:alert(1)','x')")
+check("upsert ignore-duplicates is a no-op", run(paul, "insert into library_items (url,title) values ('https://example.org/lib1','again') on conflict (user_id,url) do nothing") == 0)
+check("owner deletes own item", run(paul, "delete from library_items where id=%s", (li,)) == 1)
+
+print("community ratings (v2)")
+cr = lambda u: run(u, "select url, avg_score, ratings from community_ratings(array['https://example.org/ep1'])")
+check("hidden with < 3 ratings (bridge has 2)", cr(eve) == [])
+for owner, friend, s1, s2 in ((eve, mallory, 6, 7),):
+    b3 = run(owner, "select id, invite_token from public.create_bridge('E','Some podcast','https://example.org/ep1')")[0]
+    run(friend, "select public.join_bridge(%s,'M')", (b3[1],))
+    for u, sc in ((owner, s1), (friend, s2)):
+        run(u, "insert into answers (bridge_id,a1,a2,a3) values (%s,'a','b','c')", (str(b3[0]),)); run(u, "insert into ratings (bridge_id,score) values (%s,%s)", (str(b3[0]), sc))
+res = cr(sam)
+check(f"shown once >= 3 ratings: {res}", len(res) == 1 and res[0][2] == 4 and float(res[0][1]) == 6.0)
+denied("anon can't call community_ratings", None, "select * from community_ratings(array['https://example.org/ep1'])")
+denied("private helpers not callable by anon", None, "select private.shares_bridge_with(%s)", (paul,))
+
 print(f"\n{passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)
