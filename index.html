@@ -27,10 +27,7 @@ label{display:block;font-weight:600;margin:14px 0 6px}input,textarea,select{widt
 .scale{position:relative;height:10px;border-radius:5px;background:linear-gradient(90deg,#d64545,#c9ced8 50%,#2f6fd6);margin:8px 0 4px}.scale i{position:absolute;top:-5px;width:20px;height:20px;border-radius:50%;background:#fff;border:3px solid var(--n);transform:translateX(-50%)}
 .sl{display:flex;justify-content:space-between;font-size:.72rem;color:var(--m)}
 input[type=range]{padding:0;border:0;accent-color:var(--b)}
-.emo{font-size:2.6rem;text-align:center}.prog{height:8px;border-radius:4px;background:var(--l);overflow:hidden}.prog div{height:100%;background:var(--b)}
-.ck{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--l);cursor:pointer}.ck input{width:20px;height:20px;flex:none;margin-top:1px}
-.ck .f{margin-left:auto;font-size:.7rem;font-weight:700;color:var(--g);flex:none}
-.hdr{background:var(--b);color:#fff;border-radius:14px;padding:12px 16px;font-weight:700;font-size:1.15rem}
+.emo{font-size:2.6rem;text-align:center}
 .lock{background:var(--bl);border-radius:16px;padding:18px;text-align:center}.lock svg{width:36px;height:36px}
 .bub{max-width:80%;padding:9px 13px;border-radius:16px;margin:6px 0;background:var(--bl)}.bub.me{margin-left:auto;background:var(--b);color:#fff}
 .stat{display:flex;gap:10px}.stat div{flex:1;background:var(--bl);border-radius:14px;padding:12px;text-align:center}.stat b{display:block;font-size:1.5rem}
@@ -42,15 +39,14 @@ a{color:var(--b)}.row{display:flex;gap:8px;align-items:center}
 .big{font-size:1.15rem;padding:16px}
 </style></head><body><div id="phone"><header id="hd"></header><main id="app"></main><nav id="nav"></nav></div>
 <script>
-const KEY="bridge_demo_v2",FRIEND="Sam";
+const KEY="bridge_demo_v3",FRIEND="Sam";
 const LOGO='<svg viewBox="0 0 48 32" width="40" height="27" fill="none" stroke-linecap="round"><path d="M4 28 C10 6 38 6 44 28" stroke="#2f6fd6" stroke-width="4"/><path d="M12 28 C16 15 32 15 36 28" stroke="#14213d" stroke-width="3.5"/><path d="M2 28h44" stroke="#14213d" stroke-width="3"/></svg>';
 const LOCK='<svg viewBox="0 0 24 24" fill="none" stroke="#14213d" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
 const IC={bridges:'<path d="M2 18C6 7 18 7 22 18M2 18h20M7 18v-4M12 18v-6M17 18v-4"/>',new:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',profile:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/>'};
 const NAVL={bridges:"Bridges",new:"New Bridge",profile:"Profile"};
 const TOPICS=[["Politics","🏛️"],["Economics","📈"],["Culture","🎭"],["Education","🎓"],["Religion","🕊️"],["Science","🔬"]];
-const AGREE=["We want as little death and war as possible","We want our vote to be transparent and count no matter which side you are on","We do not want fraud in our government","We want our country to be safe","We want to have medical freedom","You cannot negotiate with terrorists","We want a free market, not being affected by globalists","We want a money system, not affected by globalists","We want peace throughout the world","We don't want money in politics","We want the news media to be honest","We want the people who have committed crimes to be held accountable"];
 const QS=["What's one specific moment, insight, or story that stuck with you the most—and why?","Was there anything said that you strongly agreed or disagreed with? What was it?","If you had to describe the main takeaway in one or two sentences, what would you say—and did it change or reinforce how you see the topic?"];
-const STEPS=["Invite","Agree","Answer","Rate","Talk"];
+const STEPS=["Invite","Answer","Rate","Talk"];
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function seed(){return{user:null,topics:[],sent:3,read:5,clips:[
@@ -60,8 +56,8 @@ function seed(){return{user:null,topics:[],sent:3,read:5,clips:[
 {id:"k4",ex:1,title:"Faith and Politics at the Dinner Table",creator:"Common Table Stories (fictional)",type:"Podcast",cat:"Religion",url:"https://example.com/podcast/dinner-table",rating:4.9,votes:156,lib:0},
 {id:"k5",ex:1,title:"What Schools Should Teach About History",creator:"Classroom Voices (fictional)",type:"Video",cat:"Education",url:"https://example.com/video/history-class",rating:3.8,votes:120,lib:0}],
 bridges:[
-{id:"b1",ex:1,friend:FRIEND,clip:"k2",reward:"",me:[0,1,2,3,8],them:[0,1,2,3,8,10],other:"",ans:null,rate:null,chat:[]},
-{id:"b2",ex:1,friend:"Jordan",clip:"k1",reward:"5",me:[0,1,2,3,4,5,6,7,8,9],them:[0,1,2,3,4,5,6,7,8,9],other:"",ans:["The part where both scientists agreed on the data but not the solution.","I agreed that cheap energy matters for families.","They disagree on the fix more than the facts. It reinforced that I should look at costs too."],rate:5,chat:[{me:0,t:"Funny how much we agreed on before we even started."},{me:1,t:"Right? Now I actually want to hear your take."}]}]}}
+{id:"b1",ex:1,friend:FRIEND,clip:"k2",reward:"",ans:null,rate:null,chat:[]},
+{id:"b2",ex:1,friend:"Jordan",clip:"k1",reward:"5",ans:["The part where both scientists agreed on the data but not the solution.","I agreed that cheap energy matters for families.","They disagree on the fix more than the facts. It reinforced that I should look at costs too."],rate:5,chat:[{me:0,t:"Funny how differently we heard the same video."},{me:1,t:"Right? Now I actually want to hear your take."}]}]}}
 let S;try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}if(!S||!S.clips)S=seed();
 const save=()=>localStorage.setItem(KEY,JSON.stringify(S));save();
 const clip=id=>S.clips.find(c=>c.id===id),br=id=>S.bridges.find(b=>b.id===id);
@@ -70,10 +66,9 @@ const emo=v=>["😠","😠","😒","😕","🤔","😐","🙂","😊","😃","�
 function toast(t){$$(".toast").forEach(x=>x.remove());const d=document.createElement("div");d.className="toast";d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),2000)}
 function copy(t){(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast("Copied to clipboard"),()=>prompt("Copy this:",t))}
 const go=h=>location.hash=h;
-const shared=b=>b.me.filter(i=>b.them.includes(i)).length;
-// stage: 1 Agree, 2 Answer, 3 Rate, 4 Talk (0 Invite is done once bridge exists)
-const stage=b=>shared(b)<10?1:!b.ans?2:b.rate==null?3:4;
-const inviteTxt=(b,c)=>`Meet me on the Bridge: listen to "${c.title}" in the next 3 days.\n${c.url}${b.reward>0?`\nI'll send you $${b.reward} when you finish it. (example reward)`:""}\nThen let's find 10 things we agree on before we debate the rest.`;
+// stage: 1 Answer, 2 Rate, 3 Talk (0 Invite is done once bridge exists)
+const stage=b=>!b.ans?1:b.rate==null?2:3;
+const inviteTxt=(b,c)=>`Meet me on the Bridge: listen to "${c.title}" in the next 3 days.\n${c.url}${b.reward>0?`\nI'll send you $${b.reward} when you finish it. (example reward)`:""}\nThen let's answer 3 quick questions, rate it, and talk about where we see it differently.`;
 function scale(v){return `<div class="scale"><i style="left:${v*10}%"></i></div><div class="sl"><span>Propaganda</span><span>Neutral</span><span>Redpilled</span></div>`}
 function stepbar(cur,reach,id){return `<div class="steps">${STEPS.map((t,i)=>{const cl=i<reach?"done":i===cur?"cur":i>reach?"lk":"";return `<button class="${cl}${i===cur?" cur":""}" ${id&&i<=reach?`onclick="go('bridge/${id}/${i}')"`:""}><i></i>${i<reach?"✓ ":i>reach?"🔒 ":""}${t}</button>`}).join("")}</div>`}
 function clipCard(c){return `<div class="card" style="cursor:pointer" onclick="go('clip/${c.id}')">${c.ex?'<span class="tag ex">Example</span>':""}<span class="tag">${c.cat}</span><span class="tag">${c.type}</span>
@@ -82,31 +77,26 @@ function clipCard(c){return `<div class="card" style="cursor:pointer" onclick="g
 let feedCat="All",profTab="Library";
 const V={
 welcome(){return `<div class="c" style="padding-top:30px">${LOGO.replace('width="40" height="27"','width="96" height="64"')}<h1 style="font-size:2.4rem">Bridge</h1>
-<p style="font-weight:700;font-size:1.25rem;margin:0 0 10px">We don't have to agree to understand each other.</p><p class="mut" style="font-size:1.05rem">Find 10 things you agree on before you debate the rest.</p>
+<p style="font-weight:700;font-size:1.25rem;margin:0 0 10px">We don't have to agree to understand each other.</p><p class="mut" style="font-size:1.05rem">Listen to the same thing, show you listened, then talk about where you see it differently.</p>
 <div id="su" style="margin-top:36px"><button class="btn" id="sbtn">Sign Up Free</button><button class="btn o" id="lbtn">I Have an Account</button></div><p class="mut sm">Privacy Policy | Terms of Service</p></div>`},
 topics(){return `<h1>Pick your topics</h1><p class="mut">Choose 3 or more.</p><div class="grid">${TOPICS.map(([t,e])=>`<button class="topic${S.topics.includes(t)?" on":""}" data-t="${t}"><span>${e}</span>${t}</button>`).join("")}</div>
 <button class="btn" id="tgo" ${S.topics.length<3?"disabled":""}>Continue (${S.topics.length}/3)</button><button class="btn o" onclick="go('bridges')">Skip</button>`},
-bridges(){return `<h1>Your Bridges</h1><p class="mut">Invite a friend, agree on 10 things, then talk.</p><button class="btn big" onclick="go('new')">🌉 Meet Me on the Bridge</button>
+bridges(){return `<h1>Your Bridges</h1><p class="mut">Invite a friend, listen, answer, rate, then talk.</p><button class="btn big" onclick="go('new')">🌉 Meet Me on the Bridge</button>
 ${S.bridges.map(b=>{const c=clip(b.clip),st=stage(b);return `<div class="card" style="cursor:pointer" onclick="go('bridge/${b.id}')">${b.ex?'<span class="tag ex">Example</span>':""}<div style="font-weight:700;margin:6px 0 2px">You & ${esc(b.friend)}</div><div class="mut sm">${esc(c?c.title:"")}</div>
-${stepbar(st,st)}<div class="sm">${st===4?"💬 Chat open":"Next: <b>"+STEPS[st]+"</b>"}${st===1?` · ${shared(b)}/10 shared`:""}</div></div>`}).join("")}`},
+${stepbar(st,st)}<div class="sm">${st===3?"💬 Chat open":"Next: <b>"+STEPS[st]+"</b>"}</div></div>`}).join("")}`},
 new(pre){return stepbar(0,0)+`<h1>Meet Me on the Bridge</h1><p class="mut">Pick something for you and a friend to listen to.</p><label>Pick a clip</label><select id="mclip"><option value="">— Paste a new link instead —</option>${S.clips.map(c=>`<option value="${c.id}" ${c.id===(pre||"k2")?"selected":""}>${esc(c.title)}</option>`).join("")}</select>
 <div id="paste" style="display:none"><label>Link (URL)</label><input id="murl" type="url" placeholder="https://…"><label>Title</label><input id="mtitle" placeholder="What is it called?"></div>
 <label>Friend's name</label><input id="mfriend" value="${FRIEND}"><label>Listen reward (optional)</label><div class="row"><span style="font-weight:700">$</span><input id="mrew" type="number" min="0" step="1" placeholder="e.g. 5"></div><p class="mut sm">Example only — no payments are made in this demo.</p>
 <button class="btn" id="mgo">Create invite</button><div id="mout"></div>`},
-bridge(id,sp){const b=br(id);if(!b)return"<p>Not found</p>";const st=stage(b);let cur=sp==null||sp===""?st:Math.min(+sp,st);if(cur<1)cur=0;const c=clip(b.clip);
+bridge(id,sp){const b=br(id);if(!b)return"<p>Not found</p>";const st=stage(b);let cur=sp==null||sp===""?st:Math.min(+sp,st);if(!(cur>=1))cur=0;const c=clip(b.clip);
 let h=`${b.ex?'<span class="tag ex">Example</span>':""}<p class="mut sm" style="margin:6px 0">You & ${esc(b.friend)} · <a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.title)}</a></p>`+stepbar(cur,st,id);
-if(cur===0)h+=`<h2>Invite sent</h2><textarea rows="6" readonly>${esc(inviteTxt(b,c))}</textarea><button class="btn o" onclick="copy(inviteTxt(br('${id}'),clip(br('${id}').clip)))">Copy invite text</button><button class="btn" onclick="go('bridge/${id}/1')">Next: Agree</button>`;
-if(cur===1){const s=shared(b),items=[...AGREE,"Other"];h+=`<div class="hdr">10 things we can agree on</div>
-<div class="stat" style="margin:12px 0"><div><b>${Math.min(b.me.length,10)}/10</b><span class="sm">You</span></div><div><b>${Math.min(b.them.length,10)}/10</b><span class="sm">${esc(b.friend)}</span></div><div><b>${Math.min(s,10)}/10</b><span class="sm">Shared</span></div></div>
-<div class="prog"><div style="width:${Math.min(s,10)*10}%"></div></div>
-<div>${items.map((t,i)=>`<label class="ck"><input type="checkbox" data-i="${i}" ${b.me.includes(i)?"checked":""}><span class="sm"><b>${i+1}.</b> ${i===12?`Other: <input id="oth" placeholder="Write your own" value="${esc(b.other)}" style="padding:6px;margin-top:4px">`:esc(t)}</span>${b.them.includes(i)?`<span class="f">${esc(b.friend)} ✓</span>`:""}</label>`).join("")}</div>
-<button class="btn o" id="demo">Demo: ${esc(b.friend)} agrees</button>${s>=10?`<button class="btn" onclick="go('bridge/${id}/2')">Next: Answer</button>`:`<p class="mut sm c">Both people should fill this out before you message and debate. ${10-s} more shared to go.</p>`}`}
-if(cur===2){const a=b.ans||["","",""];h+=`<h2>Answer three questions</h2><p class="mut sm">About “${esc(c.title)}”. <a href="${esc(c.url)}" target="_blank" rel="noopener">Open link ↗</a></p>${QS.map((q,i)=>`<label class="sm">${i+1}. ${q}</label><textarea rows="3" class="q">${esc(a[i])}</textarea>`).join("")}
+if(cur===0)h+=`<h2>Invite sent</h2><textarea rows="6" readonly>${esc(inviteTxt(b,c))}</textarea><button class="btn o" onclick="copy(inviteTxt(br('${id}'),clip(br('${id}').clip)))">Copy invite text</button><button class="btn" onclick="go('bridge/${id}/1')">Next: Answer</button>`;
+if(cur===1){const a=b.ans||["","",""];h+=`<h2>Answer three questions</h2><p class="mut sm">About “${esc(c.title)}”. <a href="${esc(c.url)}" target="_blank" rel="noopener">Open link ↗</a></p>${QS.map((q,i)=>`<label class="sm">${i+1}. ${q}</label><textarea rows="3" class="q">${esc(a[i])}</textarea>`).join("")}
 <p class="sm" id="qhint" style="color:var(--r)"></p><button class="btn" id="qsave">Save answers · Next: Rate</button>`}
-if(cur===3){const v=b.rate??5;h+=`<h2>Rate it</h2><div class="card"><div class="emo" id="emo">${emo(v)}</div><div class="c" style="font-weight:700" id="rl">${lbl(v)} · ${v}</div><input type="range" id="rs" min="0" max="10" value="${v}"><div class="sl"><span>Propaganda</span><span>Neutral</span><span>Redpilled</span></div></div>
+if(cur===2){const v=b.rate??5;h+=`<h2>Rate it</h2><div class="card"><div class="emo" id="emo">${emo(v)}</div><div class="c" style="font-weight:700" id="rl">${lbl(v)} · ${v}</div><input type="range" id="rs" min="0" max="10" value="${v}"><div class="sl"><span>Propaganda</span><span>Neutral</span><span>Redpilled</span></div></div>
 <div class="card"><b>Community rating</b> <span class="mut sm">${c.votes} ratings</span><div style="margin-top:6px">${lbl(c.rating)} ${c.rating.toFixed(1)}</div>${scale(c.rating)}</div><button class="btn" id="rsave">Save rating · Unlock chat</button>`}
-if(cur===4)h+=`<h2>💬 Talk</h2><div class="card sm" style="background:var(--bl);border:0">You agreed on ${Math.min(shared(b),10)} things. Your rating: <b>${lbl(b.rate)} ${b.rate}</b></div><div id="chat">${b.chat.map(m=>`<div class="bub ${m.me?"me":""}">${esc(m.t)}</div>`).join("")||'<p class="mut sm">You found common ground. Start the conversation.</p>'}</div><div class="row"><input id="ct" placeholder="Add your thought…"><button class="btn s" id="cs">Send</button></div>`;
-else h+=`<div class="lock" style="margin-top:16px">${LOCK}<div style="font-weight:700;margin-top:6px">Chat locked</div><p class="mut sm">Unlocks after you agree on 10 things, answer the questions, and rate the clip.</p></div>`;
+if(cur===3)h+=`<h2>💬 Talk</h2><div class="card sm" style="background:var(--bl);border:0">Your rating: <b>${lbl(b.rate)} ${b.rate}</b></div><div id="chat">${b.chat.map(m=>`<div class="bub ${m.me?"me":""}">${esc(m.t)}</div>`).join("")||'<p class="mut sm">You both listened. Start the conversation: where do you see it differently?</p>'}</div><div class="row"><input id="ct" placeholder="Add your thought…"><button class="btn s" id="cs">Send</button></div>`;
+else h+=`<div class="lock" style="margin-top:16px">${LOCK}<div style="font-weight:700;margin-top:6px">Chat locked</div><p class="mut sm">Unlocks after you answer the questions and rate the clip.</p></div>`;
 return h},
 clip(id){const c=clip(id);if(!c)return"<p>Not found</p>";return `${c.ex?'<span class="tag ex">Example</span>':""}<span class="tag">${c.cat}</span><span class="tag">${c.type}</span><h1 style="font-size:1.5rem">${esc(c.title)}</h1><p class="mut sm">${esc(c.creator)}</p>
 ${c.note?`<div class="card sm"><b>Your note:</b> ${esc(c.note)}</div>`:""}<a class="btn o" href="${esc(c.url)}" target="_blank" rel="noopener">Open link ↗</a>
@@ -118,7 +108,7 @@ if(profTab==="Add")body=`<label>Link (URL)</label><input id="aurl" type="url" pl
 <label>Personal note</label><textarea id="anote" rows="4" maxlength="300" placeholder="Why does this matter to you?"></textarea><div class="mut sm" style="text-align:right"><span id="cnt">0</span>/300</div><button class="btn" id="asave">Save to Library</button>`;
 if(profTab==="Discover"){let l=[...S.clips].sort((a,b)=>b.votes-a.votes);if(feedCat==="Mine")l=l.filter(c=>S.topics.includes(c.cat));else if(feedCat!=="All")l=l.filter(c=>c.cat===feedCat);
 body=`<div class="chips">${["All",...(S.topics.length?["Mine"]:[]),...TOPICS.map(t=>t[0])].map(c=>`<button class="chip${c===feedCat?" on":""}" data-cat="${c}">${c==="Mine"?"My topics":c}</button>`).join("")}</div><p class="mut sm"><span class="tag ex">Example content</span></p>${l.map(clipCard).join("")||'<p class="mut">Nothing here.</p>'}`}
-if(profTab==="Bridges")body=S.bridges.map(b=>`<div class="card" onclick="go('bridge/${b.id}')" style="cursor:pointer"><b>You & ${esc(b.friend)}</b> <span class="mut sm">· ${stage(b)===4?"Chat open":"Next: "+STEPS[stage(b)]}</span></div>`).join("");
+if(profTab==="Bridges")body=S.bridges.map(b=>`<div class="card" onclick="go('bridge/${b.id}')" style="cursor:pointer"><b>You & ${esc(b.friend)}</b> <span class="mut sm">· ${stage(b)===3?"Chat open":"Next: "+STEPS[stage(b)]}</span></div>`).join("");
 if(profTab==="Settings")body=`<div class="card"><b>Demo settings</b><p class="mut sm">This is a clickable prototype. All content is example data saved only on this device.</p><button class="btn o" id="reset">Reset demo</button></div>`;
 return `<div class="c"><div style="width:72px;height:72px;border-radius:50%;background:var(--bl);margin:6px auto;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:700;color:var(--b)">${esc((S.user||"?")[0].toUpperCase())}</div><h1 style="font-size:1.5rem;margin:4px 0">${esc(S.user)}</h1><p class="mut sm" style="margin:0 0 10px">${S.topics.join(" · ")||"No topics picked"}</p></div>
 <div class="stat"><div><b>${S.sent}</b><span class="sm">Sent</span></div><div><b>${S.read}</b><span class="sm">Read</span></div></div>
@@ -135,16 +125,13 @@ topics(){$$(".topic").forEach(b=>b.onclick=()=>{const t=b.dataset.t;S.topics=S.t
 new(){const sel=$("#mclip");sel.onchange=()=>$("#paste").style.display=sel.value?"none":"block";
 $("#mgo").onclick=()=>{let c=clip(sel.value);if(!c){const url=$("#murl").value.trim();if(!url)return toast("Paste a link or pick a clip");const t=/youtu|vimeo|video/i.test(url)?"Video":/podcast|spotify|\.mp3/i.test(url)?"Podcast":"Article";
 c={id:"k"+Date.now(),title:$("#mtitle").value.trim()||url,creator:"Added by you",type:t,cat:S.topics[0]||"Politics",url,rating:5,votes:0,lib:1};S.clips.unshift(c)}
-const f=$("#mfriend").value.trim()||"Friend",b={id:"b"+Date.now(),friend:f,clip:c.id,reward:$("#mrew").value,me:[],them:[],other:"",ans:null,rate:null,chat:[]};S.bridges.unshift(b);S.sent++;save();
-const txt=inviteTxt(b,c);$("#mout").innerHTML=`<div class="card"><b>Invite for ${esc(f)}</b><textarea rows="6" readonly id="itxt">${esc(txt)}</textarea><button class="btn o" id="cp">Copy invite text</button><button class="btn" id="nx" onclick="go('bridge/${b.id}/1')">Next: Agree on 10 things</button></div>`;$("#cp").onclick=()=>copy(txt);$("#mgo").style.display="none"}},
+const f=$("#mfriend").value.trim()||"Friend",b={id:"b"+Date.now(),friend:f,clip:c.id,reward:$("#mrew").value,ans:null,rate:null,chat:[]};S.bridges.unshift(b);S.sent++;save();
+const txt=inviteTxt(b,c);$("#mout").innerHTML=`<div class="card"><b>Invite for ${esc(f)}</b><textarea rows="6" readonly id="itxt">${esc(txt)}</textarea><button class="btn o" id="cp">Copy invite text</button><button class="btn" id="nx" onclick="go('bridge/${b.id}/1')">Next: Answer 3 questions</button></div>`;$("#cp").onclick=()=>copy(txt);$("#mgo").style.display="none"}},
 bridge(id,sp){const b=br(id);if(!b)return;
-$$(".ck input[type=checkbox]").forEach(x=>x.onchange=()=>{const i=+x.dataset.i;b.me=x.checked?[...b.me,i]:b.me.filter(y=>y!==i);save();render()});
-const o=$("#oth");if(o){o.onclick=e=>e.preventDefault();o.onchange=()=>{b.other=o.value;save()}}
-const d=$("#demo");if(d)d.onclick=()=>{const n=b.me.find(i=>!b.them.includes(i))??[...Array(13).keys()].find(i=>!b.them.includes(i));if(n==null)return toast(b.friend+" already agrees with everything");b.them.push(n);save();toast(b.friend+" agreed: #"+(n+1));render()};
-$$(".q").forEach(t=>t.oninput=()=>$("#qhint").textContent="");const q=$("#qsave");if(q)q.onclick=()=>{const a=$$(".q").map(t=>t.value.trim());if(a.some(x=>x.length<3))return $("#qhint").textContent="Please answer all three questions to continue.";b.ans=a;save();go(`bridge/${id}/3`)};
+$$(".q").forEach(t=>t.oninput=()=>$("#qhint").textContent="");const q=$("#qsave");if(q)q.onclick=()=>{const a=$$(".q").map(t=>t.value.trim());if(a.some(x=>x.length<3))return $("#qhint").textContent="Please answer all three questions to continue.";b.ans=a;save();go(`bridge/${id}/2`)};
 const rs=$("#rs");if(rs){rs.oninput=e=>{const v=+e.target.value;$("#emo").textContent=emo(v);$("#rl").textContent=lbl(v)+" · "+v};
-$("#rsave").onclick=()=>{const v=+rs.value,c=clip(b.clip);if(b.rate==null){c.rating=(c.rating*c.votes+v)/(c.votes+1);c.votes++;S.read++}b.rate=v;save();toast("Chat unlocked 💬");go(`bridge/${id}/4`)}}
-const cs=$("#cs");if(cs){const send=()=>{const t=$("#ct").value.trim();if(!t)return;b.chat.push({me:1,t});save();render();setTimeout(()=>{b.chat.push({me:0,t:["Good point. I see it differently, but I get where you're coming from.","Since we agree on the basics, what do you think is the biggest thing we disagree on?","I hadn't thought of it that way. Tell me more."][b.chat.length%3]});save();if(location.hash.startsWith("#bridge/"+b.id))render()},1200)};cs.onclick=send;$("#ct").onkeydown=e=>{if(e.key==="Enter")send()}}},
+$("#rsave").onclick=()=>{const v=+rs.value,c=clip(b.clip);if(b.rate==null){c.rating=(c.rating*c.votes+v)/(c.votes+1);c.votes++;S.read++}b.rate=v;save();toast("Chat unlocked 💬");go(`bridge/${id}/3`)}}
+const cs=$("#cs");if(cs){const send=()=>{const t=$("#ct").value.trim();if(!t)return;b.chat.push({me:1,t});save();render();setTimeout(()=>{b.chat.push({me:0,t:["Good point. I see it differently, but I get where you're coming from.","What do you think is the biggest thing we see differently?","I hadn't thought of it that way. Tell me more."][b.chat.length%3]});save();if(location.hash.startsWith("#bridge/"+b.id))render()},1200)};cs.onclick=send;$("#ct").onkeydown=e=>{if(e.key==="Enter")send()}}},
 profile(){$$("[data-pt]").forEach(b=>b.onclick=()=>{profTab=b.dataset.pt;render()});$$("[data-cat]").forEach(b=>b.onclick=()=>{feedCat=b.dataset.cat;render()});
 const an=$("#anote");if(an){an.oninput=e=>$("#cnt").textContent=e.target.value.length;$("#asave").onclick=()=>{const url=$("#aurl").value.trim();if(!url)return toast("Please paste a link");
 const t=/youtu|vimeo|video/i.test(url)?"Video":/podcast|spotify|\.mp3/i.test(url)?"Podcast":"Article";const c={id:"k"+Date.now(),title:$("#atitle").value.trim()||url,creator:"Added by you",type:t,cat:$("#acat").value,url,note:an.value.trim(),rating:5,votes:0,lib:1};
