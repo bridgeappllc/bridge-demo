@@ -5,8 +5,8 @@
    (see SETUP.md). Both are safe to publish: data is protected by
    row-level security in supabase/schema.sql.                          */
 window.BRIDGE_CONFIG = {
-  SUPABASE_URL: "",       // e.g. "https://abcdefghijkl.supabase.co"
-  SUPABASE_ANON_KEY: ""   // Publishable key ("sb_publishable_...") or legacy "anon public" key
+  SUPABASE_URL: "https://gozjxubvvzxkkoxxvldo.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_lvSFzAIz68Cc5T-w6FEMDw_ZI0pYDZP"   // publishable (public) key — never put the secret/service_role key here
 };
 /* ======================================================================= */
 </script>
@@ -60,6 +60,7 @@ const CFG=window.BRIDGE_CONFIG||{};
 const CONFIGURED=!!(CFG.SUPABASE_URL&&CFG.SUPABASE_ANON_KEY&&window.supabase);
 const sb=CONFIGURED?supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:"bridge-auth"}}):null;
 const KEY="bridge_real_v1";
+const POLL_MS=+new URLSearchParams(location.search).get("poll")||4000; // ?poll=ms is only used by tests
 const LOGO='<svg viewBox="0 0 48 32" width="40" height="27" fill="none" stroke-linecap="round"><path d="M4 28 C10 6 38 6 44 28" stroke="#2f6fd6" stroke-width="4"/><path d="M12 28 C16 15 32 15 36 28" stroke="#14213d" stroke-width="3.5"/><path d="M2 28h44" stroke="#14213d" stroke-width="3"/></svg>';
 const LOCK='<svg viewBox="0 0 24 24" fill="none" stroke="#14213d" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
 const IC={bridges:'<path d="M2 18C6 7 18 7 22 18M2 18h20M7 18v-4M12 18v-6M17 18v-4"/>',new:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',profile:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/>'};
@@ -104,7 +105,7 @@ const API={
  async rate(id,v){ok(await sb.from("ratings").insert({bridge_id:id,user_id:ME,score:v}))},
  async send(id,t){ok(await sb.from("messages").insert({bridge_id:id,user_id:ME,body:t}))},
  // live updates: Supabase Realtime when available + polling fallback
- watch(id,cb,ms){let ch=null;if(id){try{ch=sb.channel("bridge:"+id);for(const t of["messages","bridge_members","answers","ratings"])ch.on("postgres_changes",{event:"*",schema:"public",table:t,filter:"bridge_id=eq."+id},()=>cb());ch.subscribe()}catch(e){ch=null}}
+ watch(id,cb,ms){let ch=null;if(id){try{ch=sb.channel("bridge:"+id);for(const t of["messages","bridge_members","answers","ratings"])ch.on("postgres_changes",{event:"*",schema:"public",table:t,filter:"bridge_id=eq."+id},()=>cb());ch.subscribe(st=>{window.__bridgeRealtime=st})}catch(e){ch=null}}
   const iv=setInterval(()=>{if(!document.hidden)cb()},ms||4000);return()=>{clearInterval(iv);if(ch)sb.removeChannel(ch)}}};
 
 /* ---------- helpers ---------- */
@@ -207,7 +208,7 @@ async function loadBridge(id){try{const d=await API.get(id);const ch=sig(d)!==si
 async function loadPreview(t){try{const p=await API.preview(t);DB.pv[t]=p;if(p&&p.is_member&&PROFILE){go("bridge/"+p.bridge_id);return}render(true)}catch(e){DB.pv[t]=null;fail(e)}}
 function onRoute(){if(unwatch){unwatch();unwatch=null}render();if(!CONFIGURED)return;const v=viewOf(),{id}=parse();
  if(v==="bridges"||v==="profile"){loadList();unwatch=API.watch(null,loadList,10000)}
- if(v==="bridge"){loadBridge(id);unwatch=API.watch(id,()=>loadBridge(id),4000)}
+ if(v==="bridge"){loadBridge(id);unwatch=API.watch(id,()=>loadBridge(id),POLL_MS)}
  if(v==="invite")loadPreview(id)}
 
 /* ---------- behaviour ---------- */

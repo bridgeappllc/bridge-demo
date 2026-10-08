@@ -1,7 +1,7 @@
 -- =====================================================================
 -- Bridge v1 — Supabase schema, row-level security, and RPCs
 -- Run once in Supabase Dashboard → SQL Editor (paste the whole file → Run).
--- Safe to re-run: drops and recreates the Bridge objects (DATA IS LOST on re-run).
+-- Initial migration (fresh project). See schema.sql for the re-runnable version.
 --
 -- Security model
 --  * Every visitor gets a Supabase *anonymous* user (role "authenticated").
@@ -18,16 +18,6 @@
 --    via the create_bridge / join_bridge functions.
 -- =====================================================================
 
-drop function if exists public.create_bridge(text,text,text,text,text,text,text,text) cascade;
-drop function if exists public.join_bridge(text,text) cascade;
-drop function if exists public.preview_bridge(text) cascade;
-drop table if exists public.messages cascade;
-drop table if exists public.ratings cascade;
-drop table if exists public.answers cascade;
-drop table if exists public.bridge_members cascade;
-drop table if exists public.bridges cascade;
-drop table if exists public.profiles cascade;
-drop schema if exists private cascade;
 
 -- Private (NOT exposed via the Data API) schema for SECURITY DEFINER code.
 create schema private;

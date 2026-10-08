@@ -1,5 +1,13 @@
 # Bridge v1 — going live with a real backend
 
+## Status (Oct 8, 2026)
+
+- ✅ Supabase project **`bridge`** created on the **Free** plan ($0/month) in org `bridgeappllc`. Region **us-west-1**, ref `gozjxubvvzxkkoxxvldo`, URL `https://gozjxubvvzxkkoxxvldo.supabase.co`.
+- ✅ Schema applied as migration `bridge_v1` (`supabase/migrations/20261008000000_bridge_v1.sql`). The security advisor reports no issues. Realtime is enabled for messages, members, answers, and ratings.
+- ✅ `index.html` config is filled in with the project URL and the **publishable** key.
+- ❌ **Still needed from Paul: turn on anonymous sign-ins.** Supabase Dashboard → project `bridge` → **Authentication → Sign In / Providers** → turn on **"Allow anonymous sign-ins"** → **Save**. The app can't sign anyone in until this is on, so the live switch-over is waiting on it.
+- After that: run the hosted smoke test, merge `real-backend` → `main`, and re-test on GitHub Pages (steps below).
+
 Backend: **Supabase** (free tier): Postgres + row-level security + anonymous sign-ins + realtime.
 The frontend stays a single static `index.html` on GitHub Pages.
 
@@ -8,7 +16,7 @@ The frontend stays a single static `index.html` on GitHub Pages.
 1. **Create a Supabase account**: https://supabase.com → *Start your project*. "Continue with GitHub" using the `bridgeappllc` GitHub account works fine.
 2. **Create a project**: *New project* → Name `bridge` → set a database password (save it in your password manager; we don't need it) → Region: closest to your users (e.g. *West US*) → Free plan → keep **Enable Data API** checked → *Create new project*. Wait ~2 minutes.
 3. **Turn on anonymous sign-ins**: *Authentication → Sign In / Providers* (called *Sign In / Up* in some dashboards) → turn on **Allow anonymous sign-ins** → *Save*. Friends join without email or password; that's how the app signs them in.
-4. **Run the database setup**: *SQL Editor → New query* → paste all of [`supabase/schema.sql`](supabase/schema.sql) → *Run*. You should see "Success. No rows returned". (Or hand over dashboard access and we'll do this step.)
+4. **Run the database setup** (already done for project `bridge`): *SQL Editor → New query* → paste all of [`supabase/schema.sql`](supabase/schema.sql) → *Run*. You should see "Success. No rows returned". (Or hand over dashboard access and we'll do this step.)
 5. **Send over these two values** (from the **Connect** button at the top of the dashboard, or *Project Settings → API Keys* / *Data API*):
    - **Project URL**: `https://<something>.supabase.co`
    - **Publishable key**: starts with `sb_publishable_…`. The legacy **anon public** key (`eyJ…`) also works.
@@ -24,7 +32,7 @@ Optional: *Authentication → URL Configuration → Site URL* = `https://bridgea
    window.BRIDGE_CONFIG = { SUPABASE_URL: "https://xxxx.supabase.co", SUPABASE_ANON_KEY: "sb_publishable_..." };
    ```
    Commit and push.
-2. Smoke test against the real project: serve the folder locally (`python3 -m http.server`), open it in two different browsers, then create → open invite link → join → answer → rate → chat both ways. Check that rows appear in *Table Editor*.
+2. Smoke test against the real project: `python3 tests/serve.py 8081` (with no `SB_KEY`, it serves the real config), then `BASE=http://127.0.0.1:8081/ REALTIME=1 python3 tests/e2e_two_users.py`. Afterwards, delete the test rows with `tests/cleanup_test_data.sql`, which removes users named `Smoke*` and everything they created.
 3. Open a PR from `real-backend` to `main` and merge it. GitHub Pages redeploys in about a minute at https://bridgeappllc.github.io/bridge-demo/. The old clickable prototype stays at `/bridge-demo/demo.html`.
 4. Text Paul a real invite link to try on his phone.
 
