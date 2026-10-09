@@ -1,6 +1,6 @@
 """End-to-end smoke test: two people in two separate phone-sized browser contexts
 (separate storage = separate anonymous users) go through create -> invite link ->
-join -> answer -> chat both ways (no rating step). Also checks persistence after reload,
+join -> answer -> chat both ways (Clip Club copy). Also checks persistence after reload,
 reveal rules, a 3rd person being refused, and (REALTIME=1) that Supabase Realtime
 delivers a chat message with polling effectively disabled.
 
@@ -36,18 +36,16 @@ with sync_playwright() as p:
 
     # --- Paul signs up and creates a bridge from a pasted link
     paul.goto(BASE); paul.click("#sbtn"); paul.fill("#nm", P); paul.click("#nok")
-    expect(paul.get_by_text("Pick your topics")).to_be_visible(timeout=T)
-    for t in ("Politics", "Economics", "Culture"): paul.click(f".topic[data-t={t}]")
-    paul.click("#tgo"); expect(paul.get_by_text("No bridges yet")).to_be_visible(timeout=T); step(f"{P} signs up (anonymous auth + profile), picks topics")
-    paul.click("text=🌉 Meet Me on the Bridge")
-    paul.fill("#murl", "https://www.youtube.com/watch?v=dQw4w9WgXcQ"); paul.fill("#mtitle", "Smoke test video"); paul.fill("#mfriend", S); paul.fill("#mrew", "5")
+    expect(paul.get_by_text("No clubs yet")).to_be_visible(timeout=T); shot(paul, "00-paul-clubs-empty"); step(f"{P} signs up (anonymous auth + profile) and lands on Your clubs")
+    paul.click("text=＋ Start a club")
+    paul.fill("#murl", "https://www.youtube.com/watch?v=dQw4w9WgXcQ"); paul.fill("#mtitle", "Smoke test video"); paul.fill("#mfriend", S)
     paul.click("#mgo"); expect(paul.locator("#itxt")).to_be_visible(timeout=T)
     invite = paul.locator("#itxt").input_value()
     m = re.search(r"(https?://\S+#b/([0-9a-f]{32}))", invite); assert m, invite
     link, token = m.group(1), m.group(2)
     assert link.startswith(BASE.rstrip("/")), (link, BASE)
-    assert "Smoke test video" in invite and "youtube.com" in invite and "$5" in invite
-    paul.locator("#itxt").scroll_into_view_if_needed(); paul.evaluate("window.scrollBy(0,120); const t=document.querySelector('#itxt'); t.scrollTop=t.scrollHeight"); shot(paul, "01-paul-invite"); step(f"Bridge created; invite text includes unique link {link[:60]}…")
+    assert "Smoke test video" in invite and "youtube.com" in invite and invite.startswith("Join my Clip Club")
+    paul.locator("#itxt").scroll_into_view_if_needed(); paul.evaluate("window.scrollBy(0,120); const t=document.querySelector('#itxt'); t.scrollTop=t.scrollHeight"); shot(paul, "01-paul-invite"); step(f"Club created; invite text includes unique link {link[:60]}…")
     paul.click("#cp"); assert paul.evaluate("navigator.clipboard.readText()") == invite; step("Copy invite text puts it on the clipboard")
     paul.click("#nx")
     expect(paul.get_by_text("Answer three questions")).to_be_visible(timeout=T)
@@ -55,7 +53,7 @@ with sync_playwright() as p:
 
     # --- Sam opens the link on "his phone"
     sam.goto(link)
-    expect(sam.get_by_text(f"{P} invited you to meet on the Bridge")).to_be_visible(timeout=T)
+    expect(sam.get_by_text(f"{P} invited you to their Clip Club")).to_be_visible(timeout=T)
     expect(sam.get_by_text("Smoke test video")).to_be_visible(); shot(sam, "02-sam-invite-landing")
     sam.fill("#jname", S); sam.click("#jgo")
     expect(sam.get_by_text("Answer three questions")).to_be_visible(timeout=T); step(f"{S} opens link, enters only a name, joins")
@@ -111,22 +109,22 @@ with sync_playwright() as p:
 
     # --- Your Bridges shows progress for both; persists across reload
     paul.goto(BASE + "#bridges"); paul.reload()
-    card = paul.locator(".card", has_text=f"You & {S}"); expect(card).to_be_visible(timeout=T)
-    expect(card).to_contain_text("💬 Chat open"); expect(card).to_contain_text(f"{S}: ✓ answered · in the chat")
-    shot(paul, "06-paul-bridges"); step("Your Bridges lists the bridge with both people's progress after reload (session persisted)")
-    sam.goto(BASE + "#bridges"); expect(sam.locator(".card", has_text=f"You & {P}")).to_contain_text(f"Invited by {P}", timeout=T)
-    sam.goto(link); expect(sam.get_by_text("💬 Talk")).to_be_visible(timeout=T); step("Re-opening the invite link takes a member straight to the bridge")
+    card = paul.locator(".card", has_text="Smoke test video"); expect(card).to_be_visible(timeout=T)
+    expect(card).to_contain_text("💬 Chat open"); expect(card).to_contain_text(f"With {S}"); expect(card).to_contain_text(f"{S}: ✓ answered")
+    shot(paul, "06-paul-bridges"); step("Your clubs lists the club with both people's progress after reload (session persisted)")
+    sam.goto(BASE + "#bridges"); expect(sam.locator(".card", has_text="Smoke test video")).to_contain_text(f"Invited by {P}", timeout=T)
+    sam.goto(link); expect(sam.get_by_text("💬 Talk")).to_be_visible(timeout=T); step("Re-opening the invite link takes a member straight to the club")
 
     # --- Outsiders
-    eve.goto(link); expect(eve.get_by_text("This bridge is full")).to_be_visible(timeout=T); step("3rd person with the link is refused (bridge is full)")
+    eve.goto(link); expect(eve.get_by_text("This club is full")).to_be_visible(timeout=T); step("3rd person with the link is refused (club is full)")
     eve.goto(BASE + "#b/" + "0" * 32); expect(eve.get_by_text("Invite not found")).to_be_visible(timeout=T); step("Bogus invite token -> 'Invite not found'")
-    eve.goto(BASE); eve.click("#sbtn"); eve.fill("#nm", E); eve.click("#nok"); expect(eve.get_by_text("Pick your topics")).to_be_visible(timeout=T)
-    eve.goto(BASE + "#bridge/" + bridge_path); expect(eve.get_by_text("Bridge not found")).to_be_visible(timeout=T); step("Signed-in outsider opening the bridge URL directly sees nothing")
+    eve.goto(BASE); eve.click("#sbtn"); eve.fill("#nm", E); eve.click("#nok"); expect(eve.get_by_text("No clubs yet")).to_be_visible(timeout=T)
+    eve.goto(BASE + "#bridge/" + bridge_path); expect(eve.get_by_text("Club not found")).to_be_visible(timeout=T); step("Signed-in outsider opening the club URL directly sees nothing")
 
-    # --- Profile stats + rename
-    paul.goto(BASE + "#profile"); expect(paul.locator(".stat")).to_contain_text("1Sent", timeout=T); expect(paul.locator(".stat")).to_contain_text("1Answered")
-    paul.click("[data-pt=Settings]"); paul.fill("#pname", P + "G"); paul.click("#psave"); expect(paul.locator("header")).to_contain_text(f"Hi, {P}G", timeout=T)
-    paul.reload(); expect(paul.locator("header")).to_contain_text(f"Hi, {P}G", timeout=T); step("Profile shows real Sent/Answered counts; name change persists")
+    # --- Me page + rename
+    paul.goto(BASE + "#profile"); expect(paul.get_by_text("Saved clips")).to_be_visible(timeout=T); expect(paul.locator(".card", has_text="Smoke test video")).to_be_visible(timeout=T)
+    shot(paul, "07-paul-me"); paul.fill("#pname", P + "G"); paul.click("#psave"); expect(paul.locator("h1")).to_contain_text(f"{P}G", timeout=T)
+    paul.reload(); expect(paul.locator("h1")).to_contain_text(f"{P}G", timeout=T); step("Me page shows saved clips (pasted link auto-saved); name change persists")
 
     # --- Unconfigured build shows setup notice instead of breaking
     html = open(os.path.join(HERE, "..", "index.html"), encoding="utf8").read()
@@ -134,16 +132,18 @@ with sync_playwright() as p:
     tmp = tempfile.NamedTemporaryFile("w", suffix=".html", delete=False); tmp.write(html); tmp.close()
     raw = br.new_context().new_page(); raw.goto("file://" + tmp.name); expect(raw.get_by_text("Almost ready")).to_be_visible(timeout=T); step("Unconfigured build shows an 'Almost ready' notice")
 
-    p2 = br.new_context(**iphone).new_page(); p2.goto(BASE + "?b=" + token); expect(p2.get_by_text("This bridge is full")).to_be_visible(timeout=T); step("?b=<token> link form also works")
+    p2 = br.new_context(**iphone).new_page(); p2.goto(BASE + "?b=" + token); expect(p2.get_by_text("This club is full")).to_be_visible(timeout=T); step("?b=<token> link form also works")
     import re as _re
-    bad = _re.compile(r"\brat(e|ed|ing|ings)\b|propaganda|redpill|neutral", _re.I); seen = []
-    for h in ["#bridges", "#bridge/" + bridge_path + "/0", "#bridge/" + bridge_path + "/1", "#bridge/" + bridge_path + "/2", "#profile", "#new", "#clip/k1"]:
-        paul.goto(BASE + h); paul.wait_for_timeout(1200); seen += [(h, m.group(0)) for m in bad.finditer(paul.locator("body").inner_text())]
-    for tab in ["Library", "Discover", "Bridges", "Settings"]:
-        paul.goto(BASE + "#profile"); paul.click(f"[data-pt={tab}]"); paul.wait_for_timeout(500); seen += [(tab, m.group(0)) for m in bad.finditer(paul.locator("body").inner_text())]
+    bad = _re.compile(r"\bbridg\w*|meet me|common ground|agree to|\brat(e|ed|ing|ings)\b|propaganda|redpill|library|topics?\b|discover|reward|🌉", _re.I); seen = []
+    for h in ["#bridges", "#bridge/" + bridge_path + "/0", "#bridge/" + bridge_path + "/1", "#bridge/" + bridge_path + "/2", "#profile", "#new", "#add", "#account"]:
+        paul.goto(BASE + h); paul.wait_for_timeout(1200); seen += [(h, m.group(0)) for m in bad.finditer(paul.locator("body").inner_text()) if not ("agreed or disagreed" in m.string[max(0,m.start()-20):m.end()+20] or "see the topic" in m.string[max(0,m.start()-12):m.end()+2])]
+    paul.goto(BASE + "#profile"); paul.locator(".card.tap").first.click(); paul.wait_for_timeout(800); seen += [("clip", m.group(0)) for m in bad.finditer(paul.locator("body").inner_text())]
+    paul.goto(BASE + "#signin"); paul.wait_for_timeout(500); seen += [("signin", m.group(0)) for m in bad.finditer(paul.locator("body").inner_text())]
+    w = br.new_context(**iphone).new_page(); w.goto(BASE); w.wait_for_timeout(800); seen += [("welcome", m.group(0)) for m in bad.finditer(w.locator("body").inner_text())]
+    assert w.title() == "Clip Club", w.title()
     sam.goto(link); sam.wait_for_timeout(1500); seen += [("invite(member)", m.group(0)) for m in bad.finditer(sam.locator("body").inner_text())]
     seen += [("invite text", m.group(0)) for m in bad.finditer(invite)]
-    assert not seen, seen; step("No rating wording anywhere (bridges, all bridge steps, profile tabs, clip, invite text)")
+    assert not seen, seen; step("No old branding/wording anywhere (Bridge, bridging, library, topics, rewards, ratings) on any screen or in the invite text; <title> is Clip Club")
     assert not errors, errors; step("No uncaught JS errors in any page")
     br.close()
 print(f"\nE2E: {len(results)} checks passed")

@@ -1,4 +1,10 @@
-# Bridge — setup & status
+# Clip Club (formerly Bridge) — setup & status
+
+> **Branch `clip-club` = Clip Club rebrand PREVIEW (not merged).** Preview site: https://bridgeappllc.github.io/clipclub-preview/ (separate repo, same Supabase project, so its data is real).
+> User-facing name is now **Clip Club** ("a club" = what was "a bridge"). Internal names stay: DB tables (`bridges`, `bridge_members`…), localStorage keys (`bridge-auth`, `bridge_real_v1`) and routes (`#b/<token>`, `?b=`, `#bridge/<id>/<step>`, `#lib/<uid>`, `#clip/<id>`), so old invite links and sessions keep working.
+> Removed/tucked away in the preview: topics picker, Discover (example feed), listen reward, profile stats/tabs, categories; friends' saved clips are a link on the club page; "Library" is now "Saved clips" on the Me page.
+> **Still says Bridge on hosted Supabase (change at approval):** email sender name (`Bridge <hello@meetonthebridge.org>`), the Magic Link / Change Email subjects, and the template bodies. The new wording is in `supabase/email-templates/*.html`; the new subjects are `{{ .Token }} is your Clip Club sign-in code` / `… confirmation code`.
+
 
 Live: https://bridgeappllc.github.io/bridge-demo/ (old prototype: `/bridge-demo/demo.html`).
 Backend: **Supabase** project `bridge` (Free plan, $0) — ref `gozjxubvvzxkkoxxvldo`, us-west-1.

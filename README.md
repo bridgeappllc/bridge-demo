@@ -1,1 +1,1 @@
-# Bridge demo prototype
+# Clip Club (formerly Bridge) demo

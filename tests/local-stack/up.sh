@@ -27,10 +27,10 @@ TPL="${TPL_BASE:-http://127.0.0.1:8080/supabase/email-templates}"   # served by 
   GOTRUE_DB_NAMESPACE=auth GOTRUE_DB_MIGRATIONS_PATH="$BIN/migrations" GOTRUE_JWT_SECRET="$SECRET" GOTRUE_JWT_EXP=3600 \
   GOTRUE_JWT_AUD=authenticated GOTRUE_JWT_DEFAULT_GROUP_NAME=authenticated GOTRUE_JWT_ADMIN_ROLES=service_role \
   GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED=true GOTRUE_EXTERNAL_EMAIL_ENABLED=true GOTRUE_MAILER_AUTOCONFIRM=false GOTRUE_RATE_LIMIT_ANONYMOUS_USERS=1000 \
-  GOTRUE_SMTP_HOST=127.0.0.1 GOTRUE_SMTP_PORT=1025 GOTRUE_SMTP_USER=x GOTRUE_SMTP_PASS=x GOTRUE_SMTP_ADMIN_EMAIL=noreply@bridge.local GOTRUE_SMTP_SENDER_NAME=Bridge \
+  GOTRUE_SMTP_HOST=127.0.0.1 GOTRUE_SMTP_PORT=1025 GOTRUE_SMTP_USER=x GOTRUE_SMTP_PASS=x GOTRUE_SMTP_ADMIN_EMAIL=noreply@clipclub.local GOTRUE_SMTP_SENDER_NAME="Clip Club" \
   GOTRUE_SMTP_MAX_FREQUENCY=1s GOTRUE_RATE_LIMIT_EMAIL_SENT=1000 GOTRUE_URI_ALLOW_LIST="http://127.0.0.1:8080/**" \
   GOTRUE_MAILER_TEMPLATES_MAGIC_LINK="$TPL/magic_link.html" GOTRUE_MAILER_TEMPLATES_EMAIL_CHANGE="$TPL/email_change.html" \
-  GOTRUE_MAILER_SUBJECTS_MAGIC_LINK="{{ .Token }} is your Bridge sign-in code" GOTRUE_MAILER_SUBJECTS_EMAIL_CHANGE="{{ .Token }} is your Bridge confirmation code"
+  GOTRUE_MAILER_SUBJECTS_MAGIC_LINK="{{ .Token }} is your Clip Club sign-in code" GOTRUE_MAILER_SUBJECTS_EMAIL_CHANGE="{{ .Token }} is your Clip Club confirmation code"
   nohup "$BIN/auth" > "$RUN/auth.log" 2>&1 & echo $! > "$RUN/auth.pid" )
 for i in $(seq 30); do curl -sf http://127.0.0.1:9999/health >/dev/null && break; sleep 1; done
 # Apply the same migration files, in order, that were applied to the hosted project (once per fresh DB).
