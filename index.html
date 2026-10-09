@@ -58,7 +58,7 @@ a{color:var(--b)}.row{display:flex;gap:8px;align-items:center}
 <script>
 const CFG=window.BRIDGE_CONFIG||{};
 const CONFIGURED=!!(CFG.SUPABASE_URL&&CFG.SUPABASE_ANON_KEY&&window.supabase);
-// detectSessionInUrl: lets an emailed link work as a fallback; the app itself uses 6-digit codes
+// detectSessionInUrl: lets an emailed link work as a fallback; the app itself uses emailed one-time codes
 const sb=CONFIGURED?supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:"bridge-auth"}}):null;
 const KEY="bridge_real_v1";
 const APP_URL=location.origin+location.pathname;
@@ -119,7 +119,7 @@ const API={
  async importLib(rows){if(rows.length)ok(await sb.from("library_items").upsert(rows.map(r=>({user_id:ME,...r})),{onConflict:"user_id,url",ignoreDuplicates:true}))},
  async removeLib(id){ok(await sb.from("library_items").delete().eq("id",id).eq("user_id",ME))},
  async community(urls){return urls.length?ok(await sb.rpc("community_ratings",{p_urls:urls})):[]},
- // email (6-digit code). Guest -> keep account: updateUser({email}) converts the anonymous user in place.
+ // email (one-time code). Guest -> keep account: updateUser({email}) converts the anonymous user in place.
  async saveEmail(email){ok(await sb.auth.updateUser({email},{emailRedirectTo:APP_URL}))},
  async confirmEmail(email,token){ok(await sb.auth.verifyOtp({email,token,type:"email_change"}));const {data}=await sb.auth.getUser();if(data&&data.user)USER=data.user},
  async sendSignIn(email){ok(await sb.auth.signInWithOtp({email,options:{shouldCreateUser:false,emailRedirectTo:APP_URL}}))},
@@ -172,7 +172,7 @@ const bridgeCard=b=>{const me=meOf(b),fr=frOf(b),st=stage(me);return `<div class
 ${stepbar(st,st)}<div class="sm">${st===3?"💬 Chat open":"Next: <b>"+STEPS[st]+"</b>"}</div><div class="prog">${progTxt(me)}<br>${progTxt(fr,frName(b))}</div></div>`};
 // 2-step email + code form (used by sign-in and save-account)
 const codeForm=(title,intro,btn)=>`<h1 style="font-size:1.6rem">${title}</h1><p class="mut">${intro}</p><div id="ef"><label>Email</label><input id="em" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com"><button class="btn" id="esend">${btn}</button></div>
-<div id="cf" style="display:none"><p class="sm">We emailed a code to <b id="emto"></b>.</p><label>6-digit code</label><input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="123456" style="font-size:1.4rem;letter-spacing:4px;text-align:center"><button class="btn" id="cok">Confirm</button><button class="btn o s" id="cback">Use a different email</button> <button class="btn o s" id="cres">Send a new code</button></div><p class="sm" id="emsg" style="color:var(--r)"></p>`;
+<div id="cf" style="display:none"><p class="sm">We emailed a code to <b id="emto"></b>.</p><label>Code from the email</label><input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="Enter code" style="font-size:1.4rem;letter-spacing:4px;text-align:center"><button class="btn" id="cok">Confirm</button><button class="btn o s" id="cback">Use a different email</button> <button class="btn o s" id="cres">Send a new code</button></div><p class="sm" id="emsg" style="color:var(--r)"></p>`;
 let feedCat="All",profTab="Library",lastMsgCount=-1;
 
 /* ---------- views ---------- */
@@ -286,7 +286,7 @@ function bindCodeForm(send,confirm,onExists){let email="";const msg=t=>{$("#emsg
  const doSend=async()=>{const e=$("#em").value.trim().toLowerCase();if(!okEmail(e))return msg("Please enter a valid email address.");msg("");busy($("#esend"),true);busy($("#cres"),true);
   try{await send(e);email=e;$("#emto").textContent=e;$("#ef").style.display="none";$("#cf").style.display="block";$("#code").value="";$("#code").focus();toast("Code sent — check your email")}
   catch(err){console.warn(err);msg(authMsg(err));if(onExists&&/already/.test(authMsg(err)))onExists(e)}busy($("#esend"),false);busy($("#cres"),false)};
- const doOk=async()=>{const c=$("#code").value.replace(/\D/g,"");if(c.length<6)return msg("Enter the 6-digit code from the email.");msg("");busy($("#cok"),true);
+ const doOk=async()=>{const c=$("#code").value.replace(/\D/g,"");if(c.length<6)return msg("Enter the code from the email.");msg("");busy($("#cok"),true);
   try{await confirm(email,c)}catch(err){console.warn(err);msg(authMsg(err));busy($("#cok"),false)}};
  $("#esend").onclick=doSend;$("#em").onkeydown=e=>{if(e.key==="Enter")doSend()};$("#cok").onclick=doOk;$("#code").onkeydown=e=>{if(e.key==="Enter")doOk()};
  $("#cres").onclick=doSend;$("#cback").onclick=()=>{$("#cf").style.display="none";$("#ef").style.display="block";msg("")}}
