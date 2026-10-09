@@ -31,7 +31,8 @@ with sync_playwright() as p:
     def shot(pg, n):
         try: pg.screenshot(path=f"{SHOTS}/{n}.png", timeout=15000)
         except Exception as e: print("    (screenshot skipped)", n)
-    phone = br.new_context(**iphone)
+    phone = br.new_context(**iphone); phone.grant_permissions(["clipboard-read", "clipboard-write"])
+    phone.add_init_script("window.__shared=[];navigator.share=d=>{window.__shared.push(d);return Promise.resolve()}")
     phone.add_init_script("if(!sessionStorage.getItem('seeded')){localStorage.setItem('bridge_real_v1', %s);sessionStorage.setItem('seeded','1')}" % json.dumps(json.dumps(LEGACY)))
     paul = page(phone, "paul-phone")
 
@@ -39,26 +40,36 @@ with sync_playwright() as p:
     paul.goto(BASE); paul.click("#sbtn"); paul.fill("#nm", "SmokePaul"); paul.click("#nok")
     expect(paul.get_by_text("No clubs yet")).to_be_visible(timeout=T)
     paul.goto(BASE + "#profile"); expect(paul.locator(".card", has_text="Old saved podcast")).to_be_visible(timeout=T)
-    expect(paul.locator(".card", has_text="Old saved podcast")).to_contain_text("from the old app")
+    expect(paul.locator(".card", has_text="Old saved podcast")).to_contain_text("from the old app"); expect(paul.locator(".card", has_text="Old saved podcast")).to_contain_text("Culture")
     left = json.loads(paul.evaluate("localStorage.getItem('bridge_real_v1')"))["clips"]
     assert all(c.get("ex") for c in left), left
     step("Old device-local saved item migrated into the account on first load")
     paul_id = paul.evaluate("ME")
 
     # 2) add to library (link, category, note)
-    paul.click("text=＋ Save a clip"); paul.fill("#aurl", "https://www.youtube.com/watch?v=lib-test"); paul.fill("#atitle", "A talk that changed my mind")
-    paul.fill("#anote", "Made me rethink nuclear power."); shot(paul, "08-save-clip"); paul.click("#asave")
-    expect(paul.get_by_text("Your note:")).to_be_visible(timeout=T); expect(paul.get_by_text("Made me rethink nuclear power.")).to_be_visible()
-    shot(paul, "09-clip-detail"); paul.goto(BASE + "#profile"); expect(paul.locator(".list .card.tap")).to_have_count(2, timeout=T)
-    step("Save a clip (link, title, note) saves online; Me shows 2 saved clips")
+    paul.click("[data-pt=Add]"); expect(paul).to_have_url(re.compile(r"#profile/add$")); paul.fill("#aurl", "https://www.youtube.com/watch?v=lib-test"); paul.fill("#atitle", "A talk that changed my mind")
+    paul.select_option("#acat", "Science"); paul.fill("#anote", "Made me rethink nuclear power."); shot(paul, "08-add"); paul.click("#asave")
+    expect(paul.get_by_text("Your note:")).to_be_visible(timeout=T); expect(paul.get_by_text("Made me rethink nuclear power.")).to_be_visible(); expect(paul.locator(".tag", has_text="Science")).to_be_visible()
+    paul.wait_for_timeout(2700); shot(paul, "09-clip-detail-share"); paul.goto(BASE + "#profile"); expect(paul.locator(".list .card.tap")).to_have_count(2, timeout=T)
+    expect(paul.locator(".card", has_text="A talk that changed my mind")).to_contain_text("Science"); paul.wait_for_timeout(2700); shot(paul, "08b-profile-library")
+    step("Add tab (link, title, category, note) saves to the Library online; Library shows 2 cards with categories")
+    # share a favorite: card 'Share' -> native share sheet; detail page Share + Copy link
+    paul.locator(".card", has_text="A talk that changed my mind").locator("[data-share]").click()
+    sh = paul.evaluate("window.__shared"); assert len(sh) == 1 and "A talk that changed my mind" in sh[0]["text"] and "youtube.com/watch?v=lib-test" in sh[0]["text"], sh
+    assert "#profile" in paul.url, paul.url
+    paul.locator(".card", has_text="A talk that changed my mind").click(); paul.click("#shclip"); assert len(paul.evaluate("window.__shared")) == 2
+    paul.click("#cpclip"); assert paul.evaluate("navigator.clipboard.readText()") == "https://www.youtube.com/watch?v=lib-test"
+    step("Share a favorite: 'Share' on each library card and on the item page opens the share sheet with title + link; 'Copy link' copies it")
+    paul.goto(BASE + "#add"); expect(paul.locator("#acat")).to_be_visible(timeout=T); assert paul.url.endswith("#profile/add"), paul.url
+    paul.goto(BASE + "#profile")
 
     # 3) start a bridge from a library item -> save-account prompt
-    paul.locator(".card", has_text="A talk that changed my mind").click(); paul.click("text=Start a club with this")
+    paul.locator(".card", has_text="A talk that changed my mind").locator("[data-start]").click()
     expect(paul.locator("#mclip")).to_have_value(re.compile(r"[0-9a-f-]{36}"), timeout=T)
     paul.fill("#mfriend", "SmokeSam"); paul.click("#mgo"); expect(paul.locator("#itxt")).to_be_visible(timeout=T)
     link = re.search(r"(https?://\S+#b/[0-9a-f]{32})", paul.locator("#itxt").input_value()).group(1)
     assert "A talk that changed my mind" in paul.locator("#itxt").input_value()
-    expect(paul.locator("#savenote")).to_be_visible(); step("Club started from a saved clip; invite shows 'Save your account' prompt")
+    expect(paul.locator("#savenote")).to_be_visible(); step("Club started from a library card (▶ Start a club); invite shows 'Save your account' prompt")
 
     # 4) save account: guest -> email with a 6-digit code (same user id, data kept)
     paul.click("#savenote a"); expect(paul.get_by_text("Save your account").first).to_be_visible(timeout=T)
@@ -67,20 +78,25 @@ with sync_playwright() as p:
     expect(paul.locator("#code")).to_be_visible(timeout=T); shot(paul, "10-save-account-code")
     paul.fill("#code", "000000"); paul.click("#cok"); expect(paul.locator("#emsg")).to_contain_text("wrong or expired", timeout=T); step("Wrong code shows a clear error")
     paul.fill("#code", code); paul.click("#cok")
-    expect(paul.get_by_text(f"Signed in as {PAUL_EMAIL}")).to_be_visible(timeout=T)
+    expect(paul.get_by_text(f"Signed in as {PAUL_EMAIL}").first).to_be_visible(timeout=T)
     assert paul.evaluate("ME") == paul_id and paul.evaluate("USER.is_anonymous") is False
     step("Save your account: email code converts the guest in place (same user id, no longer anonymous)")
 
     # 5) Sam joins, opens Paul's library, adds an item from it to his own
     samc = br.new_context(**iphone); sam = page(samc, "sam")
     sam.goto(link); sam.fill("#jname", "SmokeSam"); sam.click("#jgo"); expect(sam.get_by_text("Answer three questions")).to_be_visible(timeout=T)
-    sam.click(".steps button:has-text('Joined')"); sam.click("text=See SmokePaul's saved clips"); expect(sam.get_by_text("SmokePaul's saved clips").first).to_be_visible(timeout=T)
+    sam.click(".steps button:has-text('Joined')"); sam.click("text=See SmokePaul's library"); expect(sam.get_by_text("SmokePaul's library").first).to_be_visible(timeout=T)
     expect(sam.locator(".card", has_text="A talk that changed my mind")).to_be_visible(timeout=T); expect(sam.locator(".card", has_text="Old saved podcast")).to_be_visible()
-    shot(sam, "11-friend-saved-clips")
+    shot(sam, "11-friend-library")
     sam.locator(".card", has_text="A talk that changed my mind").click(); expect(sam.get_by_text("SmokePaul's note:")).to_be_visible(timeout=T)
-    sam.click("#addlib"); expect(sam.get_by_text("✓ Saved")).to_be_visible(timeout=T)
+    sam.click("#addlib"); expect(sam.get_by_text("✓ In your library")).to_be_visible(timeout=T)
     sam.goto(BASE + "#profile"); expect(sam.locator(".card", has_text="A talk that changed my mind")).to_be_visible(timeout=T)
-    step("Club partner sees your saved clips (with notes) and can save one to their own")
+    sam.click(".chip:has-text('SmokePaul')"); expect(sam).to_have_url(re.compile("#lib/" + paul_id)); expect(sam.locator(".card", has_text="Old saved podcast")).to_be_visible(timeout=T)
+    step("Club partner sees your library (with notes), opens it via the 'Friends' libraries' chip, and can add an item to their own")
+    sam.goto(BASE + "#profile/discover"); expect(sam.locator(".card", has_text="Old saved podcast")).to_contain_text("SmokePaul's library", timeout=T)
+    expect(sam.locator(".chip", has_text="Science")).to_be_visible(); sam.click(".chip:has-text('Science')"); expect(sam.locator(".card")).to_have_count(1, timeout=T); shot(sam, "11b-discover")
+    sam.click(".chip:has-text('All')"); assert sam.get_by_text("Example").count() == 0
+    step("Discover shows real recent items from club friends' libraries (category filter, no example feed)")
 
     # 6) Sam (guest) tries Paul's email -> 'already has an account'
     sam.goto(BASE + "#account"); sam.fill("#em", PAUL_EMAIL); sam.click("#esend")
@@ -98,20 +114,20 @@ with sync_playwright() as p:
     assert lap.evaluate("ME") == paul_id
     lap.goto(BASE + "#profile"); expect(lap.locator(".card", has_text="Old saved podcast")).to_be_visible(timeout=T)
     expect(lap.locator(".card", has_text="A talk that changed my mind")).to_be_visible(); expect(lap.locator("h1")).to_contain_text("SmokePaul")
-    step("New browser: email-code sign-in restores the same account — clubs, saved clips, name")
+    step("New browser: email-code sign-in restores the same account — clubs, library, name")
 
     # 8) library syncs across Paul's two browsers
-    lap.click("text=＋ Save a clip"); lap.fill("#aurl", "https://example.org/added-on-laptop"); lap.fill("#atitle", "Added on laptop"); lap.click("#asave")
+    lap.click("[data-pt=Add]"); lap.fill("#aurl", "https://example.org/added-on-laptop"); lap.fill("#atitle", "Added on laptop"); lap.click("#asave")
     expect(lap.get_by_text("Your note:")).to_have_count(0, timeout=T)
     paul.goto(BASE + "#profile"); expect(paul.locator(".card", has_text="Added on laptop")).to_be_visible(timeout=T)
-    step("Saved clips sync: clip saved on the laptop shows up on the phone")
+    step("Library syncs: item added on the laptop shows up on the phone")
     # a third device
     phone2 = br.new_context(**iphone); p2 = page(phone2, "paul-phone2"); p2.goto(BASE + "#signin"); p2.fill("#em", PAUL_EMAIL); n0 = len(mails(PAUL_EMAIL)); p2.click("#esend")
     code, _ = new_code(PAUL_EMAIL, n0); p2.fill("#code", code); p2.click("#cok"); expect(p2.locator(".card", has_text="With SmokeSam")).to_be_visible(timeout=T)
-    p2.goto(BASE + "#profile"); expect(p2.locator(".card", has_text="Added on laptop")).to_be_visible(timeout=T); step("A third device signs in and sees the same clubs and saved clips")
+    p2.goto(BASE + "#profile"); expect(p2.locator(".card", has_text="Added on laptop")).to_be_visible(timeout=T); step("A third device signs in and sees the same clubs and library")
 
     # 9) sign out (email user) and back in
-    lap.goto(BASE + "#profile"); lap.click("#sout"); expect(lap.locator("#sbtn")).to_be_visible(timeout=T)
+    lap.goto(BASE + "#profile/settings"); lap.click("#sout"); expect(lap.locator("#sbtn")).to_be_visible(timeout=T)
     step("Email user can sign out (and sign back in, as shown above)")
     assert not errors, errors; step("No uncaught JS errors")
     br.close()

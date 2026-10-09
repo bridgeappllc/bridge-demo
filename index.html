@@ -55,7 +55,13 @@ a{color:var(--p)}.row{display:flex;gap:8px;align-items:center}
 .clipbox{background:#fff;border-radius:20px;padding:14px 16px;margin:8px 0}
 .list .card{margin:10px 0}
 .sec{display:flex;align-items:center;justify-content:space-between;margin-top:24px}.sec h2{margin:0}
-.av{width:64px;height:64px;border-radius:50%;background:var(--p);color:#fff;margin:4px auto 6px;display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:800}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 10px;-webkit-overflow-scrolling:touch}.chips::-webkit-scrollbar,.tabs::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1.5px solid var(--l);background:#fff;border-radius:999px;padding:9px 16px;font:inherit;font-size:.92rem;font-weight:600;cursor:pointer;color:var(--ink);min-height:44px}.chip.on{background:var(--p);border-color:var(--p);color:#fff}
+.tabs{display:flex;gap:4px;background:#ece8f6;border-radius:16px;padding:4px;margin:16px 0 10px;overflow-x:auto}.tabs button{flex:1 1 0;min-width:0;border:0;background:none;border-radius:12px;padding:10px 2px;font:inherit;font-size:.84rem;white-space:nowrap;font-weight:700;color:var(--m);cursor:pointer;min-height:44px}.tabs button.on{background:#fff;color:var(--p);box-shadow:0 1px 4px rgba(29,26,43,.10)}
+.stat{display:flex;gap:10px;margin-top:12px}.stat div{flex:1;background:#fff;border-radius:16px;padding:12px 6px;text-align:center;box-shadow:0 1px 2px rgba(29,26,43,.05)}.stat b{display:block;font-size:1.5rem;color:var(--p);line-height:1.2}.stat span{color:var(--m);font-weight:600}
+.acts{display:flex;gap:8px;margin-top:12px}.acts .btn{flex:1;margin:0;display:flex;align-items:center;justify-content:center;gap:6px}
+.tag.c2{background:#fff3d6;color:#8a5a00}
+.av{width:72px;height:72px;border-radius:50%;background:var(--p);color:#fff;margin:4px auto 6px;display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:800}
 </style></head><body><div id="phone"><header id="hd"></header><main id="app"></main><nav id="nav"></nav></div>
 <script>
 const CFG=window.BRIDGE_CONFIG||{};
@@ -72,6 +78,8 @@ const IC={bridges:'<rect x="3" y="4" width="18" height="16" rx="4"/><path d="M10
 const NAVL={bridges:"Clubs",new:"Start",profile:"Me"};
 const QS=["What's one specific moment, insight, or story that stuck with you the most—and why?","Was there anything said that you strongly agreed or disagreed with? What was it?","If you had to describe the main takeaway in one or two sentences, what would you say—and did it change or reinforce how you see the topic?"];
 const STEPS=["Invite","Answer","Talk"];
+const CATS=[["Politics","🏛️"],["Economics","📈"],["Culture","🎭"],["Education","🎓"],["Religion","🕊️"],["Science","🔬"],["Other","✨"]];
+const PTABS=["Library","Add","Discover","Clubs","Settings"];
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const safeUrl=u=>/^https?:\/\//i.test(String(u||""))?u:"#";
@@ -111,7 +119,7 @@ const API={
  // library
  async lib(uid){return ok(await sb.from("library_items").select(LCOLS).eq("user_id",uid||ME).order("created_at",{ascending:false}))},
  async item(id){return ok(await sb.from("library_items").select(LCOLS).eq("id",id).maybeSingle())},
- async addLib(it){const {data,error}=await sb.from("library_items").insert({user_id:ME,...it}).select(LCOLS).single();if(error&&error.code==="23505"){const e=new Error("Already in your saved clips");e.dup=1;throw e}if(error)throw error;return data},
+ async addLib(it){const {data,error}=await sb.from("library_items").insert({user_id:ME,...it}).select(LCOLS).single();if(error&&error.code==="23505"){const e=new Error("Already in your library");e.dup=1;throw e}if(error)throw error;return data},
  async importLib(rows){if(rows.length)ok(await sb.from("library_items").upsert(rows.map(r=>({user_id:ME,...r})),{onConflict:"user_id,url",ignoreDuplicates:true}))},
  async removeLib(id){ok(await sb.from("library_items").delete().eq("id",id).eq("user_id",ME))},
  // email (one-time code). Guest -> keep account: updateUser({email}) converts the anonymous user in place.
@@ -153,7 +161,10 @@ function stepbar(cur,reach,id,first){return `<div class="steps">${STEPS.map((t,i
 const fromItem=it=>({id:it.id,title:it.title,creator:it.creator,type:it.kind,cat:it.category,url:it.url,note:it.note,owner:it.user_id});
 function findClip(id){const it=[...(DB.lib||[]),...Object.values(DB.flib).flat()].find(x=>x&&x.id===id);return it?fromItem(it):null}
 const inMyLib=url=>(DB.lib||[]).find(x=>x.url===url);
-function clipCard(c){return `<div class="card tap" onclick="go('clip/${c.id}')"><span class="tag">${esc(c.type)}</span><div class="ct">${esc(c.title)}</div>${c.note?`<div class="sm mut" style="margin-top:4px">“${esc(c.note)}”</div>`:""}</div>`}
+function clipCard(c,who){return `<div class="card tap" onclick="go('clip/${c.id}')">${who?`<span class="tag c2">${esc(who)}</span>`:""}<span class="tag">${esc(c.cat||"Other")}</span><span class="tag">${esc(c.type)}</span><div class="ct">${esc(c.title)}</div>${c.creator?`<div class="mut sm">${esc(c.creator)}</div>`:""}${c.note?`<div class="sm mut" style="margin-top:4px">“${esc(c.note)}”</div>`:""}
+<div class="acts"><button class="btn s" data-start="${c.id}" onclick="event.stopPropagation();go('new/${c.id}')">▶ Start a club</button><button class="btn g s" data-share="${c.id}" onclick="event.stopPropagation();shareClip('${c.id}')">↗ Share</button></div></div>`}
+const shareTxt=c=>`One of my favorites: "${c.title}"\n${c.url}\n\nWant to listen and talk about it? Let's start a Clip Club.`;
+function shareClip(id){const c=findClip(id);if(!c)return;const t=shareTxt(c);if(navigator.share)navigator.share({title:c.title,text:t}).catch(()=>{});else copy(t)}
 const loading='<p class="mut c" style="padding-top:40px">Loading…</p>';
 const saveNote=where=>isGuest()?`<div class="note" id="savenote">💾 <b>Save your account</b> so you can get ${where} back on another phone. <a href="#account">Add your email</a></div>`:"";
 const bridgeCard=b=>{const me=meOf(b),fr=frOf(b),st=stage(me);return `<div class="card tap" onclick="go('bridge/${b.id}')"><span class="tag">${esc(b.clip_type)}</span><div class="ct">${esc(b.clip_title)}</div><div class="mut sm">${me&&me.role==="friend"?"Invited by "+esc(fr?fr.display_name:"a friend"):"With "+esc(frName(b))}</div>
@@ -171,8 +182,8 @@ welcome(){return `<div class="hero">${MARK(84)}<h1>Clip Club</h1><p style="font-
 <ul class="how"><li><span>1</span>Share a link with a friend</li><li><span>2</span>You both listen and answer 3 quick questions</li><li><span>3</span>Talk about it</li></ul>
 <div id="su" style="margin-top:22px"><button class="btn big" id="sbtn">Get started</button><button class="btn o" id="lbtn" onclick="go('signin')">I have an account</button></div><p class="mut sm">Free. No password needed.</p></div>`},
 signin(){return back("","Back")+codeForm("Welcome back","Enter the email you saved your Clip Club account with. We'll email you a sign-in code.","Email me a code")},
-account(){if(!isGuest())return back("profile","Me")+`<h1>Your account</h1><div class="card"><b>Signed in as ${esc(USER&&USER.email)}</b><p class="mut sm">Your clubs and saved clips sync on every phone or browser where you sign in with this email.</p></div>`;
- return back("profile","Me")+codeForm("Save your account","Add your email to keep your clubs and sign in on any phone. No password needed.","Email me a code")+`<div id="exists" style="display:none" class="card sm">Want to switch to that account instead? This guest account's clubs stay with this guest account.<button class="btn o s" id="toSignin">Sign in to that account</button></div>`},
+account(){if(!isGuest())return back("profile/settings","Settings")+`<h1>Your account</h1><div class="card"><b>Signed in as ${esc(USER&&USER.email)}</b><p class="mut sm">Your clubs and library sync on every phone or browser where you sign in with this email.</p></div>`;
+ return back("profile/settings","Settings")+codeForm("Save your account","Add your email to keep your clubs and library and sign in on any phone. No password needed.","Email me a code")+`<div id="exists" style="display:none" class="card sm">Want to switch to that account instead? This guest account's clubs stay with this guest account.<button class="btn o s" id="toSignin">Sign in to that account</button></div>`},
 invite(tok){const p=DB.pv[tok];if(p===undefined)return loading;
  if(!p)return `<div class="hero">${MARK(64)}<h1 style="font-size:1.8rem">Invite not found</h1><p class="mut">This invite link doesn't work. Ask your friend to send it again.</p><a class="btn o" href="#bridges">Open Clip Club</a></div>`;
  if(p.member_count>=2&&!p.is_member)return `<div class="hero">${MARK(64)}<h1 style="font-size:1.8rem">This club is full</h1><p class="mut">${esc(p.owner_name)}'s club already has two people. Ask them for a new invite.</p><a class="btn o" href="#bridges">Open Clip Club</a></div>`;
@@ -184,8 +195,8 @@ bridges(){const L=DB.list;return `<h1>Your clubs</h1><button class="btn big" onc
 ${L&&L.length&&isGuest()&&!S.hideSave?`<div class="card" id="savecard"><b>💾 Save your account</b><p class="mut sm">Add your email so you can get your clubs back on another phone. No password.</p><button class="btn s" onclick="go('account')">Save account</button> <button class="btn o s" id="nosave">Not now</button></div>`:""}
 <div class="list">${L===null?loading:L.length?L.map(bridgeCard).join(""):'<div class="card c"><p style="font-weight:800;margin:4px 0">No clubs yet</p><p class="mut sm">Paste a link to a podcast, video or article and invite a friend.</p></div>'}</div>`},
 new(pre){const pc=pre&&findClip(pre);const mine=(DB.lib||[]).map(fromItem);const opts=[...mine,...(pc&&!mine.some(c=>c.id===pc.id)?[pc]:[])];const sel=pc?pc.id:"";
- return `<div id="mform"><h1>Start a club</h1><p class="mut">Pick something to listen to, then invite a friend.</p>${opts.length?`<label>Pick a saved clip</label><select id="mclip"><option value="">Paste a new link instead</option>${opts.map(c=>`<option value="${c.id}" ${c.id===sel?"selected":""}>${esc(c.title)}</option>`).join("")}</select>`:'<select id="mclip" style="display:none"><option value=""></option></select>'}
-<div id="paste" style="display:${sel?"none":"block"}"><label>Link to a podcast, video or article</label><input id="murl" type="url" inputmode="url" placeholder="https://…"><label>Title</label><input id="mtitle" placeholder="What is it called?" maxlength="300"></div>
+ return `<div id="mform"><h1>Start a club</h1><p class="mut">Pick something to listen to, then invite a friend.</p>${opts.length?`<label>Pick from your library</label><select id="mclip"><option value="">Paste a new link instead</option>${opts.map(c=>`<option value="${c.id}" ${c.id===sel?"selected":""}>${esc(c.title)}${c.owner&&c.owner!==ME?" ("+esc(nameOf(c.owner)||"friend")+"'s library)":""}</option>`).join("")}</select>`:'<select id="mclip" style="display:none"><option value=""></option></select>'}
+<div id="paste" style="display:${sel?"none":"block"}"><label>Link to a podcast, video or article</label><input id="murl" type="url" inputmode="url" placeholder="https://…"><label>Title</label><input id="mtitle" placeholder="What is it called?" maxlength="300"><p class="mut sm">New links are also saved to your library.</p></div>
 <label>Friend's name <span class="mut sm">(optional)</span></label><input id="mfriend" placeholder="e.g. Sam" maxlength="40">
 <button class="btn big" id="mgo">Create invite</button></div><div id="mout"></div>`},
 bridge(id,sp){const D=DB.d[id];if(D===undefined)return loading;if(!D||!D.b)return `<h1>Club not found</h1><p class="mut">It may have been deleted, or you're not a member. Open the invite link to join.</p>`;
@@ -195,7 +206,7 @@ bridge(id,sp){const D=DB.d[id];if(D===undefined)return loading;if(!D||!D.b)retur
  const frStatus=(what,done)=>!fr?`${fn} hasn't joined yet.`:done?`🔒 ${fn} has ${what} — submit yours to see theirs.`:`${fn} hasn't ${what} yet.`;
  if(cur===0){if(me.role==="owner")h+=`<h2>${fr?"✓ "+fn+" joined":"Invite "+fn}</h2>${fr?"":'<p class="mut sm">Text this to your friend. The link at the end lets them join.</p>'}<textarea rows="7" readonly id="itxt">${esc(inviteTxt(b))}</textarea><button class="btn o" id="cpi">Copy invite</button>${navigator.share?'<button class="btn o" id="shi">Share…</button>':""}<button class="btn" onclick="go('bridge/${id}/1')">Next: Answer</button>`;
   else h+=`<h2>✓ You joined ${fn}'s club</h2><p class="mut">Listen to it, then answer three quick questions.</p><button class="btn" onclick="go('bridge/${id}/1')">Next: Answer</button>`+saveNote("this club");
-  if(fr)h+=`<p class="sm c"><a href="#lib/${fr.user_id}">See ${fn}'s saved clips</a></p>`}
+  if(fr)h+=`<p class="sm c"><a href="#lib/${fr.user_id}">See ${fn}'s library</a></p>`}
  if(cur===1){if(!myA)h+=`<h2>Answer three questions</h2>${QS.map((q,i)=>`<label class="sm">${i+1}. ${q}</label><textarea rows="3" class="q" maxlength="4000"></textarea>`).join("")}
 <p class="sm mut">${frStatus("answered",fr&&fr.answered_at)}</p><p class="sm" id="qhint" style="color:var(--r)"></p><button class="btn big" id="qsave">Submit answers · Unlock chat</button>`;
   else h+=`<h2>Answers</h2>${QS.map((q,i)=>`<div class="card"><div class="sm" style="font-weight:700">${i+1}. ${q}</div><div class="who">You</div><div class="qa">${esc(myA["a"+(i+1)])}</div>${frA?`<div class="who">${fn}</div><div class="qa fr">${esc(frA["a"+(i+1)])}</div>`:""}</div>`).join("")}
@@ -203,21 +214,29 @@ ${frA?"":`<p class="sm mut">${!fr?fn+" hasn't joined yet — you'll see their an
  if(cur===2){let prev=null;h+=`<h2>💬 Talk</h2>${fr&&fr.answered_at?"":`<div class="note">${!fr?fn+" hasn't joined yet":fn+" hasn't answered yet"} — they'll see the chat once they do.</div>`}<div id="chat">${D.messages.map(m=>{const mine=m.user_id===ME,who=mine?"":(m.user_id!==prev?`<div class="who">${fn}</div>`:"");prev=m.user_id;return who+`<div class="bub ${mine?"me":""}">${esc(m.body)}</div>`}).join("")||'<p class="mut sm">Start the conversation: what stuck with you?</p>'}</div><div class="row" style="margin-top:10px"><input id="ct" placeholder="Write a message…" maxlength="2000"><button class="btn s" id="cs">Send</button></div>`}
  else h+=`<div class="lock" style="margin-top:16px">${LOCK}<div style="font-weight:800;margin-top:6px">Chat locked</div><p class="mut sm">Unlocks after you answer the three questions.</p></div>`;
  return h},
-clip(id){const c=findClip(id);if(!c)return DB.lib===null||DB.flib.__loading?loading:"<h1>Not found</h1><p class='mut'>This clip isn't saved by you or a friend.</p>";
- const mine=c.owner&&c.owner===ME,friend=c.owner&&!mine,have=!mine&&inMyLib(c.url);
- return back("profile","Me")+`${friend?`<span class="tag">${esc(nameOf(c.owner)||"Friend")}'s clip</span>`:""}<span class="tag">${esc(c.type)}</span><h1 style="font-size:1.55rem">${esc(c.title)}</h1>
-${c.note?`<div class="card sm"><b>${mine?"Your note":friend?esc(nameOf(c.owner)||"Their")+"'s note":"Note"}:</b> ${esc(c.note)}</div>`:""}<a class="btn o" href="${esc(safeUrl(c.url))}" target="_blank" rel="noopener">▶ Open link</a>
-<button class="btn" onclick="go('new/${id}')">Start a club with this</button>${mine?`<button class="btn o s" id="rmlib">Remove from saved</button>`:have?`<p class="mut sm c">✓ Saved</p>`:`<button class="btn o" id="addlib">Save to my clips</button>`}`},
+clip(id){const c=findClip(id);if(!c)return DB.lib===null||DB.flib.__loading?loading:"<h1>Not found</h1><p class='mut'>This item isn't in your library or a friend's.</p>";
+ const mine=c.owner&&c.owner===ME,friend=c.owner&&!mine,have=!mine&&inMyLib(c.url),fn=esc(nameOf(c.owner)||"Friend");
+ return (friend?back("lib/"+c.owner,fn+"'s library"):back("profile","Library"))+`${friend?`<span class="tag c2">${fn}'s library</span>`:""}<span class="tag">${esc(c.cat||"Other")}</span><span class="tag">${esc(c.type)}</span><h1 style="font-size:1.55rem">${esc(c.title)}</h1>${c.creator?`<p class="mut sm">${esc(c.creator)}</p>`:""}
+${c.note?`<div class="card sm"><b>${mine?"Your note":fn+"'s note"}:</b> ${esc(c.note)}</div>`:""}<a class="btn o" href="${esc(safeUrl(c.url))}" target="_blank" rel="noopener">▶ Open link</a>
+<h2>Share it</h2><button class="btn big" onclick="go('new/${id}')">Start a club with this</button><div class="acts"><button class="btn g s" id="shclip">↗ Share…</button><button class="btn o s" id="cpclip">Copy link</button></div>
+<div style="margin-top:18px">${mine?`<button class="btn o s" id="rmlib">Remove from library</button>`:have?`<p class="mut sm c">✓ In your library</p>`:`<button class="btn o" id="addlib">＋ Add to my library</button>`}</div>`},
 lib(uid){const L=DB.flib[uid],n=esc(nameOf(uid)||"Your friend");if(L===undefined)return loading;
- return back("bridges","Your clubs")+`<h1 style="font-size:1.6rem">${n}'s saved clips</h1><p class="mut">Pick one to start a club together.</p>${L.length?L.map(it=>clipCard(fromItem(it))).join(""):`<div class="card c"><p class="mut sm">${n} hasn't saved anything yet.</p></div>`}`},
-add(){return back("profile","Me")+`<h1>Save a clip</h1><p class="mut">Keep a podcast, video or article to start a club with later.</p><label>Link</label><input id="aurl" type="url" inputmode="url" placeholder="https://…"><label>Title</label><input id="atitle" placeholder="What is it called?" maxlength="300">
-<label>Note <span class="mut sm">(optional)</span></label><textarea id="anote" rows="3" maxlength="300" placeholder="Why do you want to talk about it?"></textarea><div class="mut sm" style="text-align:right"><span id="cnt">0</span>/300</div><button class="btn big" id="asave">Save clip</button><p class="mut sm">Friends in your clubs can see your saved clips.</p>`},
-profile(){return `<div class="c" style="padding-top:8px"><div class="av">${esc((PROFILE.display_name||"?")[0].toUpperCase())}</div><h1 style="font-size:1.5rem;margin:4px 0 0">${esc(PROFILE.display_name)}</h1><p class="mut sm" style="margin:2px 0 0">${isGuest()?"Guest account on this device":"Signed in as "+esc(USER&&USER.email)}</p></div>
-${isGuest()?`<div class="card"><b>💾 Save your account</b><p class="mut sm">Add your email to keep your clubs and sign in on other phones. No password needed.</p><button class="btn" id="gosave" onclick="go('account')">Save your account</button></div>`:""}
-<div class="sec"><h2>Saved clips</h2><button class="btn g s" onclick="go('add')">＋ Save a clip</button></div>
-<div class="list">${DB.lib===null?loading:DB.lib.length?DB.lib.map(it=>clipCard(fromItem(it))).join(""):'<div class="card c"><p class="mut sm">Save podcasts and videos here to start a club with later.</p></div>'}</div>
-<h2>Settings</h2><div class="card"><label style="margin-top:0">Your name</label><input id="pname" maxlength="40" value="${esc(PROFILE.display_name)}"><button class="btn o s" id="psave">Save name</button></div>
-<button class="btn o" id="sout">Sign out</button>`}};
+ return back("profile","Profile")+`<h1 style="font-size:1.6rem">${n}'s library</h1><p class="mut">Their favorite podcasts, videos and articles. Pick one to start a club together.</p>${L.length?L.map(it=>clipCard(fromItem(it))).join(""):`<div class="card c"><p class="mut sm">${n} hasn't added anything yet.</p></div>`}`},
+add(){return ""},
+profile(tid){const L=DB.list||[],tab=PTABS.find(t=>t.toLowerCase()===String(tid||"").toLowerCase())||"Library";let body="";
+if(tab==="Library"){const P=partners();body=(P.length?`<div class="chips"><span class="sm mut" style="align-self:center;flex:none;font-weight:700">Friends' libraries:</span>${P.map(p=>`<button class="chip" onclick="go('lib/${p.user_id}')">${esc(p.name)} →</button>`).join("")}</div>`:"")+
+ (DB.lib===null?loading:DB.lib.length?`<div class="list">${DB.lib.map(it=>clipCard(fromItem(it))).join("")}</div>`:'<div class="card c"><p style="font-weight:800;margin:4px 0">Your library is empty</p><p class="mut sm">Add your favorite podcasts, videos and articles. Share them with friends or start a club with one.</p><button class="btn s" onclick="go(\'profile/add\')">＋ Add a favorite</button></div>')}
+if(tab==="Add")body=`<p class="mut" style="margin-top:4px">Add a favorite podcast, video or article to your library.</p><label>Link</label><input id="aurl" type="url" inputmode="url" placeholder="https://…"><label>Title</label><input id="atitle" placeholder="What is it called?" maxlength="300"><label>Category</label><select id="acat">${CATS.map(c=>`<option value="${c[0]}">${c[1]} ${c[0]}</option>`).join("")}</select>
+<label>Personal note <span class="mut sm">(optional)</span></label><textarea id="anote" rows="3" maxlength="300" placeholder="Why is it one of your favorites?"></textarea><div class="mut sm" style="text-align:right"><span id="cnt">0</span>/300</div><button class="btn big" id="asave">Save to Library</button><p class="mut sm">Friends in your clubs can see your library.</p>`;
+if(tab==="Discover"){const P=partners();if(!DB.discReady&&P.length)body=loading;else{const all=P.flatMap(p=>(DB.flib[p.user_id]||[]).map(it=>({it,who:p.name}))).sort((x,y)=>String(y.it.created_at).localeCompare(String(x.it.created_at)));
+ const cats=[...new Set(all.map(x=>x.it.category||"Other"))],cur=cats.includes(S.dcat)?S.dcat:"All",l=cur==="All"?all:all.filter(x=>(x.it.category||"Other")===cur);
+ body=`<p class="mut" style="margin-top:4px">New in the libraries of friends you're in clubs with.</p>${all.length?`<div class="chips">${["All",...cats].map(c=>`<button class="chip${c===cur?" on":""}" data-cat="${esc(c)}">${esc(c)}</button>`).join("")}</div>`+l.slice(0,30).map(x=>clipCard(fromItem(x.it),x.who+"'s library")).join(""):`<div class="card c"><p style="font-weight:800;margin:4px 0">Nothing here yet</p><p class="mut sm">${P.length?"Your club friends haven't added anything to their libraries yet.":"Start a club with a friend. Their favorites will show up here."}</p></div>`}`}}
+if(tab==="Clubs")body=`<div class="list">${DB.list===null?loading:L.map(b=>`<div class="card tap" onclick="go('bridge/${b.id}')"><div class="ct" style="margin-top:0">${esc(b.clip_title)}</div><div class="mut sm">With ${esc(frName(b))} · ${stage(meOf(b))===2?"💬 Chat open":"Next: "+STEPS[stage(meOf(b))]}</div></div>`).join("")||'<div class="card c"><p class="mut sm">No clubs yet.</p><button class="btn s" onclick="go(\'new\')">＋ Start a club</button></div>'}</div>`;
+if(tab==="Settings")body=`<div class="card"><label style="margin-top:0">Your name</label><input id="pname" maxlength="40" value="${esc(PROFILE.display_name)}"><button class="btn o s" id="psave">Save name</button><p class="mut sm">Shown to friends in your clubs.</p></div>
+<div class="card"><b>Account</b>${isGuest()?`<p class="mut sm">You're using a guest account on this device. Save it with your email to keep your clubs and library and sign in on other phones. No password needed.</p><button class="btn" id="gosave" onclick="go('account')">💾 Save your account</button>`:`<p class="mut sm">Signed in as <b>${esc(USER&&USER.email)}</b>. Your clubs and library sync on every device where you sign in.</p>`}<button class="btn o" id="sout">Sign out</button></div>`;
+return `<div class="c" style="padding-top:8px"><div class="av">${esc((PROFILE.display_name||"?")[0].toUpperCase())}</div><h1 style="font-size:1.5rem;margin:4px 0 0">${esc(PROFILE.display_name)}</h1><p class="mut sm" style="margin:2px 0 0">${isGuest()?"Guest account on this device":"Signed in as "+esc(USER&&USER.email)}</p></div>
+<div class="stat"><div><b>${L.filter(b=>b.created_by===ME).length}</b><span class="sm">Started</span></div><div><b>${L.filter(b=>meOf(b)?.answered_at).length}</b><span class="sm">Answered</span></div><div><b>${(DB.lib||[]).length}</b><span class="sm">Library</span></div></div>
+<div class="tabs">${PTABS.map(t=>`<button class="${t===tab?"on":""}" data-pt="${t}" onclick="go('profile/${t.toLowerCase()}')">${t}</button>`).join("")}</div>${body}`}};
 
 /* ---------- router / render ---------- */
 let lastKey="",unwatch=null;
@@ -227,11 +246,11 @@ function snapshot(){const els=$$("#app input,#app textarea,#app select");const a
 function restore(s){const els=$$("#app input,#app textarea,#app select");if(els.length===s.vals.length)els.forEach((e,i)=>{if(e.type!=="hidden"&&!e.readOnly)e.value=s.vals[i]});const f=els[s.focus];if(f){f.focus();if(s.sel)try{f.setSelectionRange(...s.sel)}catch(e){}}window.scrollTo(0,s.y)}
 const sig=o=>JSON.stringify(o);
 const shown={}; // data signature as of the last successful render of each view (so a failed render self-heals on the next poll)
-const viewData=(v,id)=>v==="bridge"?DB.d[id]:v==="bridges"?DB.list:v==="profile"?[DB.lib]:v==="lib"?[DB.flib[id],DB.list]:v==="clip"||v==="new"?[DB.lib,DB.flib,DB.list]:null;
+const viewData=(v,id)=>v==="bridge"?DB.d[id]:v==="bridges"?DB.list:v==="profile"?[DB.lib,DB.list,DB.flib,DB.discReady,S.dcat]:v==="lib"?[DB.flib[id],DB.list]:v==="clip"||v==="new"?[DB.lib,DB.flib,DB.list]:null;
 function render(refresh){const {id,sp}=parse(),v=viewOf(),key=v+"/"+id+"/"+(sp||"");const keep=refresh&&key===lastKey?snapshot():null;
 if(refresh&&v==="new"&&$("#mout")&&$("#mout").innerHTML)return; // never wipe a freshly created invite
 const app=!["welcome","setup","invite","signin"].includes(v);$("#hd").innerHTML=v==="welcome"?"":LOGO+`<b>Clip Club</b><span class="sp"></span>`;$("#hd").style.display=v==="welcome"?"none":"flex";
-$("#nav").style.display=app?"flex":"none";const tab={bridges:"bridges",bridge:"bridges",lib:"bridges",new:"new",profile:"profile",clip:"profile",add:"profile",account:"profile"}[v];
+$("#nav").style.display=app?"flex":"none";const tab={bridges:"bridges",bridge:"bridges",lib:"profile",new:"new",profile:"profile",clip:"profile",add:"profile",account:"profile"}[v];
 $("#nav").innerHTML=["bridges","new","profile"].map(k=>`<button class="${k===tab?"on":""}${k==="new"?" plus":""}" onclick="go('${k}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">${IC[k]}</svg>${NAVL[k]}</button>`).join("");
 $("#app").innerHTML=V[v](id,sp);if(keep)restore(keep);else if(key!==lastKey)window.scrollTo(0,0);lastKey=key;(B[v]||(()=>{}))(id,sp);
 shown[key]=sig(viewData(v,id));
@@ -246,10 +265,10 @@ async function loadPreview(t){try{const p=await API.preview(t);DB.pv[t]=p;if(p&&
 // one-time move of library items saved on this device (older app version) into the account
 async function migrateLocal(){const items=legacyItems();if(!PROFILE||!items.length)return;
  try{await API.importLib(items.map(c=>({url:normUrl(c.url).slice(0,2000),title:String(c.title||c.url).slice(0,300),category:String(c.cat||"").slice(0,40),kind:String(c.type||kindOf(c.url)).slice(0,20),creator:c.creator==="Added by you"?"":String(c.creator||"").slice(0,120),note:String(c.note||"").slice(0,300)})).filter(r=>/^https?:\/\//i.test(r.url)));
-  S.clips=S.clips.filter(c=>c.ex);save();loadLib();toast(`Moved ${items.length} saved clip${items.length>1?"s":""} into your account`)}catch(e){console.warn("library migration failed; will retry",e)}}
-function onRoute(){if(unwatch){unwatch();unwatch=null}render();if(!CONFIGURED)return;const v=viewOf(),{id}=parse();
+  S.clips=S.clips.filter(c=>c.ex);save();loadLib();toast(`Moved ${items.length} item${items.length>1?"s":""} into your library`)}catch(e){console.warn("library migration failed; will retry",e)}}
+function onRoute(){if(unwatch){unwatch();unwatch=null}if(location.hash==="#add")history.replaceState(null,"","#profile/add");render();if(!CONFIGURED)return;const v=viewOf(),{id}=parse();
  if(v==="bridges"){loadList();unwatch=API.watch(null,loadList,10000)}
- if(v==="profile"){loadLib();unwatch=API.watch(null,loadLib,10000)}
+ if(v==="profile"){const ref=async()=>{await Promise.all([loadLib(),loadList()]);if(/^discover$/i.test(id||"")){await Promise.all(partners().map(p=>API.lib(p.user_id).then(l=>{DB.flib[p.user_id]=l}).catch(e=>console.warn(e))));DB.discReady=true;rerender()}};ref();unwatch=API.watch(null,ref,10000)}
  if(v==="new"){loadLib();if(DB.list===null)loadList()}
  if(v==="clip"){if(DB.list===null)loadList();(DB.lib===null?loadLib():Promise.resolve()).then(()=>{if(!findClip(id))loadItem(id)})}
  if(v==="lib"){if(id===ME){go("profile");return}if(DB.list===null)loadList();loadFlib(id)}
@@ -271,7 +290,7 @@ welcome(){const ask=t=>{$("#su").innerHTML=`<label style="text-align:left">${t}<
  const done=async()=>{const n=$("#nm").value.trim();if(!n)return toast("Please enter your name");busy($("#nok"),true);try{await API.saveProfile({display_name:n,topics:S.topics});await migrateLocal();go("bridges");onRoute()}catch(e){busy($("#nok"),false);fail(e)}};$("#nok").onclick=done;$("#nm").onkeydown=e=>{if(e.key==="Enter")done()}};
  $("#sbtn").onclick=()=>ask("What's your name?")},
 signin(){bindCodeForm(e=>API.sendSignIn(e),async(e,c)=>{await API.confirmSignIn(e,c);await migrateLocal();toast(PROFILE?`Welcome back, ${PROFILE.display_name}`:"Signed in");const a=S.after;delete S.after;save();go(a||"bridges");onRoute()})},
-account(){if(!isGuest())return;bindCodeForm(e=>API.saveEmail(e),async(e,c)=>{await API.confirmEmail(e,c);toast("Account saved ✓");go("profile")},()=>{$("#exists").style.display="block"});
+account(){if(!isGuest())return;bindCodeForm(e=>API.saveEmail(e),async(e,c)=>{await API.confirmEmail(e,c);toast("Account saved ✓");go("profile/settings")},()=>{$("#exists").style.display="block"});
  const ts=$("#toSignin");if(ts)ts.onclick=async()=>{if(!confirm("Switch accounts? You'll leave this guest account, and its clubs stay with it."))return;await API.signOut();go("signin")}},
 invite(tok){const js=$("#jsignin");if(js)js.onclick=()=>{S.after="b/"+tok;save()};const j=$("#jgo");if(!j)return;const doJoin=async()=>{const n=$("#jname").value.trim();if(!n)return toast("Please enter your name");busy(j,true);
  try{if(!PROFILE){await API.saveProfile({display_name:n,topics:[]});migrateLocal()}else await API.ensureUser();const id=await API.join(tok,n);DB.list=null;toast("You're in the club 🎧");go("bridge/"+id+"/1")}catch(e){busy(j,false);fail(e)}};
@@ -287,17 +306,19 @@ $("#mgo").onclick=async()=>{let c=findClip(sel.value),fresh=false;if(!c){const u
   const txt=inviteTxt(b);$("#mout").innerHTML=`<h1>Your club is ready</h1><p class="mut">“${esc(c.title)}”</p><div class="card"><b>Invite ${esc(f||"a friend")}</b><p class="mut sm">Text this to your friend. The link at the end lets them join.</p><textarea rows="7" readonly id="itxt">${esc(txt)}</textarea><button class="btn o" id="cp">Copy invite</button>${navigator.share?'<button class="btn o" id="sh">Share…</button>':""}<button class="btn" id="nx" onclick="go('bridge/${b.id}/1')">Next: Answer 3 questions</button></div>${saveNote("this club")}`;
   $("#cp").onclick=()=>copy(txt);if($("#sh"))$("#sh").onclick=()=>share(txt);$("#mform").style.display="none";window.scrollTo(0,0)}catch(e){busy($("#mgo"),false);fail(e)}}},
 clip(id){const c=findClip(id);if(!c)return;
- const a=$("#addlib");if(a)a.onclick=async()=>{busy(a,true);try{const it=await API.addLib({url:c.url,title:c.title.slice(0,300),category:c.cat||"",kind:c.type||kindOf(c.url),creator:c.ex?"":(c.creator||"").slice(0,120),note:""});DB.lib=[it,...(DB.lib||[])];toast("Saved");render(true)}catch(e){busy(a,false);if(e.dup){toast(e.message)}else fail(e)}};
- const r=$("#rmlib");if(r)r.onclick=async()=>{if(!confirm("Remove this from your saved clips?"))return;busy(r,true);try{await API.removeLib(id);DB.lib=(DB.lib||[]).filter(x=>x.id!==id);toast("Removed");go("profile")}catch(e){busy(r,false);fail(e)}}},
+ $("#shclip").onclick=()=>shareClip(id);$("#cpclip").onclick=()=>copy(c.url);
+ const a=$("#addlib");if(a)a.onclick=async()=>{busy(a,true);try{const it=await API.addLib({url:c.url,title:c.title.slice(0,300),category:c.cat||"",kind:c.type||kindOf(c.url),creator:(c.creator||"").slice(0,120),note:""});DB.lib=[it,...(DB.lib||[])];toast("Added to your Library");render(true)}catch(e){busy(a,false);if(e.dup){toast(e.message)}else fail(e)}};
+ const r=$("#rmlib");if(r)r.onclick=async()=>{if(!confirm("Remove this from your library?"))return;busy(r,true);try{await API.removeLib(id);DB.lib=(DB.lib||[]).filter(x=>x.id!==id);toast("Removed");go("profile")}catch(e){busy(r,false);fail(e)}}},
 bridge(id){const D=DB.d[id];if(!D||!D.b)return;const b=D.b;
 if($("#cpi"))$("#cpi").onclick=()=>copy(inviteTxt(b));if($("#shi"))$("#shi").onclick=()=>share(inviteTxt(b));
 $$(".q").forEach(t=>t.oninput=()=>$("#qhint").textContent="");const q=$("#qsave");if(q)q.onclick=async()=>{const a=$$(".q").map(t=>t.value.trim());if(a.some(x=>x.length<3))return $("#qhint").textContent="Please answer all three questions to continue.";
  if(!confirm("Submit your answers? You can't edit them afterwards."))return;busy(q,true);try{await API.answer(id,a);await loadBridge(id);toast("Chat unlocked 💬");go(`bridge/${id}/2`)}catch(e){busy(q,false);fail(e)}};
 const cs=$("#cs");if(cs){let sending=false;const send=async()=>{const t=$("#ct").value.trim();if(!t||sending)return;sending=true;cs.disabled=true;try{await API.send(id,t);$("#ct").value="";await loadBridge(id)}catch(e){fail(e)}sending=false;if($("#cs"))$("#cs").disabled=false;if($("#ct"))$("#ct").focus()};cs.onclick=send;$("#ct").onkeydown=e=>{if(e.key==="Enter")send()}}},
-add(){const an=$("#anote");an.oninput=e=>$("#cnt").textContent=e.target.value.length;$("#asave").onclick=async()=>{const url=normUrl($("#aurl").value);if(!url)return toast("Please paste a link");busy($("#asave"),true);
- try{const it=await API.addLib({url,title:($("#atitle").value.trim()||url).slice(0,300),category:"",kind:kindOf(url),creator:"",note:an.value.trim()});DB.lib=[it,...(DB.lib||[])];toast("Clip saved");go("clip/"+it.id)}catch(e){busy($("#asave"),false);if(e.dup)toast("Already in your saved clips");else fail(e)}}},
-profile(){const ps=$("#psave");if(ps)ps.onclick=async()=>{const n=$("#pname").value.trim();if(!n)return toast("Please enter your name");try{await API.saveProfile({display_name:n});toast("Saved");render()}catch(e){fail(e)}};
-const so=$("#sout");if(so)so.onclick=async()=>{if(!confirm(isGuest()?"Sign out? This is a guest account, so you won't be able to get back to your clubs. Save your account with your email first to keep them.":"Sign out of Clip Club on this device? Sign back in any time with your email."))return;try{await API.signOut()}catch(e){}go("");onRoute()}}};
+profile(){$$("[data-cat]").forEach(b=>b.onclick=()=>{S.dcat=b.dataset.cat;save();render(true)});
+const an=$("#anote");if(an){an.oninput=e=>$("#cnt").textContent=e.target.value.length;$("#asave").onclick=async()=>{const url=normUrl($("#aurl").value);if(!url)return toast("Please paste a link");busy($("#asave"),true);
+ try{const it=await API.addLib({url,title:($("#atitle").value.trim()||url).slice(0,300),category:$("#acat").value,kind:kindOf(url),creator:"",note:an.value.trim()});DB.lib=[it,...(DB.lib||[])];toast("Saved to your Library");go("clip/"+it.id)}catch(e){busy($("#asave"),false);if(e.dup)toast("Already in your library");else fail(e)}}}
+const ps=$("#psave");if(ps)ps.onclick=async()=>{const n=$("#pname").value.trim();if(!n)return toast("Please enter your name");try{await API.saveProfile({display_name:n});toast("Saved");render()}catch(e){fail(e)}};
+const so=$("#sout");if(so)so.onclick=async()=>{if(!confirm(isGuest()?"Sign out? This is a guest account, so you won't be able to get back to your clubs or library. Save your account with your email first to keep them.":"Sign out of Clip Club on this device? Sign back in any time with your email."))return;try{await API.signOut()}catch(e){}go("");onRoute()}}};
 
 /* ---------- boot ---------- */
 (async()=>{const qb=new URLSearchParams(location.search).get("b");if(qb){history.replaceState(null,"",location.pathname+"#b/"+encodeURIComponent(qb))}

@@ -35,21 +35,21 @@ with sync_playwright() as p:
         except Exception as e: print(f"    (screenshot {n} skipped: {str(e).splitlines()[0][:80]})")
 
     # --- Paul signs up and creates a bridge from a pasted link
-    paul.goto(BASE); paul.click("#sbtn"); paul.fill("#nm", P); paul.click("#nok")
+    paul.goto(BASE); shot(paul, "w-welcome"); paul.click("#sbtn"); paul.fill("#nm", P); shot(paul, "w-name"); paul.click("#nok")
     expect(paul.get_by_text("No clubs yet")).to_be_visible(timeout=T); shot(paul, "00-paul-clubs-empty"); step(f"{P} signs up (anonymous auth + profile) and lands on Your clubs")
     paul.click("text=＋ Start a club")
-    paul.fill("#murl", "https://www.youtube.com/watch?v=dQw4w9WgXcQ"); paul.fill("#mtitle", "Smoke test video"); paul.fill("#mfriend", S)
+    paul.fill("#murl", "https://www.youtube.com/watch?v=dQw4w9WgXcQ"); paul.fill("#mtitle", "Smoke test video"); paul.fill("#mfriend", S); shot(paul, "w-start")
     paul.click("#mgo"); expect(paul.locator("#itxt")).to_be_visible(timeout=T)
     invite = paul.locator("#itxt").input_value()
     m = re.search(r"(https?://\S+#b/([0-9a-f]{32}))", invite); assert m, invite
     link, token = m.group(1), m.group(2)
     assert link.startswith(BASE.rstrip("/")), (link, BASE)
     assert "Smoke test video" in invite and "youtube.com" in invite and invite.startswith("Join my Clip Club")
-    paul.locator("#itxt").scroll_into_view_if_needed(); paul.evaluate("window.scrollBy(0,120); const t=document.querySelector('#itxt'); t.scrollTop=t.scrollHeight"); shot(paul, "01-paul-invite"); step(f"Club created; invite text includes unique link {link[:60]}…")
+    paul.locator("#itxt").scroll_into_view_if_needed(); paul.evaluate("window.scrollBy(0,120); const t=document.querySelector('#itxt'); t.scrollTop=t.scrollHeight"); shot(paul, "01-paul-invite"); paul.evaluate("window.scrollTo(0,0)"); shot(paul, "w-invite-ready"); step(f"Club created; invite text includes unique link {link[:60]}…")
     paul.click("#cp"); assert paul.evaluate("navigator.clipboard.readText()") == invite; step("Copy invite text puts it on the clipboard")
     paul.click("#nx")
     expect(paul.get_by_text("Answer three questions")).to_be_visible(timeout=T)
-    expect(paul.get_by_text(f"{S} hasn't joined yet.")).to_be_visible(timeout=T)
+    expect(paul.get_by_text(f"{S} hasn't joined yet.")).to_be_visible(timeout=T); shot(paul, "w-answer")
 
     # --- Sam opens the link on "his phone"
     sam.goto(link)
@@ -122,9 +122,11 @@ with sync_playwright() as p:
     eve.goto(BASE + "#bridge/" + bridge_path); expect(eve.get_by_text("Club not found")).to_be_visible(timeout=T); step("Signed-in outsider opening the club URL directly sees nothing")
 
     # --- Me page + rename
-    paul.goto(BASE + "#profile"); expect(paul.get_by_text("Saved clips")).to_be_visible(timeout=T); expect(paul.locator(".card", has_text="Smoke test video")).to_be_visible(timeout=T)
-    shot(paul, "07-paul-me"); paul.fill("#pname", P + "G"); paul.click("#psave"); expect(paul.locator("h1")).to_contain_text(f"{P}G", timeout=T)
-    paul.reload(); expect(paul.locator("h1")).to_contain_text(f"{P}G", timeout=T); step("Me page shows saved clips (pasted link auto-saved); name change persists")
+    paul.goto(BASE + "#profile"); expect(paul.locator(".tabs button")).to_have_text(["Library", "Add", "Discover", "Clubs", "Settings"], timeout=T)
+    expect(paul.locator(".card", has_text="Smoke test video")).to_be_visible(timeout=T); expect(paul.locator(".stat")).to_contain_text("1Started")
+    shot(paul, "07-paul-me"); paul.click("[data-pt=Clubs]"); expect(paul.locator(".card", has_text="Smoke test video")).to_contain_text(f"With {S}", timeout=T); shot(paul, "w-profile-clubs")
+    paul.click("[data-pt=Settings]"); paul.fill("#pname", P + "G"); paul.click("#psave"); expect(paul.locator("h1")).to_contain_text(f"{P}G", timeout=T); shot(paul, "w-settings")
+    paul.reload(); expect(paul.locator("h1")).to_contain_text(f"{P}G", timeout=T); step("Profile: avatar, stats, tabs Library/Add/Discover/Clubs/Settings; pasted link auto-saved to Library; Clubs tab; name change persists")
 
     # --- Unconfigured build shows setup notice instead of breaking
     html = open(os.path.join(HERE, "..", "index.html"), encoding="utf8").read()
@@ -134,8 +136,8 @@ with sync_playwright() as p:
 
     p2 = br.new_context(**iphone).new_page(); p2.goto(BASE + "?b=" + token); expect(p2.get_by_text("This club is full")).to_be_visible(timeout=T); step("?b=<token> link form also works")
     import re as _re
-    bad = _re.compile(r"\bbridg\w*|meet me|common ground|agree to|\brat(e|ed|ing|ings)\b|propaganda|redpill|library|topics?\b|discover|reward|🌉", _re.I); seen = []
-    for h in ["#bridges", "#bridge/" + bridge_path + "/0", "#bridge/" + bridge_path + "/1", "#bridge/" + bridge_path + "/2", "#profile", "#new", "#add", "#account"]:
+    bad = _re.compile(r"\bbridg\w*|meet me|common ground|agree to|\brat(e|ed|ing|ings)\b|propaganda|redpill|topics?\b|reward|🌉", _re.I); seen = []
+    for h in ["#bridges", "#bridge/" + bridge_path + "/0", "#bridge/" + bridge_path + "/1", "#bridge/" + bridge_path + "/2", "#profile", "#profile/add", "#profile/discover", "#profile/clubs", "#profile/settings", "#new", "#add", "#account"]:
         paul.goto(BASE + h); paul.wait_for_timeout(1200); seen += [(h, m.group(0)) for m in bad.finditer(paul.locator("body").inner_text()) if not ("agreed or disagreed" in m.string[max(0,m.start()-20):m.end()+20] or "see the topic" in m.string[max(0,m.start()-12):m.end()+2])]
     paul.goto(BASE + "#profile"); paul.locator(".card.tap").first.click(); paul.wait_for_timeout(800); seen += [("clip", m.group(0)) for m in bad.finditer(paul.locator("body").inner_text())]
     paul.goto(BASE + "#signin"); paul.wait_for_timeout(500); seen += [("signin", m.group(0)) for m in bad.finditer(paul.locator("body").inner_text())]
@@ -143,7 +145,7 @@ with sync_playwright() as p:
     assert w.title() == "Clip Club", w.title()
     sam.goto(link); sam.wait_for_timeout(1500); seen += [("invite(member)", m.group(0)) for m in bad.finditer(sam.locator("body").inner_text())]
     seen += [("invite text", m.group(0)) for m in bad.finditer(invite)]
-    assert not seen, seen; step("No old branding/wording anywhere (Bridge, bridging, library, topics, rewards, ratings) on any screen or in the invite text; <title> is Clip Club")
+    assert not seen, seen; step("No old branding/wording anywhere (Bridge, bridging, topics, rewards, ratings) on any screen or in the invite text; <title> is Clip Club")
     assert not errors, errors; step("No uncaught JS errors in any page")
     br.close()
 print(f"\nE2E: {len(results)} checks passed")
