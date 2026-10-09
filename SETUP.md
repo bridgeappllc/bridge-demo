@@ -6,7 +6,8 @@ Frontend: one static `index.html` on GitHub Pages (config block at the top: proj
 
 ## Status (Oct 8, 2026)
 
-- ✅ v1 (Oct 8): real bridges — invite link, guest join with a name, 3 answers + rating with reveal, stored chat with realtime, Your Bridges.
+- ✅ v1 (Oct 8): real bridges — invite link, guest join with a name, 3 answers with reveal, stored chat with realtime, Your Bridges.
+- ✅ v3 (Oct 9): **rating step removed.** Flow is Invite → Answer → Talk; your chat opens as soon as you submit your answers (migration `remove_rating_step`, file `supabase/migrations/20261009090000_remove_rating_step.sql`). Old ratings are kept in the database but are no longer readable or used.
 - ✅ v2: **online Library** + **email sign-in** (migration `library_and_community`, file `supabase/migrations/20261008160000_library_and_community.sql`).
 - ✅ **Email sign-in is fully configured (Oct 8, 2026, ~8:20 PM HST)** via the Supabase Management API:
   - Custom SMTP through **Resend**: host `smtp.resend.com`, port 465, user `resend`, password = a sending-only Resend API key; sender **Bridge &lt;hello@meetonthebridge.org&gt;**. Domain `meetonthebridge.org` is verified in Resend (DNS at GoDaddy).
@@ -30,7 +31,7 @@ Frontend: one static `index.html` on GitHub Pages (config block at the top: proj
 - **Save your account (optional).** Shown after you start a bridge, after a friend joins, on Your Bridges, and in Profile → Settings. You enter an email, get a one-time code (8 digits), type it in. The guest account is converted *in place* (`updateUser({email})` + `verifyOtp(type: email_change)`), so the same user keeps every bridge, answer, chat and library item.
 - **I have an account** (welcome screen, and on invite pages): email → code → signed in (`signInWithOtp` with `shouldCreateUser: false` + `verifyOtp(type: email)`); your bridges, library, name and topics come back. Unknown emails get "No Bridge account uses that email yet" — no account is created.
 - **Library** (Profile → Library / Add): link, title, category, personal note, stored in `library_items` with RLS. You can read/write your own; people you share a bridge with can view (not edit) it via "Friends' libraries" chips or the link in a bridge. You can add a friend's item to your own library or start a bridge from any item. Old device-local library items are imported into the account on first load.
-- **Community rating** on a link = average of real bridge ratings for that URL, shown only once 3+ people have rated it (`community_ratings()` RPC; returns aggregates only). Discover is still the fictional, labeled *Example* feed — a real community feed needs public sharing and moderation, so it's left for later.
+- **Bridge flow:** Invite → Answer 3 questions → Talk. You see your friend's answers only after submitting yours, and your chat opens as soon as you've submitted your answers (your friend joins the chat once they've answered). Discover is still the fictional, labeled *Example* feed — a real community feed is for later.
 - **Topics and name** are stored in your profile (already synced since v1).
 - **Security:** RLS on every table; security-definer helpers live in the non-exposed `private` schema behind security-invoker wrappers; inserts/updates are column-limited; the publishable key is the only key in the page.
 
@@ -48,8 +49,9 @@ Make changes as **new files in `supabase/migrations/`** applied with `apply_migr
 ## Tests
 
 `tests/run_all.sh` starts a local Supabase-compatible stack: PostgreSQL 17, the real Supabase Auth (GoTrue) and PostgREST binaries, a small gateway, and **Mailpit** to catch emails. Then it runs:
-- `tests/test_rls.py`: 68 SQL-level checks (bridges, reveal rules, chat, isolation, library: owner/partner/outsider/anon, column limits, duplicates, community ratings ≥3 threshold).
-- `tests/e2e_two_users.py`: two-phone Playwright run of the v1 flow (create → invite → join → answer → rate → chat, plus a full bridge, a bogus token, and an outsider).
+- `tests/test_rls.py`: 69 SQL-level checks (bridges, reveal rules, chat opens after answering, isolation, library: owner/partner/outsider/anon, column limits, duplicates, ratings retired).
+- `tests/e2e_two_users.py`: two-phone Playwright run (create → invite → join → answer → chat both ways, plus a full bridge, a bogus token, an outsider, and a sweep for leftover rating wording).
+- `tests/test_upgrade_v3.py`: upgrade check — builds a bridge stuck at the old Rate step with the pre-v3 app on a v2 database, applies the v3 migration (row counts must not change), then confirms the new app opens that bridge in Talk and chat works both ways. Run it on a stack started with `MIGRATE_UNTIL=20261008160000 tests/local-stack/up.sh` (see the docstring).
 - `tests/e2e_library_email.py`: library migration/add, a friend viewing your library, starting a bridge from an item, save-account by email code (same user id), wrong code, taken email, unknown email, sign-in on a new browser and a second phone with bridges + library + topics syncing.
 
 Hosted smoke test: `python3 tests/serve.py 8081` (no `SB_KEY` → real config), then `BASE=http://127.0.0.1:8081/ REALTIME=1 python3 tests/e2e_two_users.py` (3 guest sign-ups) and `BASE=http://127.0.0.1:8081/ python3 tests/smoke_hosted_v2.py` (2 guest sign-ups, sends no email). Clean up with `tests/cleanup_test_data.sql` (only removes users named `Smoke*`). Don't run the email E2E against the hosted project.

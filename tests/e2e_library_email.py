@@ -49,7 +49,6 @@ with sync_playwright() as p:
     paul.click("[data-pt=Add]"); paul.fill("#aurl", "https://www.youtube.com/watch?v=lib-test"); paul.fill("#atitle", "A talk that changed my mind")
     paul.select_option("#acat", "Science"); paul.fill("#anote", "Made me rethink nuclear power."); paul.click("#asave")
     expect(paul.get_by_text("Your note:")).to_be_visible(timeout=T); expect(paul.get_by_text("Made me rethink nuclear power.")).to_be_visible()
-    expect(paul.get_by_text("Not enough ratings yet")).to_be_visible()
     paul.goto(BASE + "#profile"); expect(paul.locator(".stat")).to_contain_text("2Library", timeout=T); shot(paul, "v2-01-library")
     step("Add to Library (URL, title, category, note) saves online; Library shows 2 items")
 

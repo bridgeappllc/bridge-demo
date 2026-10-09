@@ -7,7 +7,7 @@ class H(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         p = self.path.split("?")[0].split("#")[0]
         if p in ("/", "/index.html"):
-            html = open(os.path.join(ROOT, "index.html"), encoding="utf8").read()
+            html = open(os.environ.get("INDEX") or os.path.join(ROOT, "index.html"), encoding="utf8").read()
             import re
             if KEY: html = re.sub(r'SUPABASE_URL: "[^"]*"', 'SUPABASE_URL: ""', html, 1); html = re.sub(r'SUPABASE_ANON_KEY: "[^"]*"', 'SUPABASE_ANON_KEY: ""', html, 1)
             if KEY: html = html.replace('SUPABASE_URL: ""', f'SUPABASE_URL: "{URL}"', 1).replace('SUPABASE_ANON_KEY: ""', f'SUPABASE_ANON_KEY: "{KEY}"', 1)
