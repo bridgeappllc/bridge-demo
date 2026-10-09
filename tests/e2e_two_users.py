@@ -1,6 +1,6 @@
 """End-to-end smoke test: two people in two separate phone-sized browser contexts
 (separate storage = separate anonymous users) go through create -> invite link ->
-join -> answer -> rate -> chat both ways. Also checks persistence after reload,
+join -> answer -> chat both ways (no rating step). Also checks persistence after reload,
 reveal rules, a 3rd person being refused, and (REALTIME=1) that Supabase Realtime
 delivers a chat message with polling effectively disabled.
 
@@ -61,41 +61,38 @@ with sync_playwright() as p:
     expect(sam.get_by_text("Answer three questions")).to_be_visible(timeout=T); step(f"{S} opens link, enters only a name, joins")
     expect(sam.get_by_text(f"{P} hasn't answered yet.")).to_be_visible(timeout=T)
 
-    # --- Paul answers first; Sam sees the lock message, not the content
+    # --- Paul answers first -> his chat opens right away; Sam sees progress but not the content
     for i, t in enumerate(["Paul moment", "Paul agreed/disagreed", "Paul takeaway"]): paul.locator(".q").nth(i).fill(t)
-    paul.click("#qsave"); expect(paul.get_by_text("Rate it")).to_be_visible(timeout=T)
-    paul.click("text=Answer"); expect(paul.get_by_text(f"{S} hasn't answered yet — you'll see their answers here when they do.")).to_be_visible(timeout=T)
+    paul.click("#qsave"); expect(paul.get_by_text("💬 Talk")).to_be_visible(timeout=T)
+    expect(paul.get_by_text(f"{S} hasn't answered yet — they'll see the chat once they do.")).to_be_visible()
+    assert paul.locator(".steps button").all_inner_texts() == ["✓ Invite", "✓ Answer", "Talk"], paul.locator(".steps button").all_inner_texts()
+    step(f"{P} answers -> chat unlocks immediately (steps: Invite, Answer, Talk)")
+    paul.fill("#ct", "Hey, I thought it was pretty one-sided."); paul.click("#cs")
+    expect(paul.locator(".bub.me")).to_have_text("Hey, I thought it was pretty one-sided.", timeout=T)
+    paul.click(".steps button:has-text('Answer')"); expect(paul.get_by_text(f"{S} hasn't answered yet — you'll see their answers here when they do.")).to_be_visible(timeout=T)
     expect(sam.get_by_text(f"🔒 {P} has answered — submit yours to see theirs.")).to_be_visible(timeout=T)
-    assert sam.get_by_text("Paul moment").count() == 0; step(f"{P} answers; {S} sees progress (live) but not the content")
+    assert sam.get_by_text("Paul moment").count() == 0 and sam.locator("#chat").count() == 0
+    expect(sam.get_by_text("Unlocks after you answer the three questions.")).to_be_visible()
+    step(f"{S} sees {P}'s progress (live) but not his answers or the chat")
     sam.locator(".q").nth(0).fill("Sam moment"); sam.wait_for_timeout(5000)
     assert sam.locator(".q").nth(0).input_value() == "Sam moment"; step("Background refresh doesn't wipe typing")
     sam.locator(".q").nth(1).fill("Sam agreed/disagreed"); sam.locator(".q").nth(2).fill("Sam takeaway")
-    sam.click("#qsave"); expect(sam.get_by_text("Rate it")).to_be_visible(timeout=T)
-    sam.click("text=Answer"); expect(sam.get_by_text("Paul moment")).to_be_visible(timeout=T)
+    sam.click("#qsave"); expect(sam.get_by_text("💬 Talk")).to_be_visible(timeout=T)
+    expect(sam.locator(".bub").first).to_have_text("Hey, I thought it was pretty one-sided.", timeout=T); step(f"{S} answers -> straight into Talk, sees {P}'s message")
+    sam.click(".steps button:has-text('Answer')"); expect(sam.get_by_text("Paul moment")).to_be_visible(timeout=T)
     expect(paul.get_by_text("Sam moment")).to_be_visible(timeout=T); shot(paul, "03-paul-sees-both-answers")
     step("After both answer, each sees the other's answers")
-
-    # --- Rate
-    paul.click("text=Rate"); paul.locator("#rs").fill("2"); expect(paul.locator("#rl")).to_have_text("Propaganda · 2"); paul.click("#rsave")
-    expect(paul.get_by_text("💬 Talk")).to_be_visible(timeout=T)
-    paul.fill("#ct", "Hey, I thought it was pretty one-sided."); paul.click("#cs")
-    expect(paul.locator(".bub.me")).to_have_text("Hey, I thought it was pretty one-sided.", timeout=T)
-    sam.click("text=Rate"); expect(sam.get_by_text(f"🔒 {P} has rated — submit yours to see theirs.")).to_be_visible(timeout=T)
-    assert sam.locator("#chat").count() == 0; step(f"{P} rates and posts; {S}'s chat stays locked until he rates")
-    sam.locator("#rs").fill("8"); sam.click("#rsave")
-    expect(sam.get_by_text("💬 Talk")).to_be_visible(timeout=T)
-    expect(sam.locator(".bub").first).to_have_text("Hey, I thought it was pretty one-sided.", timeout=T)
-    expect(sam.get_by_text("Propaganda 2")).to_be_visible(); step(f"{S} rates; sees {P}'s rating + message")
-    sam.fill("#ct", "Interesting — I came away convinced. Where did it lose you?"); sam.click("#cs")
+    sam.click(".steps button:has-text('Talk')"); sam.fill("#ct", "Interesting — I came away convinced. Where did it lose you?"); sam.click("#cs")
+    paul.click(".steps button:has-text('Talk')")
     expect(paul.locator(".bub:not(.me)")).to_have_text("Interesting — I came away convinced. Where did it lose you?", timeout=T)
-    expect(paul.get_by_text("Redpilled 8")).to_be_visible(timeout=T)
+    assert paul.get_by_text("hasn't answered yet").count() == 0
     paul.fill("#ct", "The second half. Want to call?"); paul.press("#ct", "Enter")
     expect(sam.locator(".bub:not(.me)").last).to_have_text("The second half. Want to call?", timeout=T)
     [pg.evaluate("window.scrollTo(0,document.body.scrollHeight)") for pg in (paul, sam)]; shot(paul, "04-paul-chat"); shot(sam, "05-sam-chat"); step("Chat works both ways (stored, shows up for the other person)")
     bridge_path = re.search(r"#bridge/([0-9a-f-]{36})", paul.url).group(1)
 
     if REALTIME:  # reload both with polling ~disabled (10 min) so only Realtime can deliver
-        for pg in (paul, sam): pg.goto(BASE + "?poll=600000#bridge/" + bridge_path + "/3")
+        for pg in (paul, sam): pg.goto(BASE + "?poll=600000#bridge/" + bridge_path + "/2")
         for pg in (paul, sam): pg.wait_for_function("window.__bridgeRealtime==='SUBSCRIBED' && window.__bridgeRealtimePg==='ok'", timeout=T)
         t0 = time.time(); sam.fill("#ct", "realtime ping"); sam.click("#cs")
         expect(paul.locator(".bub:not(.me)").last).to_have_text("realtime ping", timeout=10000)
@@ -104,7 +101,7 @@ with sync_playwright() as p:
         expect(sam.locator(".bub:not(.me)").last).to_have_text("realtime pong", timeout=10000)
         step(f"Realtime delivers chat both ways with polling disabled ({dt:.1f}s / {time.time()-t0:.1f}s)")
         # navigate between steps inside the bridge (re-creates the channel), then check again
-        paul.click(".steps button:has-text('Rate')"); expect(paul.get_by_text("Ratings")).to_be_visible(timeout=T)
+        paul.click(".steps button:has-text('Answer')"); expect(paul.get_by_text("Sam moment")).to_be_visible(timeout=T)
         paul.click(".steps button:has-text('Talk')"); expect(paul.get_by_text("💬 Talk")).to_be_visible(timeout=T)
         paul.wait_for_function("window.__bridgeRealtime==='SUBSCRIBED' && window.__bridgeRealtimePg==='ok'", timeout=T)
         sam.fill("#ct", "still live after navigating?"); sam.click("#cs")
@@ -115,7 +112,7 @@ with sync_playwright() as p:
     # --- Your Bridges shows progress for both; persists across reload
     paul.goto(BASE + "#bridges"); paul.reload()
     card = paul.locator(".card", has_text=f"You & {S}"); expect(card).to_be_visible(timeout=T)
-    expect(card).to_contain_text("💬 Chat open"); expect(card).to_contain_text(f"{S}: ✓ answered · ✓ rated")
+    expect(card).to_contain_text("💬 Chat open"); expect(card).to_contain_text(f"{S}: ✓ answered · in the chat")
     shot(paul, "06-paul-bridges"); step("Your Bridges lists the bridge with both people's progress after reload (session persisted)")
     sam.goto(BASE + "#bridges"); expect(sam.locator(".card", has_text=f"You & {P}")).to_contain_text(f"Invited by {P}", timeout=T)
     sam.goto(link); expect(sam.get_by_text("💬 Talk")).to_be_visible(timeout=T); step("Re-opening the invite link takes a member straight to the bridge")
@@ -127,9 +124,9 @@ with sync_playwright() as p:
     eve.goto(BASE + "#bridge/" + bridge_path); expect(eve.get_by_text("Bridge not found")).to_be_visible(timeout=T); step("Signed-in outsider opening the bridge URL directly sees nothing")
 
     # --- Profile stats + rename
-    paul.goto(BASE + "#profile"); expect(paul.locator(".stat")).to_contain_text("1Sent", timeout=T); expect(paul.locator(".stat")).to_contain_text("1Read")
+    paul.goto(BASE + "#profile"); expect(paul.locator(".stat")).to_contain_text("1Sent", timeout=T); expect(paul.locator(".stat")).to_contain_text("1Answered")
     paul.click("[data-pt=Settings]"); paul.fill("#pname", P + "G"); paul.click("#psave"); expect(paul.locator("header")).to_contain_text(f"Hi, {P}G", timeout=T)
-    paul.reload(); expect(paul.locator("header")).to_contain_text(f"Hi, {P}G", timeout=T); step("Profile shows real Sent/Read counts; name change persists")
+    paul.reload(); expect(paul.locator("header")).to_contain_text(f"Hi, {P}G", timeout=T); step("Profile shows real Sent/Answered counts; name change persists")
 
     # --- Unconfigured build shows setup notice instead of breaking
     html = open(os.path.join(HERE, "..", "index.html"), encoding="utf8").read()
@@ -138,6 +135,15 @@ with sync_playwright() as p:
     raw = br.new_context().new_page(); raw.goto("file://" + tmp.name); expect(raw.get_by_text("Almost ready")).to_be_visible(timeout=T); step("Unconfigured build shows an 'Almost ready' notice")
 
     p2 = br.new_context(**iphone).new_page(); p2.goto(BASE + "?b=" + token); expect(p2.get_by_text("This bridge is full")).to_be_visible(timeout=T); step("?b=<token> link form also works")
+    import re as _re
+    bad = _re.compile(r"\brat(e|ed|ing|ings)\b|propaganda|redpill|neutral", _re.I); seen = []
+    for h in ["#bridges", "#bridge/" + bridge_path + "/0", "#bridge/" + bridge_path + "/1", "#bridge/" + bridge_path + "/2", "#profile", "#new", "#clip/k1"]:
+        paul.goto(BASE + h); paul.wait_for_timeout(1200); seen += [(h, m.group(0)) for m in bad.finditer(paul.locator("body").inner_text())]
+    for tab in ["Library", "Discover", "Bridges", "Settings"]:
+        paul.goto(BASE + "#profile"); paul.click(f"[data-pt={tab}]"); paul.wait_for_timeout(500); seen += [(tab, m.group(0)) for m in bad.finditer(paul.locator("body").inner_text())]
+    sam.goto(link); sam.wait_for_timeout(1500); seen += [("invite(member)", m.group(0)) for m in bad.finditer(sam.locator("body").inner_text())]
+    seen += [("invite text", m.group(0)) for m in bad.finditer(invite)]
+    assert not seen, seen; step("No rating wording anywhere (bridges, all bridge steps, profile tabs, clip, invite text)")
     assert not errors, errors; step("No uncaught JS errors in any page")
     br.close()
 print(f"\nE2E: {len(results)} checks passed")

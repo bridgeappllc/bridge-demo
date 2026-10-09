@@ -35,7 +35,8 @@ TPL="${TPL_BASE:-http://127.0.0.1:8080/supabase/email-templates}"   # served by 
 for i in $(seq 30); do curl -sf http://127.0.0.1:9999/health >/dev/null && break; sleep 1; done
 # Apply the same migration files, in order, that were applied to the hosted project (once per fresh DB).
 if [ ! -f "$RUN/migrated" ]; then
-  for m in "$ROOT"/supabase/migrations/*.sql; do psql -h 127.0.0.1 -p 54322 -U postgres -q -v ON_ERROR_STOP=1 -f "$m" >/dev/null; done; touch "$RUN/migrated"
+  # MIGRATE_UNTIL=<timestamp> stops after that migration (used by the upgrade test)
+  for m in "$ROOT"/supabase/migrations/*.sql; do if [ -n "${MIGRATE_UNTIL:-}" ] && [[ "$(basename "$m")" > "${MIGRATE_UNTIL}~" ]]; then continue; fi; psql -h 127.0.0.1 -p 54322 -U postgres -q -v ON_ERROR_STOP=1 -f "$m" >/dev/null; done; touch "$RUN/migrated"
 fi
 cat > "$RUN/postgrest.conf" <<CONF
 db-uri = "postgres://authenticator:authpass@127.0.0.1:54322/postgres"
