@@ -3,6 +3,7 @@
 #   real PostgreSQL + real Supabase Auth (GoTrue) binary + real PostgREST binary
 #   + a tiny Node gateway standing in for Kong (/auth/v1, /rest/v1).
 #   + Mailpit (mail catcher: SMTP :1025, UI/API http://127.0.0.1:8025) so email OTP flows can be tested.
+#   + the real Supabase Storage API (file backend) via storage.sh, if built (/storage/v1).
 # Not included: Supabase Realtime (the app falls back to polling).
 # Needs: postgresql (initdb/pg_ctl/psql), node, gh (for downloads), Linux x86_64.
 set -euo pipefail
@@ -33,6 +34,8 @@ TPL="${TPL_BASE:-http://127.0.0.1:8080/supabase/email-templates}"   # served by 
   GOTRUE_MAILER_SUBJECTS_MAGIC_LINK="{{ .Token }} is your Bridge sign-in code" GOTRUE_MAILER_SUBJECTS_EMAIL_CHANGE="{{ .Token }} is your Bridge confirmation code"
   nohup "$BIN/auth" > "$RUN/auth.log" 2>&1 & echo $! > "$RUN/auth.pid" )
 for i in $(seq 30); do curl -sf http://127.0.0.1:9999/health >/dev/null && break; sleep 1; done
+# Supabase Storage (creates the storage schema, like a hosted project) — before our migrations, which add the avatars bucket.
+"$HERE/storage.sh"
 # Apply the same migration files, in order, that were applied to the hosted project (once per fresh DB).
 if [ ! -f "$RUN/migrated" ]; then
   # MIGRATE_UNTIL=<timestamp> stops after that migration (used by the upgrade test)

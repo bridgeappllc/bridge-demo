@@ -97,3 +97,41 @@ select * from private.content_filter_existing_matches;   -- field, row id, verdi
 ```
 
 Handle any rows like reports: edit or delete them in the Table Editor if needed.
+
+## Profile photos
+
+Added in `supabase/migrations/20261011200000_profile_photos.sql`.
+
+### How photos are stored
+- Photos live in the public Storage bucket **`avatars`** at `avatars/<user id>/<random>.webp` (or `.jpg`).
+- The app crops each photo to a square and shrinks it to 512 px on the phone before uploading.
+- **Server-side limits:**
+  - 2 MB per file
+  - JPEG / PNG / WebP only (bucket settings)
+  - at most 3 files per person
+  - people can only write in their own folder
+- `profiles.avatar_url` holds the path plus `?v=<time>`. A check constraint means it can only point into the owner's own folder, and only at a file that exists.
+
+### Who can see photos
+- The public URL is unguessable, and nobody can list another person's folder.
+- The app gets photo paths only from `avatars()` and `invite_avatar()`, which follow the same rules as names: signed in, and not across a block.
+- Anyone who already has a URL can open it, like any public image link. Blocking someone stops the app showing them your photo, but it doesn't revoke a URL they already saw.
+
+### Reviewing a reported photo
+Reports with reason **`inappropriate_photo`** (target type `user`) keep the photo path in `snapshot` (`… — photo: avatars/<path>`).
+
+To review one:
+1. Open the photo in the dashboard: **Storage → avatars → `<user id>`**. Or open `https://gozjxubvvzxkkoxxvldo.supabase.co/storage/v1/object/public/avatars/<path without ?v=…>`.
+2. To take a photo down:
+   ```sql
+   update public.profiles set avatar_url = null where id = '<user id>';   -- stop showing it
+   ```
+   Then delete the file in **Storage → avatars → `<user id>`** with the dashboard's Delete button. SQL can't delete Storage files: hosted Storage blocks `delete from storage.objects` so the stored bytes aren't orphaned.
+3. Mark the report `actioned`, as for other reports.
+
+If the person replaced their photo after the report, the old file is already gone. The report snapshot still shows its path.
+
+### Account deletion and photos
+In-app **Delete account** first deletes the person's photo files through the Storage API, then deletes the account. `delete_my_account()` refuses while any photo file remains, so no photo outlives an account deleted from the app.
+
+If you delete a user from the **dashboard** (Authentication → Users), delete their `avatars/<user id>/` folder in Storage too.
