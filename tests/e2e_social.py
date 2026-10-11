@@ -43,7 +43,8 @@ with sync_playwright() as p:
     expect(alice.locator(".handle").first).to_have_text("@" + handle, timeout=T); expect(alice.locator("input[name=vis][value=friends]")).to_be_checked()
     step(f"@username auto-suggested from the name (@{handle}) and claimed with a bio; library defaults to 'Friends only'")
     bob_h = "smokebob" + tag
-    signup(bob, B); profile_tab(bob, "Settings"); bob.fill("#puser", handle); expect(bob.locator("#uhint")).to_contain_text("is taken", timeout=T)
+    signup(bob, B); profile_tab(bob, "Settings"); bob.fill("#puser", handle); expect(bob.locator("#uhint")).to_contain_text("not available", timeout=T)
+    bob.fill("#puser", "admin"); expect(bob.locator("#uhint")).to_contain_text("not available", timeout=T)
     bob.fill("#puser", "BAD name!"); expect(bob.locator("#puser")).to_have_value("badname")
     bob.fill("#puser", bob_h); expect(bob.locator("#uhint")).to_contain_text("available", timeout=T); bob.click("#pubsave"); expect(bob.locator(".handle").first).to_have_text("@" + bob_h, timeout=T)
     step("Username availability check: taken name flagged, invalid characters stripped, free name saved")

@@ -4,10 +4,11 @@ Live: https://bridgeappllc.github.io/bridge-demo/ (old prototype: `/bridge-demo/
 Backend: **Supabase** project `bridge` (Free plan, $0) — ref `gozjxubvvzxkkoxxvldo`, us-west-1.
 Frontend: one static `index.html` on GitHub Pages (config block at the top: project URL + publishable key).
 
-## Social (branch `social`, preview https://bridgeappllc.github.io/bridge-preview/ — not merged)
+## Social (live since Oct 11; preview repo https://bridgeappllc.github.io/bridge-preview/ kept)
 - Migration `supabase/migrations/20261011090000_social_profiles_friends.sql` (applied to the hosted project on Oct 11, additive; the live app keeps working).
 - **Profiles:** optional unique `@username` (3–20 of a–z, 0–9, _; suggested from your name in Settings), short bio (≤160). Name, @username and bio are visible to signed-in users through `search_people` / `get_profile` RPCs only (the `profiles` table itself stays own-row-only, so topics etc. are never exposed). Profile link: `#u/@username` or `#u/<id>`; it works before sign-up (you land on the profile after entering your name). Old `#lib/<id>` links redirect to the profile.
 - **Friends:** `friendships` table (pending/accepted, one row per pair) written only via RPCs: `send_friend_request` (auto-accepts if they already asked you), `respond_friend_request`, `remove_friend` (cancel/decline/unfriend). Friends list (`friends_of`) visible to the user and their friends. Pending requests badge on People and Profile → Friends.
+- **Reserved @usernames** (migration `20261011120000_reserved_usernames.sql`): bridge, bridges, bridgeapp, bridgeappllc, thebridge, meetonthebridge, clipclub, admin, administrator, root, system, support, help, helpdesk, official, staff, team, moderator, mod, security, privacy, legal, abuse, contact, info, hello, noreply, no_reply, api, www, app, settings, profile, people, null, undefined — enforced by a CHECK constraint (`private.is_reserved_username`) and reported as unavailable in Settings.
 - **Blocks:** `block_user` / `unblock_user`: hides each other in search, profiles and libraries and ends the friendship; existing bridges stay.
 - **Library visibility** (Settings → Who can see my library): Everyone (any signed-in user) / **Friends only** (default: friends + people you've been on a bridge with, i.e. the old rule is kept) / Only me. Enforced by RLS via `private.can_view_library`.
 - **People** tab: search by name or @username, friend requests, "People you've bridged with" suggestions, share your profile link.
