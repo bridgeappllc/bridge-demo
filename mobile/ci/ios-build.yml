@@ -1,0 +1,85 @@
+name: iOS build (unsigned, simulator)
+
+# Proves the Capacitor iOS project compiles. No signing: that needs the
+# Apple Developer account (team ID, certificates, provisioning profiles).
+on:
+  workflow_dispatch:
+  push:
+    branches: [store-ready]
+    paths:
+      - "mobile/**"
+      - "index.html"
+      - "privacy.html"
+      - "terms.html"
+      - "support.html"
+      - "assets/**"
+      - ".github/workflows/ios-build.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-ios-simulator:
+    runs-on: macos-26
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Xcode version
+        run: xcodebuild -version
+
+      - name: Install JS deps
+        run: npm ci
+
+      - name: Bundle web assets into www/
+        run: npm run build:web
+
+      - name: Capacitor sync (iOS)
+        run: npx cap sync ios
+
+      - name: Build for iOS Simulator (no code signing)
+        working-directory: mobile/ios/App
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project App.xcodeproj \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination "generic/platform=iOS Simulator" \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build | tee build/xcodebuild.log | grep -E "error:|warning: .*deprecated|BUILD (SUCCEEDED|FAILED)|\*\* " || true
+          test -d build/DerivedData/Build/Products/Debug-iphonesimulator/App.app
+          echo "App bundle:"; ls build/DerivedData/Build/Products/Debug-iphonesimulator/App.app | head -50
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" build/DerivedData/Build/Products/Debug-iphonesimulator/App.app/Info.plist
+          test -f build/DerivedData/Build/Products/Debug-iphonesimulator/App.app/public/index.html
+
+      - name: Upload simulator app
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Bridge-simulator-app
+          path: mobile/ios/App/build/DerivedData/Build/Products/Debug-iphonesimulator/App.app
+          retention-days: 14
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: mobile/ios/App/build/xcodebuild.log
+          if-no-files-found: ignore

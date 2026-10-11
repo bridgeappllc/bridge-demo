@@ -81,7 +81,8 @@ input[type=checkbox],input[type=radio]{accent-color:#A0452B}
 .sheet{background:var(--sf);width:100%;max-width:430px;border-radius:18px 18px 0 0;padding:20px 20px calc(18px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto;box-shadow:0 -8px 30px rgba(42,37,34,.2)}
 .sheet .vis label{margin:6px 0 0;padding:10px 12px;font-weight:500}
 label.chk{display:flex;gap:8px;align-items:center;font-weight:500}label.chk input{width:auto}
-.legal a{color:var(--m)}#agree a{color:var(--b)}
+.legal a{color:var(--m)}
+header{padding-top:calc(13px + max(env(safe-area-inset-top),var(--safe-area-inset-top,0px)))}nav{padding-bottom:max(env(safe-area-inset-bottom),var(--safe-area-inset-bottom,0px))}#agree a{color:var(--b)}
 </style></head><body><div id="phone"><header id="hd"></header><main id="app"></main><nav id="nav"></nav></div>
 <script>
 const CFG=window.BRIDGE_CONFIG||{};
@@ -357,6 +358,14 @@ async function friendAction(a,uid,el){const n=nameOf(uid)||"this person";
  busy(el,true);try{const r=a==="add"?await API.sendReq(uid):a==="accept"?await API.respond(uid,true):a==="decline"?await API.respond(uid,false):a==="block"?await API.block(uid):a==="unblock"?await API.unblock(uid):await API.removeFriend(uid);
   toast({add:r==="friends"?"You're now friends 🎉":"Friend request sent",accept:"You're now friends 🎉",decline:"Request declined",cancel:"Request cancelled",unfriend:"Removed from friends",block:"Blocked",unblock:"Unblocked"}[a]);
   if(a==="block"){DB.ppl={};go("people")}await refreshAfter(uid)}catch(e){busy(el,false);fail(e)}}
+// Native app (Capacitor, see mobile/): deep links, status bar, Android back button, external links in the in-app browser
+if(NATIVE&&Capacitor.registerPlugin){const App=Capacitor.registerPlugin("App"),Browser=Capacitor.registerPlugin("Browser"),StatusBar=Capacitor.registerPlugin("StatusBar");
+ // https://bridgeappllc.github.io/bridge-demo/#b/<token>, ...?b=<token>, ...#u/@name or bridge://b/<token>
+ const openUrl=u=>{try{const x=new URL(u);let h=x.searchParams.get("b")?"#b/"+x.searchParams.get("b"):x.hash;if(!h&&x.protocol==="bridge:")h="#"+(x.host+x.pathname).replace(/^\/+/,"");if(h&&h!==location.hash)location.hash=h}catch(e){}};
+ App.addListener("appUrlOpen",e=>openUrl(e.url));App.getLaunchUrl().then(r=>{if(r&&r.url)openUrl(r.url)}).catch(()=>{});
+ App.addListener("backButton",e=>{if(closeReport())return;if(e.canGoBack&&location.hash&&!/^#(bridges)?$/.test(location.hash))history.back();else App.exitApp()});
+ StatusBar.setStyle({style:"LIGHT"}).catch(()=>{});
+ document.addEventListener("click",e=>{const a=e.target.closest("a[href]");if(!a)return;const h=a.getAttribute("href");if(/^https?:/i.test(h)&&!h.startsWith(PUBLIC_URL)){e.preventDefault();Browser.open({url:h}).catch(()=>window.open(h,"_blank"))}},true)}
 // Report a user, library item or chat message (store requirement; reports are private, reviewed by Bridge)
 const REASONS=[["spam","Spam or scam"],["harassment","Harassment or bullying"],["hate","Hate speech or symbols"],["sexual","Sexual or explicit content"],["violence","Violence or threats"],["self_harm","Self-harm or suicide"],["illegal","Illegal activity"],["impersonation","Pretending to be someone else"],["other","Something else"]];
 function openReport(type,id,uid,who){closeReport();const what={user:esc(who),message:"a message from "+esc(who),library_item:"an item from "+esc(who)+"'s library"}[type];
@@ -373,7 +382,7 @@ ${uid&&!isBlockedId(uid)?`<label class="chk"><input type="checkbox" id="rblock">
   try{await API.report(type,id,r.value,$("#rnote").value.trim());const blk=$("#rblock")&&$("#rblock").checked;if(blk&&uid)await API.block(uid);closeReport();
    toast(blk?"Thanks — reported and blocked":"Thanks — your report was sent");if(blk){DB.ppl={};go("people");await refreshAfter(uid)}}catch(e){busy(el,false);fail(e)}};
  setTimeout(()=>{const f=bg.querySelector("input[name=rr]");if(f)f.focus()},30)}
-function closeReport(){const x=$("#repsheet");if(x)x.remove()}
+function closeReport(){const x=$("#repsheet");if(x){x.remove();return true}return false}
 const isBlockedId=uid=>(DB.blocks||[]).some(b=>b.id===uid);
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeReport()});
 document.addEventListener("click",e=>{const b=e.target.closest("[data-rep]");if(!b)return;e.preventDefault();e.stopPropagation();openReport(b.dataset.rep,b.dataset.id,b.dataset.u,b.dataset.who||"this person")});
