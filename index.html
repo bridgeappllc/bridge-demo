@@ -55,6 +55,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--b);box-s
 .lock{background:var(--sf);border:1px solid var(--l);border-radius:12px;padding:18px;text-align:center}.lock svg{width:34px;height:34px}
 .bub{max-width:80%;padding:9px 13px;border-radius:14px;margin:6px 0;background:#EBDFD0;color:var(--n)}.bub.me{margin-left:auto;background:var(--b);color:var(--onp)}
 .stat{display:flex;gap:0;border-top:1px solid var(--l);border-bottom:1px solid var(--l);margin:12px 0}.stat div{flex:1;padding:10px 0 9px;text-align:center;font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--m)}.stat div+div{border-left:1px solid var(--l)}.stat b{display:block;font-family:var(--serif);font-weight:400;font-size:1.55rem;line-height:1.15;letter-spacing:0;text-transform:none;color:var(--n)}
+.ierr{color:var(--r);font-size:.88rem;margin:6px 2px 0;text-align:left}
 .toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:#2A2522;color:#FBF6EF;border:1px solid #2A2522;padding:10px 16px;border-radius:10px;font-size:.9rem;z-index:20;box-shadow:0 8px 24px rgba(42,37,34,.25)}
 a{color:var(--b)}.row{display:flex;gap:8px;align-items:center}
 .steps{display:flex;gap:6px;margin:8px 0 16px}.steps button{flex:1;border:0;background:none;padding:0;font:inherit;font-size:.74rem;letter-spacing:.03em;color:var(--m);text-align:center;cursor:pointer}
@@ -175,7 +176,25 @@ if(sb)sb.auth.onAuthStateChange((ev,session)=>{USER=session?session.user:null;ME
 
 /* ---------- helpers ---------- */
 function toast(t){$$(".toast").forEach(x=>x.remove());const d=document.createElement("div");d.className="toast";d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),2600)}
-const fail=e=>{console.error(e);toast(e&&e.message?e.message:"Something went wrong — try again")};
+/* ---------- content filter (mirror of supabase/migrations/20261011180000_content_filter.sql).
+   The word list lives in public.moderation_terms; the DB triggers are the real enforcement, this only gives instant inline errors. ---------- */
+const RESPECT="Please keep it respectful";
+const MOD={t:null,
+ norm:s=>String(s||"").toLowerCase().replace(/([a-z0-9@$])[!|]+(?=[a-z0-9@$])/g,"$1i").replace(/[013457@$]/g,c=>({"0":"o","1":"i","3":"e","4":"a","5":"s","7":"t","@":"a","$":"s"})[c]).replace(/[^a-z]+/g," ").trim(),
+ set(rows){try{MOD.t=rows.map(r=>({c:r.category,re:new RegExp(r.pattern)}))}catch(e){MOD.t=null}},
+ async load(force){if(!sb||(MOD.t&&!force))return;
+  if(!force){try{const c=JSON.parse(localStorage.getItem("bridge_mod_v1")||"null");if(c&&c.rows&&Date.now()-c.at<6*36e5){MOD.set(c.rows);return}}catch(e){}}
+  try{const {data,error}=await sb.rpc("moderation_terms_list");if(!error&&Array.isArray(data)){MOD.set(data);localStorage.setItem("bridge_mod_v1",JSON.stringify({at:Date.now(),rows:data}))}}catch(e){}},
+ scan(s){if(!MOD.t||!s||!String(s).trim())return null;const n=" "+MOD.norm(s)+" ";return MOD.t.some(t=>t.c==="hate"&&t.re.test(n))?"hate":MOD.t.some(t=>t.c==="profanity"&&t.re.test(n))?"profanity":null}};
+const isMod=e=>!!e&&e.code==="23514"&&/respectful/i.test(e.message||"");
+function ierr(el,msg){if(!el)return;const host=el.closest(".row,.at")||el;let p=host.nextElementSibling;
+ if(!(p&&p.classList.contains("ierr"))){p=document.createElement("p");p.className="ierr";p.setAttribute("role","alert");host.after(p)}
+ p.textContent=msg;el.setAttribute("aria-invalid","true");el.addEventListener("input",()=>{p.remove();el.removeAttribute("aria-invalid")},{once:true});try{el.focus()}catch(e){}}
+// names/usernames/bios: anything on the list is blocked. chat/answers/library: only hate terms are blocked (profanity is masked by the server).
+const MSG={name:RESPECT+" — please choose a different name.",bio:RESPECT+" — please reword your bio.",post:RESPECT+" — that language isn't allowed on Bridge."};
+function modOk(el,strict,msg){const v=MOD.scan(el&&el.value);if(v==="hate"||(v&&strict)){ierr(el,msg||(strict?MSG.name:MSG.post));return false}return true}
+function modFail(e,el,msg){if(!isMod(e))return false;MOD.load(true);ierr(el,msg||MSG.post);return true}
+const fail=e=>{console.error(e);if(isMod(e)){MOD.load(true);return toast(RESPECT)}toast(e&&e.message?e.message:"Something went wrong — try again")};
 const authMsg=e=>{const c=(e&&(e.code||e.error_code))||"",m=(e&&e.message)||"";
  if(c==="otp_disabled"||/signups not allowed/i.test(m))return"No Bridge account uses that email yet. Start as a guest (Sign Up Free), then save your account with this email.";
  if(c==="email_exists"||/already been registered/i.test(m))return"That email already has a Bridge account.";
@@ -423,15 +442,15 @@ function bindCodeForm(send,confirm,onExists){let email="";const msg=t=>{$("#emsg
  $("#cres").onclick=doSend;$("#cback").onclick=()=>{$("#cf").style.display="none";$("#ef").style.display="block";msg("")}}
 const B={
 welcome(){const ask=t=>{$("#su").innerHTML=`<label style="text-align:left">${t}</label><input id="nm" placeholder="Your name" maxlength="40"><button class="btn" id="nok">Continue</button><p class="mut sm">No email or password needed to start.</p><p class="mut sm" id="agree">By continuing you confirm you're 13 or older and agree to the <a href="terms.html">Terms of Use</a> and <a href="privacy.html">Privacy Policy</a>.</p>`;$("#nm").focus();
- const done=async()=>{const n=$("#nm").value.trim();if(!n)return toast("Please enter your name");busy($("#nok"),true);try{await API.saveProfile({display_name:n,topics:S.topics});await migrateLocal();go("topics");onRoute()}catch(e){busy($("#nok"),false);fail(e)}};$("#nok").onclick=done;$("#nm").onkeydown=e=>{if(e.key==="Enter")done()}};
+ const done=async()=>{const n=$("#nm").value.trim();if(!n)return toast("Please enter your name");if(!modOk($("#nm"),true))return;busy($("#nok"),true);try{await API.saveProfile({display_name:n,topics:S.topics});await migrateLocal();go("topics");onRoute()}catch(e){busy($("#nok"),false);if(!modFail(e,$("#nm"),MSG.name))fail(e)}};$("#nok").onclick=done;$("#nm").onkeydown=e=>{if(e.key==="Enter")done()}};
  $("#sbtn").onclick=()=>ask("What's your name?")},
 signin(){bindCodeForm(e=>API.sendSignIn(e),async(e,c)=>{await API.confirmSignIn(e,c);await migrateLocal();toast(PROFILE?`Welcome back, ${PROFILE.display_name}`:"Signed in");const a=S.after;delete S.after;save();go(a||"bridges");onRoute()})},
 account(){if(!isGuest())return;bindCodeForm(e=>API.saveEmail(e),async(e,c)=>{await API.confirmEmail(e,c);toast("Account saved ✓");profTab="Settings";go("profile")},()=>{$("#exists").style.display="block"});
  const ts=$("#toSignin");if(ts)ts.onclick=async()=>{if(!confirm("Switch accounts? You'll leave this guest account, and its bridges stay with it."))return;await API.signOut();go("signin")}},
 topics(){$$(".topic").forEach(b=>b.onclick=()=>{const t=b.dataset.t;S.topics=S.topics.includes(t)?S.topics.filter(x=>x!==t):[...S.topics,t];save();render()});
  $("#tgo").onclick=async()=>{try{await API.saveProfile({topics:S.topics})}catch(e){fail(e)}afterTopics()}},
-invite(tok){const js=$("#jsignin");if(js)js.onclick=()=>{S.after="b/"+tok;save()};const j=$("#jgo");if(!j)return;const doJoin=async()=>{const n=$("#jname").value.trim();if(!n)return toast("Please enter your name");busy(j,true);
- try{if(!PROFILE){await API.saveProfile({display_name:n,topics:[]});migrateLocal()}else await API.ensureUser();const id=await API.join(tok,n);DB.list=null;toast("You're on the bridge 🌉");go("bridge/"+id+"/1")}catch(e){busy(j,false);fail(e)}};
+invite(tok){const js=$("#jsignin");if(js)js.onclick=()=>{S.after="b/"+tok;save()};const j=$("#jgo");if(!j)return;const doJoin=async()=>{const n=$("#jname").value.trim();if(!n)return toast("Please enter your name");if(!modOk($("#jname"),true))return;busy(j,true);
+ try{if(!PROFILE){await API.saveProfile({display_name:n,topics:[]});migrateLocal()}else await API.ensureUser();const id=await API.join(tok,n);DB.list=null;toast("You're on the bridge 🌉");go("bridge/"+id+"/1")}catch(e){busy(j,false);if(!modFail(e,$("#jname"),MSG.name))fail(e)}};
  j.onclick=doJoin;$("#jname").onkeydown=e=>{if(e.key==="Enter")doJoin()}},
 bridges(){const n=$("#nosave");if(n)n.onclick=e=>{e.stopPropagation();S.hideSave=1;save();render()}},
 new(pre,fid){const sel=$("#mclip");const direct=fid&&isFriend(fid)?fid:null;sel.onchange=()=>$("#paste").style.display=sel.value?"none":"block";
@@ -449,9 +468,9 @@ clip(id){const c=findClip(id);if(!c)return;
  const r=$("#rmlib");if(r)r.onclick=async()=>{if(!confirm("Remove this from your library?"))return;busy(r,true);try{await API.removeLib(id);DB.lib=(DB.lib||[]).filter(x=>x.id!==id);toast("Removed");profTab="Library";go("profile")}catch(e){busy(r,false);fail(e)}}},
 bridge(id){const D=DB.d[id];if(!D||!D.b)return;const b=D.b;
 if($("#cpi"))$("#cpi").onclick=()=>copy(inviteTxt(b));if($("#shi"))$("#shi").onclick=()=>share(inviteTxt(b));
-$$(".q").forEach(t=>t.oninput=()=>$("#qhint").textContent="");const q=$("#qsave");if(q)q.onclick=async()=>{const a=$$(".q").map(t=>t.value.trim());if(a.some(x=>x.length<3))return $("#qhint").textContent="Please answer all three questions to continue.";
- if(!confirm("Submit your answers? You can't edit them afterwards."))return;busy(q,true);try{await API.answer(id,a);await loadBridge(id);toast("Chat unlocked 💬");go(`bridge/${id}/2`)}catch(e){busy(q,false);fail(e)}};
-const cs=$("#cs");if(cs){let sending=false;const send=async()=>{const t=$("#ct").value.trim();if(!t||sending)return;sending=true;cs.disabled=true;try{await API.send(id,t);$("#ct").value="";await loadBridge(id)}catch(e){fail(e)}sending=false;if($("#cs"))$("#cs").disabled=false;if($("#ct"))$("#ct").focus()};cs.onclick=send;$("#ct").onkeydown=e=>{if(e.key==="Enter")send()}}},
+$$(".q").forEach(t=>t.oninput=()=>$("#qhint").textContent="");const q=$("#qsave");if(q)q.onclick=async()=>{const a=$$(".q").map(t=>t.value.trim());if(a.some(x=>x.length<3))return $("#qhint").textContent="Please answer all three questions to continue.";const bad=$$(".q").find(t=>MOD.scan(t.value)==="hate");if(bad){ierr(bad,MSG.post);return}
+ if(!confirm("Submit your answers? You can't edit them afterwards."))return;busy(q,true);try{await API.answer(id,a);await loadBridge(id);toast("Chat unlocked 💬");go(`bridge/${id}/2`)}catch(e){busy(q,false);if(isMod(e)){MOD.load(true);$("#qhint").textContent=MSG.post}else fail(e)}};
+const cs=$("#cs");if(cs){let sending=false;const send=async()=>{const t=$("#ct").value.trim();if(!t||sending)return;if(!modOk($("#ct"),false))return;const masked=MOD.scan(t)==="profanity";sending=true;cs.disabled=true;try{await API.send(id,t);$("#ct").value="";await loadBridge(id);if(masked)toast("Sent — some words were hidden with ***")}catch(e){if(!modFail(e,$("#ct")))fail(e)}sending=false;if($("#cs"))$("#cs").disabled=false;if($("#ct"))$("#ct").focus()};cs.onclick=send;$("#ct").onkeydown=e=>{if(e.key==="Enter")send()}}},
 people(){const q=$("#pq");let t;q.oninput=()=>{clearTimeout(t);t=setTimeout(()=>searchPeople(q.value),250)};const sh=$("#shme");if(sh)sh.onclick=()=>shareProfile({...PROFILE,id:ME})},
 u(key){const P=DB.ppl[decodeURIComponent(key||"")];$$("[data-ut]").forEach(b=>b.onclick=()=>{S.utab=b.dataset.ut;save();render(true)});const sh=$("#shp");if(sh&&P&&P.p)sh.onclick=()=>shareProfile(P.p)},
 profile(){$$("[data-pt]").forEach(b=>b.onclick=e=>{e.preventDefault();profTab=b.dataset.pt;render();if(profTab==="Discover")loadFeed();if(profTab==="Settings")loadBlocks();if(profTab==="Friends")loadSocial()});
@@ -460,11 +479,11 @@ $$("input[name=vis]").forEach(r=>r.onchange=async()=>{try{await API.updateProfil
 const pu=$("#puser");if(pu){const hint=(t,c)=>{$("#uhint").textContent=t;$("#uhint").style.color=c||"var(--m)"};let t;
  if(!pu.value&&!PROFILE.username&&!sugH)suggestHandle(PROFILE.display_name).then(h=>{sugH=h;if(h&&$("#puser")&&!$("#puser").value){$("#puser").value=h;$("#uhint").textContent="Suggested for you. Tap Save profile to claim it."}}).catch(()=>{});
  pu.oninput=()=>{const v=pu.value.toLowerCase().replace(/[^a-z0-9_]/g,"").slice(0,20);if(v!==pu.value)pu.value=v;clearTimeout(t);if(!v)return hint("Optional. 3–20 letters, numbers or _");if(v.length<3)return hint("At least 3 characters");if(v===PROFILE.username)return hint("This is your @username");t=setTimeout(async()=>{try{{const f=await API.handleFree(v);hint(f?"✓ @"+v+" is available":"@"+v+" is not available",f?"var(--g)":"var(--r)")}}catch(e){}},300)};
- $("#pubsave").onclick=async()=>{const u=pu.value.trim()||null,bio=$("#pbio").value.trim();if(u&&!/^[a-z0-9_]{3,20}$/.test(u))return hint("3–20 letters, numbers or _","var(--r)");busy($("#pubsave"),true);
-  try{await API.updateProfile({username:u,bio});toast("Profile saved");render(true)}catch(e){busy($("#pubsave"),false);hint(e.code==="23505"?"That @username is taken":e.code==="23514"&&/reserved/.test(e.message||"")?"That @username is reserved. Please pick another":e.code==="23514"?"3–20 letters, numbers or _ (no spaces)":(e.message||"Couldn't save"),"var(--r)")}}}$$("[data-cat]").forEach(b=>b.onclick=()=>{feedCat=b.dataset.cat;render()});
-const an=$("#anote");if(an){an.oninput=e=>$("#cnt").textContent=e.target.value.length;$("#asave").onclick=async()=>{const url=normUrl($("#aurl").value);if(!url)return toast("Please paste a link");busy($("#asave"),true);
- try{const it=await API.addLib({url,title:($("#atitle").value.trim()||url).slice(0,300),category:$("#acat").value,kind:kindOf(url),creator:"",note:an.value.trim()});DB.lib=[it,...(DB.lib||[])];toast("Saved to your Library");profTab="Library";go("clip/"+it.id)}catch(e){busy($("#asave"),false);if(e.dup)toast(e.message);else fail(e)}}}
-const ps=$("#psave");if(ps)ps.onclick=async()=>{const n=$("#pname").value.trim();if(!n)return toast("Please enter your name");try{await API.saveProfile({display_name:n});toast("Saved");render()}catch(e){fail(e)}};
+ $("#pubsave").onclick=async()=>{const u=pu.value.trim()||null,bio=$("#pbio").value.trim();if(u&&!/^[a-z0-9_]{3,20}$/.test(u))return hint("3–20 letters, numbers or _","var(--r)");if(!modOk(pu,true,RESPECT+" — please choose a different @username.")||!modOk($("#pbio"),true,MSG.bio))return;busy($("#pubsave"),true);
+  try{await API.updateProfile({username:u,bio});toast("Profile saved");render(true)}catch(e){busy($("#pubsave"),false);if(isMod(e)){MOD.load(true);return /bio/.test(e.details||"")?ierr($("#pbio"),MSG.bio):ierr(pu,RESPECT+" — please choose a different @username.")}hint(e.code==="23505"?"That @username is taken":e.code==="23514"&&/reserved/.test(e.message||"")?"That @username is reserved. Please pick another":e.code==="23514"?"3–20 letters, numbers or _ (no spaces)":(e.message||"Couldn't save"),"var(--r)")}}}$$("[data-cat]").forEach(b=>b.onclick=()=>{feedCat=b.dataset.cat;render()});
+const an=$("#anote");if(an){an.oninput=e=>$("#cnt").textContent=e.target.value.length;$("#asave").onclick=async()=>{const url=normUrl($("#aurl").value);if(!url)return toast("Please paste a link");if(!modOk($("#atitle"),false)||!modOk(an,false))return;busy($("#asave"),true);
+ try{const it=await API.addLib({url,title:($("#atitle").value.trim()||url).slice(0,300),category:$("#acat").value,kind:kindOf(url),creator:"",note:an.value.trim()});DB.lib=[it,...(DB.lib||[])];toast("Saved to your Library");profTab="Library";go("clip/"+it.id)}catch(e){busy($("#asave"),false);if(e.dup)toast(e.message);else if(!modFail(e,/note/.test(e.details||"")?an:$("#atitle")))fail(e)}}}
+const ps=$("#psave");if(ps)ps.onclick=async()=>{const n=$("#pname").value.trim();if(!n)return toast("Please enter your name");if(!modOk($("#pname"),true))return;try{await API.saveProfile({display_name:n});toast("Saved");render()}catch(e){if(!modFail(e,$("#pname"),MSG.name))fail(e)}};
 const db=$("#delbtn");if(db)db.onclick=()=>{S.delAsk=1;render(true);setTimeout(()=>{const i=$("#delc");if(i){i.focus();i.scrollIntoView({block:"center"})}},30)};
  const dn=$("#delno");if(dn)dn.onclick=()=>{delete S.delAsk;render(true)};
  const dy=$("#delyes");if(dy)dy.onclick=async()=>{if(($("#delc").value||"").trim().toUpperCase()!=="DELETE"){toast("Type DELETE to confirm");$("#delc").focus();return}
@@ -473,5 +492,5 @@ const db=$("#delbtn");if(db)db.onclick=()=>{S.delAsk=1;render(true);setTimeout((
 
 /* ---------- boot ---------- */
 (async()=>{const qb=new URLSearchParams(location.search).get("b");if(qb){history.replaceState(null,"",location.pathname+"#b/"+encodeURIComponent(qb))}
-$("#app").innerHTML=loading;if(CONFIGURED){try{await API.boot();await migrateLocal()}catch(e){fail(e)}}window.onhashchange=onRoute;onRoute()})();
+$("#app").innerHTML=loading;if(CONFIGURED){MOD.load();try{await API.boot();await migrateLocal()}catch(e){fail(e)}}window.onhashchange=onRoute;onRoute()})();
 </script></body></html>
