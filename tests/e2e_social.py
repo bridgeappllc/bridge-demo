@@ -80,7 +80,7 @@ with sync_playwright() as p:
     bob.goto(BASE + "#u/@" + handle); bob.locator(".card", has_text="Cities and the climate").click()
     bob.click(f"text=🌉 Meet {A} on the Bridge with this"); expect(bob.locator("#mfriend")).to_have_value(A, timeout=T); expect(bob.locator("#direct")).to_be_visible()
     expect(bob.locator("#mclip")).to_have_value(re.compile(r"[0-9a-f-]{36}")); shot(bob, "s08-new-bridge-with-friend", 300)
-    bob.click("#mgo"); expect(bob.locator("#addednote")).to_contain_text(f"{A} is on this bridge", timeout=T); shot(bob, "s09-friend-added")
+    bob.click("#mgo"); expect(bob.locator("#addednote")).to_contain_text(f"{A} is on this bridge", timeout=T); bob.evaluate("document.querySelector('#addednote').scrollIntoView({block:'start'}); window.scrollBy(0,-70)"); shot(bob, "s09-friend-added", top=False)
     step("Start a bridge from a friend's library item: friend prefilled and added directly")
     alice.goto(BASE + "#bridges"); card = alice.locator(".card", has_text=f"Invited by {B}"); expect(card).to_be_visible(timeout=T)
     expect(card).to_contain_text("Cities and the climate"); card.click(); expect(alice.get_by_text("Answer three questions")).to_be_visible(timeout=T)

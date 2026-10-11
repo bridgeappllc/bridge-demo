@@ -4,6 +4,17 @@ Live: https://bridgeappllc.github.io/bridge-demo/ (old prototype: `/bridge-demo/
 Backend: **Supabase** project `bridge` (Free plan, $0) — ref `gozjxubvvzxkkoxxvldo`, us-west-1.
 Frontend: one static `index.html` on GitHub Pages (config block at the top: project URL + publishable key).
 
+## Social (branch `social`, preview https://bridgeappllc.github.io/bridge-preview/ — not merged)
+- Migration `supabase/migrations/20261011090000_social_profiles_friends.sql` (applied to the hosted project on Oct 11, additive; the live app keeps working).
+- **Profiles:** optional unique `@username` (3–20 of a–z, 0–9, _; suggested from your name in Settings), short bio (≤160). Name, @username and bio are visible to signed-in users through `search_people` / `get_profile` RPCs only (the `profiles` table itself stays own-row-only, so topics etc. are never exposed). Profile link: `#u/@username` or `#u/<id>`; it works before sign-up (you land on the profile after entering your name). Old `#lib/<id>` links redirect to the profile.
+- **Friends:** `friendships` table (pending/accepted, one row per pair) written only via RPCs: `send_friend_request` (auto-accepts if they already asked you), `respond_friend_request`, `remove_friend` (cancel/decline/unfriend). Friends list (`friends_of`) visible to the user and their friends. Pending requests badge on People and Profile → Friends.
+- **Blocks:** `block_user` / `unblock_user`: hides each other in search, profiles and libraries and ends the friendship; existing bridges stay.
+- **Library visibility** (Settings → Who can see my library): Everyone (any signed-in user) / **Friends only** (default: friends + people you've been on a bridge with, i.e. the old rule is kept) / Only me. Enforced by RLS via `private.can_view_library`.
+- **People** tab: search by name or @username, friend requests, "People you've bridged with" suggestions, share your profile link.
+- **Start a bridge with a friend:** from a friend's profile or one of their library items; the friend is prefilled and added to the bridge directly (`add_friend_to_bridge`, accepted friends only), and the invite link still works.
+- **Discover** now shows real recent items from friends' libraries (category filter); the fictional example feed is gone.
+- Tests: `tests/test_social_rls.py` (79 DB checks), `tests/e2e_social.py` (3 phones, 25 checks).
+
 ## Status (Oct 8, 2026)
 
 - ✅ v1 (Oct 8): real bridges — invite link, guest join with a name, 3 answers with reveal, stored chat with realtime, Your Bridges.
