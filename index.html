@@ -12,50 +12,68 @@ window.BRIDGE_CONFIG = {
 </script>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Bridge</title>
+<meta name="theme-color" content="#121317"><meta name="color-scheme" content="dark">
+<link rel="icon" type="image/svg+xml" href="assets/icon.svg"><link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png"><link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400&family=DM+Serif+Display&family=Playfair+Display:wght@500;600&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js"></script>
 <style>
-:root{--n:#14213d;--b:#2f6fd6;--bl:#eaf1fc;--m:#5b6680;--l:#e3e8f2;--g:#1f9d55;--r:#d64545}
-*{box-sizing:border-box}html,body{margin:0;background:#eef2f8}
-body{font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--n);line-height:1.4}
-#phone{max-width:430px;min-height:100vh;margin:0 auto;background:#fff;position:relative;box-shadow:0 0 40px rgba(20,33,61,.08)}
+:root{--bg:#121317;--sf:#1D1F25;--inp:#17181C;--n:#F2EDE4;--b:#D8C29B;--ac:#C9A27A;--onp:#17181C;--bl:#2A2822;--m:#A3A099;--l:#34363D;--fl:#6E6B65;--g:#8CCB9E;--r:#F2A097;--clay:#D9875F;--serif:'Playfair Display',Georgia,'Times New Roman',serif;color-scheme:dark}
+*{box-sizing:border-box}html,body{margin:0;background:#0C0D10}
+body{font-family:'DM Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--n);line-height:1.45;-webkit-font-smoothing:antialiased}
+#phone{max-width:430px;min-height:100vh;margin:0 auto;background:var(--bg);position:relative;box-shadow:0 0 0 1px rgba(242,237,228,.06),0 0 60px rgba(0,0,0,.5)}
 @media(min-width:600px){#phone{margin:20px auto;min-height:calc(100vh - 40px);border-radius:28px;overflow:hidden}}
-header{position:sticky;top:0;z-index:5;background:#fff;display:flex;align-items:center;gap:8px;padding:14px 18px;border-bottom:1px solid var(--l)}
-header b{font-size:1.25rem}header .sp{flex:1}
-main{padding:16px 18px 100px}
-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;display:flex;background:#fff;border-top:1px solid var(--l);padding-bottom:env(safe-area-inset-bottom)}
-nav button{flex:1;border:0;background:none;padding:9px 0 11px;font:inherit;font-size:.75rem;color:var(--m);display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
-nav button svg{width:22px;height:22px}nav button.on{color:var(--b);font-weight:700}
-h1{font-size:1.9rem;margin:10px 0 8px;line-height:1.15}h2{font-size:1.2rem;margin:18px 0 8px}
+header{position:sticky;top:0;z-index:5;background:rgba(18,19,23,.96);backdrop-filter:blur(8px);display:flex;align-items:center;gap:9px;padding:13px 20px;border-bottom:1px solid var(--l)}
+header .mk{width:30px;height:30px;flex:none}header b{font-family:'DM Serif Display',var(--serif);font-weight:400;font-size:1.4rem;color:#F3EBDF;letter-spacing:.005em}header .sp{flex:1}header .mut{font-size:.82rem;letter-spacing:.02em}
+main{padding:18px 20px 104px}
+nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;display:flex;background:var(--sf);border-top:1px solid var(--l);padding-bottom:env(safe-area-inset-bottom);z-index:6}
+nav button{flex:1;border:0;background:none;padding:10px 0 11px;font:inherit;font-size:.72rem;letter-spacing:.02em;color:var(--m);display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
+nav button svg{width:22px;height:22px;stroke-width:1.6}nav button.on{color:var(--b);font-weight:600}
+h1,h2,h3{font-family:var(--serif);font-weight:500;letter-spacing:-.005em}
+h1{font-size:1.9rem;margin:10px 0 8px;line-height:1.12}h2{font-size:1.3rem;margin:20px 0 8px;line-height:1.2}
 .mut{color:var(--m)}.sm{font-size:.85rem}.c{text-align:center}
-.btn{display:block;width:100%;border:2px solid var(--b);background:var(--b);color:#fff;border-radius:999px;padding:13px;font:inherit;font-weight:700;font-size:1.05rem;cursor:pointer;margin:10px 0}
-a.btn{text-decoration:none;text-align:center}.btn.o{background:#fff;color:var(--b)}.btn.s{display:inline-block;width:auto;padding:8px 16px;font-size:.9rem;margin:4px 0}.btn:disabled{opacity:.45}
-.card{border:1px solid var(--l);border-radius:16px;padding:14px;margin:12px 0;background:#fff;box-shadow:0 2px 8px rgba(20,33,61,.04)}
-.tag{display:inline-block;font-size:.7rem;font-weight:700;border-radius:999px;padding:3px 9px;background:var(--bl);color:var(--b);margin-right:4px}
-.tag.ex{background:#fff4e0;color:#a15c00}
-.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 8px}.chip{flex:none;border:1px solid var(--l);background:#fff;border-radius:999px;padding:7px 14px;font:inherit;font-size:.9rem;cursor:pointer;color:var(--n)}
-.chip.on{background:var(--b);border-color:var(--b);color:#fff}
-.tabs{display:flex;border-bottom:1px solid var(--l);margin-bottom:8px}.tabs button{flex:1;border:0;background:none;padding:10px;font:inherit;font-weight:600;color:var(--m);border-bottom:3px solid transparent;cursor:pointer}.tabs button.on{color:var(--b);border-color:var(--b)}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.topic{border:2px solid var(--l);border-radius:16px;padding:18px 10px;text-align:center;font-weight:700;cursor:pointer;background:#fff;font:inherit;color:var(--n)}.topic span{display:block;font-size:1.8rem}.topic.on{border-color:var(--b);background:var(--bl)}
-label{display:block;font-weight:600;margin:14px 0 6px}input,textarea,select{width:100%;padding:12px;border:1px solid var(--l);border-radius:12px;font:inherit;color:var(--n);background:#fff}textarea{resize:vertical}
-.lock{background:var(--bl);border-radius:16px;padding:18px;text-align:center}.lock svg{width:36px;height:36px}
-.bub{max-width:80%;padding:9px 13px;border-radius:16px;margin:6px 0;background:var(--bl)}.bub.me{margin-left:auto;background:var(--b);color:#fff}
-.stat{display:flex;gap:10px}.stat div{flex:1;background:var(--bl);border-radius:14px;padding:12px;text-align:center}.stat b{display:block;font-size:1.5rem}
-.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--n);color:#fff;padding:10px 16px;border-radius:12px;font-size:.9rem;z-index:20}
+.btn{display:block;width:100%;border:1px solid var(--b);background:var(--b);color:var(--onp);border-radius:10px;padding:13px;font:inherit;font-weight:600;font-size:1rem;letter-spacing:.01em;cursor:pointer;margin:10px 0;transition:background .15s,border-color .15s}
+.btn:not(:disabled):hover{background:#E3D0AD;border-color:#E3D0AD}
+a.btn{text-decoration:none;text-align:center}.btn.o{background:transparent;color:var(--b);border-color:var(--b)}.btn.o:not(:disabled):hover{background:var(--bl)}.btn.s{display:inline-block;width:auto;padding:8px 16px;font-size:.88rem;margin:4px 0}
+.btn:disabled,.btn.o:disabled{background:#34332F;border-color:#34332F;color:#B5B1A8;cursor:not-allowed}
+.card{border:1px solid var(--l);border-radius:12px;padding:14px 15px;margin:12px 0;background:var(--sf)}
+.card h3,.card b:first-child{font-family:var(--serif)}
+.tag{display:inline-block;font-size:.66rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;border-radius:999px;padding:3px 9px;background:var(--bl);color:var(--b);margin-right:4px}
+.tag.ex,.tag.wh{background:#2B2519;color:#E8C48E}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 8px}.chip{flex:none;border:1px solid var(--fl);background:var(--sf);border-radius:999px;padding:7px 14px;font:inherit;font-size:.88rem;cursor:pointer;color:var(--n)}
+.chip.on{background:var(--b);border-color:var(--b);color:var(--onp);font-weight:600}
+.tabs{display:flex;border-bottom:1px solid var(--l);margin-bottom:10px}.tabs button{flex:1;border:0;background:none;padding:10px 6px;font:inherit;font-size:.9rem;font-weight:500;color:var(--m);box-shadow:inset 0 -2px 0 transparent;cursor:pointer}.tabs button.on{color:var(--n);font-weight:600;box-shadow:inset 0 -2px 0 var(--ac)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.topic{border:1px solid var(--fl);border-radius:12px;padding:18px 10px;text-align:center;font-weight:600;cursor:pointer;background:var(--sf);font:inherit;color:var(--n)}.topic span{display:block;font-size:1.8rem}.topic.on{border-color:var(--b);background:var(--bl);box-shadow:inset 0 0 0 1px var(--b)}
+label{display:block;font-weight:600;font-size:.92rem;margin:14px 0 6px}
+input,textarea,select{width:100%;padding:12px;border:1px solid var(--fl);border-radius:10px;font:inherit;color:var(--n);background:var(--inp)}textarea{resize:vertical}
+::placeholder{color:var(--m);opacity:1}
+input:disabled,textarea:disabled,select:disabled{color:#B5B1A8;background:#26272C}
+:focus-visible{outline:2px solid var(--b);outline-offset:2px}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--b);box-shadow:0 0 0 3px rgba(216,194,155,.28)}
+.lock{background:var(--sf);border:1px solid var(--l);border-radius:12px;padding:18px;text-align:center}.lock svg{width:34px;height:34px}
+.bub{max-width:80%;padding:9px 13px;border-radius:14px;margin:6px 0;background:var(--bl);color:var(--n)}.bub.me{margin-left:auto;background:var(--b);color:var(--onp)}
+.stat{display:flex;gap:0;border-top:1px solid var(--l);border-bottom:1px solid var(--l);margin:12px 0}.stat div{flex:1;padding:10px 0 9px;text-align:center;font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--m)}.stat div+div{border-left:1px solid var(--l)}.stat b{display:block;font-family:var(--serif);font-weight:500;font-size:1.55rem;line-height:1.15;letter-spacing:0;text-transform:none;color:var(--n)}
+.toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:#2B2D34;color:var(--n);border:1px solid rgba(216,194,155,.45);padding:10px 16px;border-radius:10px;font-size:.9rem;z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.45)}
 a{color:var(--b)}.row{display:flex;gap:8px;align-items:center}
-.steps{display:flex;gap:4px;margin:8px 0 14px}.steps button{flex:1;border:0;background:none;padding:0;font:inherit;font-size:.68rem;color:var(--m);text-align:center;cursor:pointer}
-.steps button i{display:block;height:6px;border-radius:3px;background:var(--l);margin-bottom:5px}.steps .done i{background:var(--g)}.steps .done{color:var(--g)}.steps .cur i{background:var(--b)}.steps .cur{color:var(--b);font-weight:700}.steps .lk{opacity:.5}
-.tabs.sc{overflow-x:auto}.tabs.sc button{flex:none;padding:10px 12px;font-size:.88rem}
-.big{font-size:1.15rem;padding:16px}
+.steps{display:flex;gap:6px;margin:8px 0 16px}.steps button{flex:1;border:0;background:none;padding:0;font:inherit;font-size:.74rem;letter-spacing:.03em;color:var(--m);text-align:center;cursor:pointer}
+.steps button i{display:block;height:3px;border-radius:2px;background:var(--l);margin-bottom:7px}.steps .done i{background:var(--ac)}.steps .done{color:var(--ac)}.steps .cur i{background:var(--b)}.steps .cur{color:var(--b);font-weight:600}.steps .lk{color:#8E8B85}
+.tabs.sc{overflow-x:auto;scrollbar-width:none}.tabs.sc button{flex:1 0 auto;padding:10px 12px;font-size:.88rem}
+.big{font-size:1.1rem;padding:16px}
 .prog{font-size:.8rem;color:var(--m);margin-top:4px}.prog b{color:var(--n)}
-.who{font-size:.7rem;color:var(--m);margin:8px 0 -4px}
-.qa{border-left:3px solid var(--l);padding:2px 0 2px 10px;margin:6px 0}.qa.fr{border-color:var(--b)}
-nav button{position:relative}.badge{position:absolute;top:3px;left:calc(50% + 5px);background:var(--r);color:#fff;border-radius:999px;font-size:.66rem;font-weight:700;min-width:18px;height:18px;line-height:18px;padding:0 5px;text-align:center}.badge.in{position:static;display:inline-block;margin-left:4px;vertical-align:1px}
-.person{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--l)}.person .pi{flex:1;min-width:0;cursor:pointer}.person .pi b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.person .pi .sm{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.person .btn{flex:none}
-.av{flex:none;border-radius:50%;background:var(--bl);color:var(--b);display:flex;align-items:center;justify-content:center;font-weight:700;margin:0 auto}.person .av{margin:0}
+.who{font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--m);margin:10px 0 -2px}
+.qa{border-left:2px solid var(--l);padding:2px 0 2px 12px;margin:8px 0}.qa.fr{border-color:var(--ac)}
+nav button{position:relative}.badge{position:absolute;top:4px;left:calc(50% + 5px);background:#E8806F;color:var(--onp);border-radius:999px;font-size:.66rem;font-weight:700;min-width:18px;height:18px;line-height:18px;padding:0 5px;text-align:center;letter-spacing:0;text-transform:none}.badge.in{position:static;display:inline-block;margin-left:4px;vertical-align:1px}
+.person{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--l)}.person .pi{flex:1;min-width:0;cursor:pointer}.person .pi b{display:block;font-family:var(--serif);font-weight:500;font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.person .pi .sm{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.person .btn{flex:none}
+.av{flex:none;border-radius:50%;background:var(--b);color:var(--onp);display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-weight:500;margin:0 auto;box-shadow:0 0 0 3px var(--bg),0 0 0 4px var(--ac)}.person .av{margin:0 0 0 4px}
 .handle{color:var(--m);font-size:.9rem}.row .btn{flex:1;margin:4px 0}
-.vis label{display:flex;gap:10px;align-items:flex-start;font-weight:600;margin:8px 0 0;border:1px solid var(--l);border-radius:12px;padding:12px;cursor:pointer}.vis input{width:auto;margin:3px 0 0}.vis label.on{border-color:var(--b);background:var(--bl)}.vis span{display:block;font-weight:400;font-size:.85rem;color:var(--m)}
-.at{display:flex;align-items:center;border:1px solid var(--l);border-radius:12px;padding-left:12px;background:#fff}.at b{color:var(--m)}.at input{border:0;padding-left:4px}
-.note{background:#fff4e0;color:#7a4a00;border-radius:12px;padding:10px 12px;font-size:.85rem;margin:10px 0}
+.vis label{display:flex;gap:10px;align-items:flex-start;font-weight:600;margin:8px 0 0;border:1px solid var(--fl);border-radius:12px;padding:12px;cursor:pointer;background:var(--sf)}.vis input{width:auto;margin:3px 0 0;accent-color:#D8C29B}.vis label.on{border-color:var(--b);background:var(--bl)}.vis span{display:block;font-weight:400;font-size:.85rem;color:var(--m)}
+.at{display:flex;align-items:center;border:1px solid var(--fl);border-radius:10px;padding-left:12px;background:var(--inp)}.at:focus-within{border-color:var(--b);box-shadow:0 0 0 3px rgba(216,194,155,.28)}.at b{color:var(--b)}.at input{border:0;padding-left:4px;box-shadow:none}
+.note{background:#2B2519;color:#E8C48E;border:1px solid rgba(232,196,142,.25);border-radius:10px;padding:10px 12px;font-size:.85rem;margin:10px 0}
+.note.dir{background:var(--bl);color:var(--n);border-color:rgba(216,194,155,.3)}.note.ok{background:#1B2A21;color:#BFE5CB;border-color:rgba(140,203,158,.3)}
+.wel .mk{width:96px;height:96px;display:block;margin:28px auto 4px}.ti{font-family:var(--serif);font-weight:500;font-size:1.15rem;line-height:1.25}.wel.inv .mk{width:72px;height:72px;margin:18px auto 4px}.wel h1.wm{font-family:'DM Serif Display',var(--serif);font-weight:400;font-size:2.6rem;color:#F3EBDF;margin:4px 0 10px}
+input[type=checkbox],input[type=radio]{accent-color:#D8C29B}
 </style></head><body><div id="phone"><header id="hd"></header><main id="app"></main><nav id="nav"></nav></div>
 <script>
 const CFG=window.BRIDGE_CONFIG||{};
@@ -65,9 +83,9 @@ const sb=CONFIGURED?supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_ANON_KEY
 const KEY="bridge_real_v1";
 const APP_URL=location.origin+location.pathname;
 const POLL_MS=+new URLSearchParams(location.search).get("poll")||4000; // ?poll=ms is only used by tests
-const LOGO='<svg viewBox="0 0 48 32" width="40" height="27" fill="none" stroke-linecap="round"><path d="M4 28 C10 6 38 6 44 28" stroke="#2f6fd6" stroke-width="4"/><path d="M12 28 C16 15 32 15 36 28" stroke="#14213d" stroke-width="3.5"/><path d="M2 28h44" stroke="#14213d" stroke-width="3"/></svg>';
-const LOCK='<svg viewBox="0 0 24 24" fill="none" stroke="#14213d" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
-const IC={people:'<circle cx="9" cy="8" r="3.5"/><path d="M2 20c.8-3.5 3.6-5.5 7-5.5s6.2 2 7 5.5"/><circle cx="17" cy="9" r="2.8"/><path d="M17 14.5c2.6 0 4.6 1.6 5 4.5"/>',bridges:'<path d="M2 18C6 7 18 7 22 18M2 18h20M7 18v-4M12 18v-6M17 18v-4"/>',new:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',profile:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/>'};
+const LOGO='<svg class="mk" viewBox="0 0 100 100" role="img" aria-label="Bridge logo" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M16 84C16 52 31 31 49 21" stroke="#F3EBDF" stroke-width="7"/><path d="M84 84C84 52 69 31 51 21" stroke="#D9875F" stroke-width="7"/></svg>';
+const LOCK='<svg viewBox="0 0 24 24" fill="none" stroke="#D8C29B" stroke-width="1.8"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+const IC={people:'<circle cx="9" cy="8" r="3.5"/><path d="M2 20c.8-3.5 3.6-5.5 7-5.5s6.2 2 7 5.5"/><circle cx="17" cy="9" r="2.8"/><path d="M17 14.5c2.6 0 4.6 1.6 5 4.5"/>',bridges:'<path d="M4 20.5C4 13 7.5 8 11.6 5.5M20 20.5C20 13 16.5 8 12.4 5.5"/>',new:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',profile:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/>'};
 const NAVL={people:"People",bridges:"Bridges",new:"New Bridge",profile:"Profile"};
 const TOPICS=[["Politics","🏛️"],["Economics","📈"],["Culture","🎭"],["Education","🎓"],["Religion","🕊️"],["Science","🔬"]];
 const QS=["What's one specific moment, insight, or story that stuck with you the most—and why?","Was there anything said that you strongly agreed or disagreed with? What was it?","If you had to describe the main takeaway in one or two sentences, what would you say—and did it change or reinforce how you see the topic?"];
@@ -186,12 +204,12 @@ function stepbar(cur,reach,id,first){return `<div class="steps">${STEPS.map((t,i
 const fromItem=it=>({id:it.id,title:it.title,creator:it.creator,type:it.kind,cat:it.category,url:it.url,note:it.note,owner:it.user_id});
 function findClip(id){const e=EXAMPLES.find(c=>c.id===id);if(e)return e;const it=[...(DB.lib||[]),...Object.values(DB.flib).flat()].find(x=>x.id===id);return it?fromItem(it):null}
 const inMyLib=url=>(DB.lib||[]).find(x=>x.url===url);
-function clipCard(c,who){return `<div class="card" style="cursor:pointer" onclick="go('clip/${c.id}')">${c.ex?'<span class="tag ex">Example</span>':""}${who?`<span class="tag" style="background:#fff4e0;color:#a15c00">${esc(who)}</span>`:""}<span class="tag">${esc(c.cat||"Other")}</span><span class="tag">${esc(c.type)}</span>
-<div style="font-weight:700;font-size:1.05rem;margin:8px 0 2px">${esc(c.title)}</div><div class="mut sm">${esc(c.creator)}</div>${c.note?`<div class="sm" style="margin-top:6px">“${esc(c.note)}”</div>`:""}
+function clipCard(c,who){return `<div class="card" style="cursor:pointer" onclick="go('clip/${c.id}')">${c.ex?'<span class="tag ex">Example</span>':""}${who?`<span class="tag wh">${esc(who)}</span>`:""}<span class="tag">${esc(c.cat||"Other")}</span><span class="tag">${esc(c.type)}</span>
+<div class="ti" style="margin:8px 0 2px">${esc(c.title)}</div><div class="mut sm">${esc(c.creator)}</div>${c.note?`<div class="sm" style="margin-top:6px">“${esc(c.note)}”</div>`:""}
 </div>`}
 const loading='<p class="mut c" style="padding-top:40px">Loading…</p>';
 const saveNote=where=>isGuest()?`<div class="note" id="savenote">💾 <b>Save your account</b> so you can get ${where} back on another phone. <a href="#account">Add your email</a></div>`:"";
-const bridgeCard=b=>{const me=meOf(b),fr=frOf(b),st=stage(me);return `<div class="card" style="cursor:pointer" onclick="go('bridge/${b.id}')"><span class="tag">${esc(b.clip_type)}</span>${me&&me.role==="friend"?'<span class="tag">Invited by '+esc(fr?fr.display_name:"friend")+"</span>":""}<div style="font-weight:700;margin:6px 0 2px">You & ${esc(frName(b))}</div><div class="mut sm">${esc(b.clip_title)}</div>
+const bridgeCard=b=>{const me=meOf(b),fr=frOf(b),st=stage(me);return `<div class="card" style="cursor:pointer" onclick="go('bridge/${b.id}')"><span class="tag">${esc(b.clip_type)}</span>${me&&me.role==="friend"?'<span class="tag">Invited by '+esc(fr?fr.display_name:"friend")+"</span>":""}<div class="ti" style="margin:6px 0 2px">You & ${esc(frName(b))}</div><div class="mut sm">${esc(b.clip_title)}</div>
 ${stepbar(st,st)}<div class="sm">${st===2?"💬 Chat open":"Next: <b>"+STEPS[st]+"</b>"}</div><div class="prog">${progTxt(me)}<br>${progTxt(fr,frName(b))}</div></div>`};
 // 2-step email + code form (used by sign-in and save-account)
 const codeForm=(title,intro,btn)=>`<h1 style="font-size:1.6rem">${title}</h1><p class="mut">${intro}</p><div id="ef"><label>Email</label><input id="em" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com"><button class="btn" id="esend">${btn}</button></div>
@@ -201,8 +219,8 @@ let feedCat="All",profTab="Library",lastMsgCount=-1;
 /* ---------- views ---------- */
 const V={
 setup(){return `<h1>Almost ready</h1><div class="note">The backend isn't connected yet. Fill in <b>SUPABASE_URL</b> and <b>SUPABASE_ANON_KEY</b> in the config block at the top of <code>index.html</code> (see SETUP.md).</div>`},
-welcome(){return `<div class="c" style="padding-top:30px">${LOGO.replace('width="40" height="27"','width="96" height="64"')}<h1 style="font-size:2.4rem">Bridge</h1>
-<p style="font-weight:700;font-size:1.25rem;margin:0 0 10px">We don't have to agree to understand each other.</p><p class="mut" style="font-size:1.05rem">Listen to the same thing, show you listened, then talk about where you see it differently.</p>
+welcome(){return `<div class="c wel" style="padding-top:10px">${LOGO}<h1 class="wm">Bridge</h1>
+<p class="ti" style="font-size:1.4rem;margin:0 0 10px">We don't have to agree to understand each other.</p><p class="mut" style="font-size:1.05rem">Listen to the same thing, show you listened, then talk about where you see it differently.</p>
 ${String(S.after||"").startsWith("u/")?'<div class="note">Sign up free (just your name) to see this profile.</div>':""}<div id="su" style="margin-top:36px"><button class="btn" id="sbtn">Sign Up Free</button><button class="btn o" id="lbtn" onclick="go('signin')">I Have an Account</button></div><p class="mut sm">Privacy Policy | Terms of Service</p></div>`},
 signin(){return `<p class="mut sm"><a href="#">← Back</a></p>`+codeForm("Welcome back","Enter the email you saved your Bridge account with. We'll email you a sign-in code. No password needed.","Email me a code")},
 account(){if(!isGuest())return `<p class="mut sm"><a href="#profile">← Profile</a></p><h1 style="font-size:1.6rem">Your account</h1><div class="card"><b>Signed in as ${esc(USER&&USER.email)}</b><p class="mut sm">Your bridges and library sync on every phone or browser where you sign in with this email.</p></div>`;
@@ -210,19 +228,19 @@ account(){if(!isGuest())return `<p class="mut sm"><a href="#profile">← Profile
 topics(){return `<h1>Pick your topics</h1><p class="mut">Choose 3 or more.</p><div class="grid">${TOPICS.map(([t,e])=>`<button class="topic${S.topics.includes(t)?" on":""}" data-t="${t}"><span>${e}</span>${t}</button>`).join("")}</div>
 <button class="btn" id="tgo" ${S.topics.length<3?"disabled":""}>Continue (${S.topics.length}/3)</button><button class="btn o" onclick="afterTopics()">Skip</button>`},
 invite(tok){const p=DB.pv[tok];if(p===undefined)return loading;
- if(!p)return `<div class="c" style="padding-top:30px">${LOGO}<h1>Invite not found</h1><p class="mut">This invite link doesn't work. Ask your friend to send it again.</p><a class="btn o" href="#bridges">Go to Bridge</a></div>`;
- if(p.member_count>=2&&!p.is_member)return `<div class="c" style="padding-top:30px">${LOGO}<h1>This bridge is full</h1><p class="mut">${esc(p.owner_name)}'s bridge already has two people. Ask them for a new invite.</p><a class="btn o" href="#bridges">Go to Bridge</a></div>`;
- return `<div class="c" style="padding-top:18px">${LOGO.replace('width="40" height="27"','width="72" height="48"')}<h1 style="font-size:1.7rem">${esc(p.owner_name)} invited you to meet on the Bridge</h1><p class="mut">We don't have to agree to understand each other.</p></div>
-<div class="card"><span class="tag">${esc(p.clip_type)}</span><div style="font-weight:700;font-size:1.05rem;margin:8px 0">${esc(p.clip_title)}</div><a class="btn o s" href="${esc(safeUrl(p.clip_url))}" target="_blank" rel="noopener">Open link ↗</a></div>
+ if(!p)return `<div class="c wel" style="padding-top:10px">${LOGO}<h1>Invite not found</h1><p class="mut">This invite link doesn't work. Ask your friend to send it again.</p><a class="btn o" href="#bridges">Go to Bridge</a></div>`;
+ if(p.member_count>=2&&!p.is_member)return `<div class="c wel" style="padding-top:10px">${LOGO}<h1>This bridge is full</h1><p class="mut">${esc(p.owner_name)}'s bridge already has two people. Ask them for a new invite.</p><a class="btn o" href="#bridges">Go to Bridge</a></div>`;
+ return `<div class="c wel inv" style="padding-top:4px">${LOGO}<h1 style="font-size:1.7rem">${esc(p.owner_name)} invited you to meet on the Bridge</h1><p class="mut">We don't have to agree to understand each other.</p></div>
+<div class="card"><span class="tag">${esc(p.clip_type)}</span><div class="ti" style="margin:8px 0">${esc(p.clip_title)}</div><a class="btn o s" href="${esc(safeUrl(p.clip_url))}" target="_blank" rel="noopener">Open link ↗</a></div>
 ${stepbar(0,0,null,"Join")}<p class="mut sm">Listen to it, answer 3 quick questions, then talk about where you see it differently. You'll see ${esc(p.owner_name)}'s answers after you share yours.</p>
 <label>Your name</label><input id="jname" placeholder="Your first name" maxlength="40" value="${esc(PROFILE?PROFILE.display_name:"")}"><button class="btn big" id="jgo">Join the bridge</button><p class="mut sm c">No password needed.${PROFILE?"":` Have a Bridge account? <a href="#signin" id="jsignin">Sign in first</a>`}</p>`},
 bridges(){const L=DB.list;return `<h1>Your Bridges</h1><p class="mut">Invite a friend, listen, answer, then talk.</p><button class="btn big" onclick="go('new')">🌉 Meet Me on the Bridge</button>
 ${L&&L.length&&isGuest()&&!S.hideSave?`<div class="card" id="savecard"><b>💾 Save your account</b><p class="mut sm">Add your email so you can get your bridges back on another phone. No password.</p><button class="btn s" onclick="go('account')">Save account</button> <button class="btn o s" id="nosave">Not now</button></div>`:""}
-${L===null?loading:L.length?L.map(bridgeCard).join(""):'<div class="card c"><p style="font-weight:700;margin:4px 0">No bridges yet</p><p class="mut sm">Pick something to listen to, then text the invite link to a friend.</p></div>'}`},
+${L===null?loading:L.length?L.map(bridgeCard).join(""):'<div class="card c"><p class="ti" style="margin:4px 0">No bridges yet</p><p class="mut sm">Pick something to listen to, then text the invite link to a friend.</p></div>'}`},
 new(pre,fid){const pc=pre&&findClip(pre);const fr=fid&&(DB.friends||[]).find(f=>f.id===fid);const fnm=fid&&(fr?fr.display_name:nameOf(fid))||"";const mine=(DB.lib||[]).map(fromItem);const opts=[...mine,...(pc&&!mine.some(c=>c.id===pc.id)?[pc]:[]),...EXAMPLES];const sel=pc?pc.id:"";
  return stepbar(0,0)+`<h1>Meet Me on the Bridge</h1><p class="mut">Pick something for you and a friend to listen to.</p><label>Pick from your library</label><select id="mclip"><option value="">— Paste a new link —</option>${opts.map(c=>`<option value="${c.id}" ${c.id===sel?"selected":""}>${esc(c.title)}${c.ex?" (example)":c.owner&&c.owner!==ME?" ("+esc(nameOf(c.owner)||"friend")+"'s library)":""}</option>`).join("")}</select>
 <div id="paste" style="display:${sel?"none":"block"}"><label>Link (URL)</label><input id="murl" type="url" placeholder="https://…"><label>Title</label><input id="mtitle" placeholder="What is it called?" maxlength="300"><p class="mut sm">New links are also saved to your library.</p></div>
-<label>Friend's name</label><input id="mfriend" placeholder="e.g. Sam" maxlength="40" value="${esc(fnm)}">${fr?`<div class="note" id="direct" style="background:var(--bl);color:var(--n)">🤝 You and ${esc(fnm)} are friends, so they'll be <b>added to this bridge right away</b> (it shows up in their Bridges). You can still text them the link. <a href="#new/${pre||""}">Invite someone else</a></div>`:""}<label>Listen reward (optional)</label><div class="row"><span style="font-weight:700">$</span><input id="mrew" type="number" min="0" step="1" placeholder="e.g. 5"></div><p class="mut sm"><span class="tag ex">Coming soon</span> In-app payments aren't live. An amount here only adds a line to your invite.</p>
+<label>Friend's name</label><input id="mfriend" placeholder="e.g. Sam" maxlength="40" value="${esc(fnm)}">${fr?`<div class="note dir" id="direct">🤝 You and ${esc(fnm)} are friends, so they'll be <b>added to this bridge right away</b> (it shows up in their Bridges). You can still text them the link. <a href="#new/${pre||""}">Invite someone else</a></div>`:""}<label>Listen reward (optional)</label><div class="row"><span style="font-weight:700">$</span><input id="mrew" type="number" min="0" step="1" placeholder="e.g. 5"></div><p class="mut sm"><span class="tag ex">Coming soon</span> In-app payments aren't live. An amount here only adds a line to your invite.</p>
 <button class="btn" id="mgo">Create invite</button><div id="mout"></div>`},
 bridge(id,sp){const D=DB.d[id];if(D===undefined)return loading;if(!D||!D.b)return `<h1>Bridge not found</h1><p class="mut">It may have been deleted, or you're not a member. Open the invite link to join.</p>`;
  const b=D.b,me=meOf(b),fr=frOf(b);if(!me)return "<p>Not a member</p>";const st=stage(me),fn=esc(frName(b));let cur=sp==null||sp===""?st:Math.min(+sp,st);if(!(cur>=1))cur=0;
@@ -235,8 +253,8 @@ bridge(id,sp){const D=DB.d[id];if(D===undefined)return loading;if(!D||!D.b)retur
 <p class="sm mut">${frStatus("answered",fr&&fr.answered_at)}</p><p class="sm" id="qhint" style="color:var(--r)"></p><button class="btn" id="qsave">Submit answers · Unlock chat</button>`;
   else h+=`<h2>Answers</h2>${QS.map((q,i)=>`<div class="card"><div class="sm" style="font-weight:600">${i+1}. ${q}</div><div class="who">You</div><div class="qa">${esc(myA["a"+(i+1)])}</div>${frA?`<div class="who">${fn}</div><div class="qa fr">${esc(frA["a"+(i+1)])}</div>`:""}</div>`).join("")}
 ${frA?"":`<p class="sm mut">${!fr?fn+" hasn't joined yet — you'll see their answers here when they do.":fn+" hasn't answered yet — you'll see their answers here when they do."}</p>`}<button class="btn" onclick="go('bridge/${id}/2')">Next: Talk</button>`}
- if(cur===2){let prev=null;h+=`<h2>💬 Talk</h2>${fr&&fr.answered_at?"":`<div class="card sm" style="background:var(--bl);border:0">${!fr?fn+" hasn't joined yet":fn+" hasn't answered yet"} — they'll see the chat once they do.</div>`}<div id="chat">${D.messages.map(m=>{const mine=m.user_id===ME,who=mine?"":(m.user_id!==prev?`<div class="who">${fn}</div>`:"");prev=m.user_id;return who+`<div class="bub ${mine?"me":""}">${esc(m.body)}</div>`}).join("")||'<p class="mut sm">Start the conversation: where do you see it differently?</p>'}</div><div class="row"><input id="ct" placeholder="Add your thought…" maxlength="2000"><button class="btn s" id="cs">Send</button></div>`}
- else h+=`<div class="lock" style="margin-top:16px">${LOCK}<div style="font-weight:700;margin-top:6px">Chat locked</div><p class="mut sm">Unlocks after you answer the three questions.</p></div>`;
+ if(cur===2){let prev=null;h+=`<h2>💬 Talk</h2>${fr&&fr.answered_at?"":`<div class="card sm" style="background:var(--bl);border-color:rgba(216,194,155,.2)">${!fr?fn+" hasn't joined yet":fn+" hasn't answered yet"} — they'll see the chat once they do.</div>`}<div id="chat">${D.messages.map(m=>{const mine=m.user_id===ME,who=mine?"":(m.user_id!==prev?`<div class="who">${fn}</div>`:"");prev=m.user_id;return who+`<div class="bub ${mine?"me":""}">${esc(m.body)}</div>`}).join("")||'<p class="mut sm">Start the conversation: where do you see it differently?</p>'}</div><div class="row"><input id="ct" placeholder="Add your thought…" maxlength="2000"><button class="btn s" id="cs">Send</button></div>`}
+ else h+=`<div class="lock" style="margin-top:16px">${LOCK}<div class="ti" style="margin-top:6px">Chat locked</div><p class="mut sm">Unlocks after you answer the three questions.</p></div>`;
  return h},
 clip(id){const c=findClip(id);if(!c)return DB.lib===null||DB.flib.__loading?loading:"<h1>Not found</h1><p class='mut'>This item isn't in your library or a friend's.</p>";
  const mine=c.owner&&c.owner===ME,friend=c.owner&&!mine,have=!c.ex&&!mine&&inMyLib(c.url);
@@ -248,12 +266,12 @@ lib(uid){const L=DB.flib[uid],n=esc(nameOf(uid)||"Your friend");if(L===undefined
 profile(){const L=DB.list||[];let body="";const nIn=incoming().length;
 if(profTab==="Library"){const P=[...(DB.friends||[]).map(f=>({user_id:f.id,name:f.display_name})),...partners()].filter((x,i,a)=>a.findIndex(y=>y.user_id===x.user_id)===i);
  body=(P.length?`<div class="chips"><span class="sm mut" style="align-self:center;flex:none">Friends' libraries:</span>${P.map(p=>`<button class="chip" onclick="go('u/${p.user_id}')">${esc(p.name)} →</button>`).join("")}</div>`:"")+
- (DB.lib===null?loading:DB.lib.length?DB.lib.map(it=>clipCard(fromItem(it))).join(""):'<div class="card c"><p style="font-weight:700;margin:4px 0">Your library is empty</p><p class="mut sm">Your library shows how you see the world. Add the podcasts, videos and articles that shaped your views.</p><button class="btn s" data-pt="Add">Add a link</button></div>')+
+ (DB.lib===null?loading:DB.lib.length?DB.lib.map(it=>clipCard(fromItem(it))).join(""):'<div class="card c"><p class="ti" style="margin:4px 0">Your library is empty</p><p class="mut sm">Your library shows how you see the world. Add the podcasts, videos and articles that shaped your views.</p><button class="btn s" data-pt="Add">Add a link</button></div>')+
  `<p class="mut sm">🔒 Who can see it: <b>${VIS[PROFILE.library_visibility||"friends"][0]}</b> · <a href="#" data-pt="Settings">change</a></p>`}
 if(profTab==="Add")body=`<label>Link (URL)</label><input id="aurl" type="url" placeholder="https://…"><label>Title</label><input id="atitle" placeholder="What is it called?" maxlength="300"><label>Category</label><select id="acat">${TOPICS.map(t=>`<option>${t[0]}</option>`).join("")}</select>
 <label>Personal note</label><textarea id="anote" rows="4" maxlength="300" placeholder="Why does this matter to you?"></textarea><div class="mut sm" style="text-align:right"><span id="cnt">0</span>/300</div><button class="btn" id="asave">Save to Library</button><p class="mut sm">Saved to your account. Visible to: ${VIS[PROFILE.library_visibility||"friends"][0]}.</p>`;
 if(profTab==="Discover"){const F=DB.feed;let l=(F||[]).map(it=>({c:fromItem(it),who:(nameOf(it.user_id)||"Friend")+"'s library"}));if(feedCat!=="All")l=l.filter(x=>x.c.cat===feedCat);
- body=`<p class="mut sm">New in your friends' libraries.</p>`+(F===null?loading:!(DB.friends||[]).length?`<div class="card c"><p style="font-weight:700;margin:4px 0">Nothing here yet</p><p class="mut sm">Add friends to see the podcasts, videos and articles they save.</p><button class="btn s" onclick="go('people')">Find people</button></div>`:
+ body=`<p class="mut sm">New in your friends' libraries.</p>`+(F===null?loading:!(DB.friends||[]).length?`<div class="card c"><p class="ti" style="margin:4px 0">Nothing here yet</p><p class="mut sm">Add friends to see the podcasts, videos and articles they save.</p><button class="btn s" onclick="go('people')">Find people</button></div>`:
  `<div class="chips">${["All",...TOPICS.map(t=>t[0])].map(c=>`<button class="chip${c===feedCat?" on":""}" data-cat="${c}">${c}</button>`).join("")}</div>${l.map(x=>clipCard(x.c,x.who)).join("")||`<p class="mut">${F.length?"Nothing in this category.":"Your friends haven't added anything yet (or keep their library private)."}</p>`}`)}
 if(profTab==="Friends")body=(nIn?`<h2>Friend requests</h2>${incoming().map(r=>personRow({...r,friend_status:"incoming"})).join("")}`:"")+`<h2>Your friends${DB.friends?` (${DB.friends.length})`:""}</h2>`+
  (DB.friends===null?loading:DB.friends.length?DB.friends.map(personRow).join(""):'<p class="mut sm">No friends yet.</p>')+`<button class="btn o" onclick="go('people')">Find people</button>`;
@@ -278,7 +296,7 @@ ${out.length?`<h2>Sent requests</h2>${out.map(r=>personRow({...r,friend_status:"
 u(key){key=decodeURIComponent(key||"");const P=DB.ppl[key];if(P===undefined)return loading;const p=P.p;
  if(!p)return `<p class="mut sm"><a href="#people">← People</a></p><h1>Profile not found</h1><p class="mut">This profile doesn't exist or isn't available.</p><a class="btn o" href="#people">Find people</a>`;
  const fn=esc(p.display_name),tab=S.utab==="Friends"?"Friends":"Library",fr=p.friend_status==="friends";
- const libH=!p.can_view_library?`<div class="lock" style="margin-top:10px">${LOCK}<div style="font-weight:700;margin-top:6px">${p.library_visibility==="private"?fn+" keeps their library private":fn+"'s library is for friends"}</div><p class="mut sm">${p.library_visibility==="private"?"Only "+fn+" can see it.":p.friend_status==="outgoing"?"You'll see it when "+fn+" accepts your request.":"Add "+fn+" as a friend to see it."}</p></div>`:
+ const libH=!p.can_view_library?`<div class="lock" style="margin-top:10px">${LOCK}<div class="ti" style="margin-top:6px">${p.library_visibility==="private"?fn+" keeps their library private":fn+"'s library is for friends"}</div><p class="mut sm">${p.library_visibility==="private"?"Only "+fn+" can see it.":p.friend_status==="outgoing"?"You'll see it when "+fn+" accepts your request.":"Add "+fn+" as a friend to see it."}</p></div>`:
   P.lib==null?loading:P.lib.length?P.lib.map(it=>clipCard(fromItem(it))).join(""):`<p class="mut">${fn} hasn't added anything yet.</p>`;
  const frH=P.fr&&P.fr.length?P.fr.map(personRow).join(""):`<p class="mut sm">${fr?fn+" has no other friends on Bridge yet.":"Only "+fn+"'s friends can see who they're friends with."}</p>`;
  return `<p class="mut sm"><a href="#people">← People</a></p><div class="c">${AV(p.display_name,72)}<h1 style="font-size:1.5rem;margin:6px 0 0">${fn}</h1><div class="handle">${esc(handle(p.username))}</div>${p.bio?`<p style="margin:6px 0 0">${esc(p.bio)}</p>`:""}</div>
@@ -379,7 +397,7 @@ $("#mgo").onclick=async()=>{let c=findClip(sel.value),fresh=false;if(!c){const u
   if(fresh)API.importLib([{url:c.url,title:c.title.slice(0,300),category:c.cat,kind:c.type,creator:"",note:""}]).then(()=>{DB.lib=null}).catch(e=>console.warn(e));
   b.bridge_members=[{user_id:ME,display_name:PROFILE.display_name,role:"owner"}];DB.list=null;let added=false;
   if(direct){try{await API.addFriendToBridge(b.id,direct);added=true}catch(e){console.warn(e);toast("Couldn't add them directly — send the link instead")}}
-  const txt=inviteTxt(b);$("#mout").innerHTML=`${added?`<div class="note" id="addednote" style="background:#e8f7ee;color:#14532d">✓ <b>${esc(f||"Your friend")} is on this bridge.</b> It's in their Bridges list now. Text them the link too so they know.</div>`:""}<div class="card"><b>Invite for ${esc(f||"your friend")}</b><p class="mut sm">Text this to your friend. The link at the end lets them join.</p><textarea rows="9" readonly id="itxt">${esc(txt)}</textarea><button class="btn o" id="cp">Copy invite text</button>${navigator.share?'<button class="btn o" id="sh">Share…</button>':""}<button class="btn" id="nx" onclick="go('bridge/${b.id}/1')">Next: Answer 3 questions</button></div>${saveNote("this bridge")}`;
+  const txt=inviteTxt(b);$("#mout").innerHTML=`${added?`<div class="note ok" id="addednote">✓ <b>${esc(f||"Your friend")} is on this bridge.</b> It's in their Bridges list now. Text them the link too so they know.</div>`:""}<div class="card"><b>Invite for ${esc(f||"your friend")}</b><p class="mut sm">Text this to your friend. The link at the end lets them join.</p><textarea rows="9" readonly id="itxt">${esc(txt)}</textarea><button class="btn o" id="cp">Copy invite text</button>${navigator.share?'<button class="btn o" id="sh">Share…</button>':""}<button class="btn" id="nx" onclick="go('bridge/${b.id}/1')">Next: Answer 3 questions</button></div>${saveNote("this bridge")}`;
   $("#cp").onclick=()=>copy(txt);if($("#sh"))$("#sh").onclick=()=>share(txt);$("#mgo").style.display="none"}catch(e){busy($("#mgo"),false);fail(e)}}},
 clip(id){const c=findClip(id);if(!c)return;
  const a=$("#addlib");if(a)a.onclick=async()=>{busy(a,true);try{const it=await API.addLib({url:c.url,title:c.title.slice(0,300),category:c.cat||"",kind:c.type||kindOf(c.url),creator:c.ex?"":(c.creator||"").slice(0,120),note:""});DB.lib=[it,...(DB.lib||[])];toast("Added to your Library");render(true)}catch(e){busy(a,false);if(e.dup){toast(e.message)}else fail(e)}};
