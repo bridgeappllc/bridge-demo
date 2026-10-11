@@ -1,0 +1,11 @@
+node_modules/
+www/
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/capacitor-cordova-android-plugins/
+ios/App/build/
+ios/DerivedData/
+*.apk
+*.aab

@@ -67,3 +67,10 @@ Make changes as **new files in `supabase/migrations/`** applied with `apply_migr
 - `tests/e2e_library_email.py`: library migration/add, a friend viewing your library, starting a bridge from an item, save-account by email code (same user id), wrong code, taken email, unknown email, sign-in on a new browser and a second phone with bridges + library + topics syncing.
 
 Hosted smoke test: `python3 tests/serve.py 8081` (no `SB_KEY` → real config), then `BASE=http://127.0.0.1:8081/ REALTIME=1 python3 tests/e2e_two_users.py` (3 guest sign-ups) and `BASE=http://127.0.0.1:8081/ python3 tests/smoke_hosted_v2.py` (2 guest sign-ups, sends no email). Clean up with `tests/cleanup_test_data.sql` (only removes users named `Smoke*`). Don't run the email E2E against the hosted project.
+
+## Store requirements (account deletion, reports, legal pages)
+- Migration `20261011150000_account_deletion_and_reports.sql`: `delete_my_account()` RPC (Settings → Delete account), `report_content()` RPC + `public.reports`
+  (no client access), moderation view `private.reports_review`, shared bridges survive a deleted partner (`bridges.partner_left_at`).
+- How to review reports: see `docs/MODERATION.md`.
+- `privacy.html`, `terms.html`, `support.html` are **drafts** for Bridge LLC review (not legal advice). They're linked from welcome, sign-up and Settings.
+- Tests: `tests/test_store_rls.py` (DB rules) and `tests/e2e_store.py` (UI); both are in `tests/run_all.sh`.

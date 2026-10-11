@@ -1,0 +1,27 @@
+{
+  "name": "bridge-mobile",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Native iOS/Android shell for Bridge (Capacitor). The web app in the repo root is bundled into www/ at build time.",
+  "scripts": {
+    "build:web": "node scripts/build-web.mjs",
+    "assets": "capacitor-assets generate --android --ios --assetPath resources",
+    "sync": "npm run build:web && cap sync",
+    "android:debug": "npm run sync && cd android && ./gradlew assembleDebug"
+  },
+  "engines": { "node": ">=22" },
+  "dependencies": {
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/browser": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/ios": "^8.0.0",
+    "@capacitor/splash-screen": "^8.0.0",
+    "@capacitor/status-bar": "^8.0.0",
+    "@supabase/supabase-js": "2.117.3"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.0.0"
+  }
+}
