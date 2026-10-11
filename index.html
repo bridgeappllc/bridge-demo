@@ -165,7 +165,7 @@ const API={
  async myPhotoFiles(){const {data,error}=await sb.storage.from("avatars").list(ME,{limit:100});if(error)throw error;return(data||[]).filter(o=>o&&o.name&&o.id!==null).map(o=>ME+"/"+o.name)},
  async removePhotoFiles(keep){const f=(await this.myPhotoFiles()).filter(x=>x!==keep);if(f.length)ok(await sb.storage.from("avatars").remove(f))},
  async setPhoto(blob,ext,type){await this.removePhotoFiles(PROFILE&&PROFILE.avatar_url?PROFILE.avatar_url.split("?")[0]:null);
-  const path=`${ME}/${rid()}.${ext}`;ok(await sb.storage.from("avatars").upload(path,blob,{contentType:type,cacheControl:"31536000",upsert:false}));
+  const path=`${ME}/${rid()}.${ext}`;ok(await sb.storage.from("avatars").upload(path,blob,{contentType:type,cacheControl:"3600",upsert:false}));
   try{await this.updateProfile({avatar_url:`${path}?v=${Date.now()}`})}catch(e){await sb.storage.from("avatars").remove([path]).catch(()=>{});throw e}
   await this.removePhotoFiles(path).catch(()=>{})},
  async removePhoto(){await this.updateProfile({avatar_url:null});await this.removePhotoFiles(null)},

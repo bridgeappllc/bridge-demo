@@ -22,6 +22,13 @@ im.save(f"{tmp}/landscape.jpg", quality=92)
 Image.frombytes("RGB", (1600, 1600), os.urandom(1600 * 1600 * 3)).save(f"{tmp}/big.png")
 assert os.path.getsize(f"{tmp}/big.png") > 6_000_000
 open(f"{tmp}/notes.txt", "w").write("not a photo")
+def gone(url, wait=90):
+    """Deleted at the origin? (cache-busting query so a CDN copy can't mask it; short retry for propagation)"""
+    import time; end = time.time() + wait
+    while True:
+        c = requests.get(url + ("&" if "?" in url else "?") + "nocache=" + uuid.uuid4().hex).status_code
+        if c in (400, 404) or time.time() > end: return c in (400, 404)
+        time.sleep(3)
 def fetch(url):
     r = requests.get(url); assert r.status_code == 200, (url, r.status_code); return Image.open(io.BytesIO(r.content)), r.headers.get("content-type"), len(r.content)
 with sync_playwright() as p:
@@ -65,7 +72,7 @@ with sync_playwright() as p:
     url2 = pa.locator("#avcard .av img").get_attribute("src")
     img2, ct2, size2 = fetch(url2); assert img2.size == (512, 512) and size2 < 2_000_000
     files2 = pa.evaluate("API.myPhotoFiles()"); assert len(files2) == 1 and files2 != files1, (files1, files2)
-    assert requests.get(url1).status_code in (400, 404), "old photo should be deleted"
+    assert gone(url1), "old photo should be deleted"
     if db: assert q("select count(*) from storage.objects o join profiles p on split_part(o.name,'/',1)=p.id::text where p.display_name=%s", (A,)) == [(1,)]
     step(f"Settings > Change photo: a 6+ MB PNG is shrunk on the device ({size2 // 1024} KB) and replaces the old one (old file deleted)")
     # B: invite landing, bridge card, chat, search, profile
@@ -95,14 +102,14 @@ with sync_playwright() as p:
     # A removes the photo
     pa.goto(BASE + "#profile"); pa.click(".tabs button:has-text('Settings')"); expect(pa.locator("#avdel")).to_be_visible(timeout=T); pa.click("#avdel")
     expect(pa.locator(".toast")).to_have_text("Profile photo removed", timeout=T); expect(pa.locator("#avdel")).to_have_count(0)
-    assert pa.locator("#avcard .av img").count() == 0 and pa.evaluate("API.myPhotoFiles()") == [] and requests.get(url2).status_code in (400, 404)
+    assert pa.locator("#avcard .av img").count() == 0 and pa.evaluate("API.myPhotoFiles()") == [] and gone(url2)
     pb.goto(BASE + f"#u/{a_id}"); pb.reload(); expect(pb.locator("h1")).to_have_text(A, timeout=T); assert pb.locator(".c .av img").count() == 0
     step("Remove photo: back to the initial everywhere, file deleted from Storage")
     # photo again, then delete account -> files gone
     choose(pa, "#avchg", f"{tmp}/landscape.jpg"); expect(pa.locator("#avsheet")).to_be_visible(timeout=T); pa.click("#avuse"); expect(pa.locator("#avsheet")).to_have_count(0, timeout=T); expect(pa.locator("#avcard .av img")).to_be_visible(timeout=T)
     url3 = pa.locator("#avcard .av img").get_attribute("src"); assert requests.get(url3).status_code == 200
     pa.click("#delbtn"); expect(pa.locator("#delc")).to_be_visible(); pa.fill("#delc", "DELETE"); pa.click("#delyes"); expect(pa.locator("#sbtn")).to_be_visible(timeout=T)
-    assert requests.get(url3).status_code in (400, 404), "photo must be deleted with the account"
+    assert gone(url3), "photo must be deleted with the account"
     if db: assert q("select count(*) from storage.objects where name like %s", (a_id + "/%",)) == [(0,)] and q("select count(*) from auth.users where id=%s", (a_id,)) == [(0,)]
     step("Delete account also deletes the photo files (URL stops working)")
     assert not errors, errors; step("No uncaught JS errors")
