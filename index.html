@@ -56,6 +56,14 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--b);box-s
 .bub{max-width:80%;padding:9px 13px;border-radius:14px;margin:6px 0;background:#EBDFD0;color:var(--n)}.bub.me{margin-left:auto;background:var(--b);color:var(--onp)}
 .stat{display:flex;gap:0;border-top:1px solid var(--l);border-bottom:1px solid var(--l);margin:12px 0}.stat div{flex:1;padding:10px 0 9px;text-align:center;font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--m)}.stat div+div{border-left:1px solid var(--l)}.stat b{display:block;font-family:var(--serif);font-weight:400;font-size:1.55rem;line-height:1.15;letter-spacing:0;text-transform:none;color:var(--n)}
 .ierr{color:var(--r);font-size:.88rem;margin:6px 2px 0;text-align:left}
+.av{position:relative;overflow:hidden}.av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;background:var(--sf)}
+.avbtn{background:none;border:0;padding:0;margin:0 auto;display:block;position:relative;cursor:pointer;border-radius:50%}
+.avbtn:focus-visible{outline:3px solid var(--b);outline-offset:5px}
+.avbtn .cam{position:absolute;right:-4px;bottom:-4px;width:28px;height:28px;border-radius:50%;background:var(--b);color:var(--onp);display:flex;align-items:center;justify-content:center;font-size:.8rem;box-shadow:0 0 0 2px var(--bg)}
+.avrow{display:flex;align-items:center;gap:14px;margin-top:10px}.avrow .av{margin:0}.avrow .row{margin:0;flex-wrap:wrap}
+.who{display:flex;align-items:center;gap:6px}.who .av{margin:0;box-shadow:none}
+.bcrow{display:flex;align-items:center;gap:12px}.bcrow .av{margin:0 0 0 2px}.bcrow>div:not(.av){min-width:0;flex:1}
+.avprev{width:180px;height:180px;border-radius:50%;object-fit:cover;display:block;margin:10px auto 14px;box-shadow:0 0 0 3px var(--bg),0 0 0 4px var(--ac)}
 .toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:#2A2522;color:#FBF6EF;border:1px solid #2A2522;padding:10px 16px;border-radius:10px;font-size:.9rem;z-index:20;box-shadow:0 8px 24px rgba(42,37,34,.25)}
 a{color:var(--b)}.row{display:flex;gap:8px;align-items:center}
 .steps{display:flex;gap:6px;margin:8px 0 16px}.steps button{flex:1;border:0;background:none;padding:0;font:inherit;font-size:.74rem;letter-spacing:.03em;color:var(--m);text-align:center;cursor:pointer}
@@ -125,7 +133,7 @@ const BCOLS="id,invite_token,created_by,partner_left_at,clip_title,clip_url,clip
 const LCOLS="id,user_id,url,title,category,kind,creator,note,created_at";
 const API={
  async boot(){const {data}=await sb.auth.getSession();const s=data.session;USER=s?s.user:null;ME=USER?USER.id:null;if(!s)return;
-  PROFILE=ok(await sb.from("profiles").select("id,display_name,topics,username,bio,library_visibility").eq("id",ME).maybeSingle());if(PROFILE){S.topics=PROFILE.topics||[];save()}},
+  PROFILE=ok(await sb.from("profiles").select("id,display_name,topics,username,bio,library_visibility,avatar_url").eq("id",ME).maybeSingle());if(PROFILE){S.topics=PROFILE.topics||[];save()}},
  async ensureUser(){if(ME)return;const d=ok(await sb.auth.signInAnonymously());USER=d.user;ME=USER.id},
  async saveProfile(p){await this.ensureUser();const row={display_name:p.display_name??PROFILE?.display_name,topics:p.topics??PROFILE?.topics??[]};
   if(PROFILE)ok(await sb.from("profiles").update({...row,updated_at:new Date().toISOString()}).eq("id",ME));else ok(await sb.from("profiles").insert({id:ME,...row}));PROFILE={username:null,bio:"",library_visibility:"friends",...(PROFILE||{}),id:ME,...row}},
@@ -148,10 +156,19 @@ const API={
  async signOut(){await sb.auth.signOut();ME=null;USER=null;PROFILE=null;DB=freshDB()},
  // store requirements (see supabase/migrations/20261011150000_account_deletion_and_reports.sql)
  async report(type,id,reason,note){return ok(await sb.rpc("report_content",{p_type:type,p_id:String(id),p_reason:reason,p_note:note||""}))},
- async deleteAccount(){ok(await sb.rpc("delete_my_account"));try{await sb.auth.signOut({scope:"local"})}catch(e){}
+ async deleteAccount(){if(PROFILE&&PROFILE.avatar_url)ok(await sb.from("profiles").update({avatar_url:null}).eq("id",ME));await this.removePhotoFiles(null);ok(await sb.rpc("delete_my_account"));try{await sb.auth.signOut({scope:"local"})}catch(e){}
   try{localStorage.removeItem(KEY);localStorage.removeItem("bridge-auth")}catch(e){}ME=null;USER=null;PROFILE=null;DB=freshDB();S={topics:[],clips:[]}},
  async createBridge(o){return ok(await sb.rpc("create_bridge",{p_display_name:PROFILE.display_name,p_clip_title:o.title,p_clip_url:o.url,p_clip_type:o.type,p_clip_cat:o.cat||"",p_clip_creator:o.creator||"",p_friend_label:o.friend||"",p_reward:o.reward||""}))},
- async preview(t){const d=ok(await sb.rpc("preview_bridge",{p_token:t}));return(d&&d[0])||null},
+ async preview(t){const [d,a]=await Promise.all([sb.rpc("preview_bridge",{p_token:t}),sb.rpc("invite_avatar",{p_token:t})]);const p=(ok(d)||[])[0]||null;if(p&&!a.error)p.owner_avatar=a.data||null;return p},
+ // profile photos (supabase/migrations/20261011200000_profile_photos.sql): avatars/<my id>/<random>.(webp|jpg)
+ async avatars(ids){return ok(await sb.rpc("avatars",{p_ids:ids}))||[]},
+ async myPhotoFiles(){const {data,error}=await sb.storage.from("avatars").list(ME,{limit:100});if(error)throw error;return(data||[]).filter(o=>o&&o.name&&o.id!==null).map(o=>ME+"/"+o.name)},
+ async removePhotoFiles(keep){const f=(await this.myPhotoFiles()).filter(x=>x!==keep);if(f.length)ok(await sb.storage.from("avatars").remove(f))},
+ async setPhoto(blob,ext,type){await this.removePhotoFiles(PROFILE&&PROFILE.avatar_url?PROFILE.avatar_url.split("?")[0]:null);
+  const path=`${ME}/${rid()}.${ext}`;ok(await sb.storage.from("avatars").upload(path,blob,{contentType:type,cacheControl:"31536000",upsert:false}));
+  try{await this.updateProfile({avatar_url:`${path}?v=${Date.now()}`})}catch(e){await sb.storage.from("avatars").remove([path]).catch(()=>{});throw e}
+  await this.removePhotoFiles(path).catch(()=>{})},
+ async removePhoto(){await this.updateProfile({avatar_url:null});await this.removePhotoFiles(null)},
  async join(t,name){return ok(await sb.rpc("join_bridge",{p_token:t,p_display_name:name}))},
  async list(){return ok(await sb.from("bridges").select(BCOLS).order("created_at",{ascending:false}))},
  async get(id){const[b,a,m]=await Promise.all([sb.from("bridges").select(BCOLS).eq("id",id).maybeSingle(),sb.from("answers").select("user_id,a1,a2,a3").eq("bridge_id",id),sb.from("messages").select("id,user_id,body,created_at").eq("bridge_id",id).order("id")]);
@@ -194,6 +211,24 @@ function ierr(el,msg){if(!el)return;const host=el.closest(".row,.at")||el;let p=
 const MSG={name:RESPECT+" — please choose a different name.",bio:RESPECT+" — please reword your bio.",post:RESPECT+" — that language isn't allowed on Bridge."};
 function modOk(el,strict,msg){const v=MOD.scan(el&&el.value);if(v==="hate"||(v&&strict)){ierr(el,msg||(strict?MSG.name:MSG.post));return false}return true}
 function modFail(e,el,msg){if(!isMod(e))return false;MOD.load(true);ierr(el,msg||MSG.post);return true}
+const rid=()=>{const a=new Uint8Array(8);crypto.getRandomValues(a);return[...a].map(x=>x.toString(16).padStart(2,"0")).join("")};
+/* ---------- choosing a profile photo: pick (camera roll / camera; also inside the Capacitor app) -> square centre crop -> 512px WebP (JPEG fallback) -> preview -> upload */
+const PHOTO_ERR="Please choose a JPG, PNG or WebP photo (under 2 MB after resizing)";
+function pickPhoto(){let i=$("#avfile");if(!i){i=document.createElement("input");i.type="file";i.accept="image/*";i.id="avfile";i.hidden=true;i.setAttribute("aria-hidden","true");document.body.appendChild(i);
+ i.onchange=()=>{const f=i.files&&i.files[0];i.value="";if(f)photoChosen(f)}}i.click()}
+async function squarePhoto(f,S=512){let src;try{src=await createImageBitmap(f,{imageOrientation:"from-image"})}catch(e){src=await new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=()=>rej(new Error("That file isn't a photo we can open"));im.src=URL.createObjectURL(f)})}
+ const w=src.width,h=src.height,s=Math.min(w,h),o=Math.min(S,s),c=document.createElement("canvas");if(!s)throw new Error("That file isn't a photo we can open");c.width=c.height=o;
+ const x=c.getContext("2d");x.imageSmoothingQuality="high";x.fillStyle="#FBF6EF";x.fillRect(0,0,o,o);x.drawImage(src,(w-s)/2,(h-s)/2,s,s,0,0,o,o);
+ for(const t of["image/webp","image/jpeg"])for(const q of[.86,.72,.55]){const b=await new Promise(r=>c.toBlob(r,t,q));if(b&&b.type===t&&b.size<1.9e6)return{blob:b,type:t,ext:t==="image/webp"?"webp":"jpg"}}
+ throw new Error(PHOTO_ERR)}
+function closePhoto(){const s=$("#avsheet");if(s){const u=s.dataset.url;if(u)URL.revokeObjectURL(u);s.remove();return true}return false}
+async function photoChosen(f){if(f.type&&!/^image\//.test(f.type))return toast(PHOTO_ERR);if(f.size>40e6)return toast("That photo is too large");
+ let r;try{r=await squarePhoto(f)}catch(e){return toast(e.message||PHOTO_ERR)}closePhoto();const url=URL.createObjectURL(r.blob),bg=document.createElement("div");bg.className="sheet-bg";bg.id="avsheet";bg.dataset.url=url;
+ bg.innerHTML=`<div class="sheet c" role="dialog" aria-modal="true" aria-labelledby="avh"><h2 id="avh" style="margin-top:0">${PROFILE&&PROFILE.avatar_url?"New":"Your"} profile photo</h2><img class="avprev" src="${url}" alt="Preview of your new profile photo"><p class="mut sm" style="margin:0 0 10px">Cropped to a square. Everyone signed in to Bridge can see it.</p><div class="row"><button class="btn o" id="avno">Cancel</button><button class="btn" id="avuse">Use photo</button></div></div>`;
+ document.body.appendChild(bg);bg.addEventListener("click",e=>{if(e.target===bg)closePhoto()});$("#avno").onclick=closePhoto;$("#avuse").focus();
+ $("#avuse").onclick=async()=>{const b=$("#avuse");busy(b,true);try{await API.ensureUser();await API.setPhoto(r.blob,r.ext,r.type);closePhoto();toast("Profile photo updated");render(true)}catch(e){busy(b,false);console.error(e);toast(/size|mime|type|exceed|payload/i.test((e&&e.message)||"")?PHOTO_ERR:(e&&e.message)||"Couldn't upload the photo")}}}
+function bindPhoto(){const a=$("#avbtn");if(a)a.onclick=pickPhoto;const c=$("#avchg");if(c)c.onclick=pickPhoto;const d=$("#avdel");if(d)d.onclick=async()=>{if(!confirm("Remove your profile photo?"))return;busy(d,true);try{await API.removePhoto();toast("Profile photo removed");render(true)}catch(e){busy(d,false);fail(e)}}}
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closePhoto()});
 const fail=e=>{console.error(e);if(isMod(e)){MOD.load(true);return toast(RESPECT)}toast(e&&e.message?e.message:"Something went wrong — try again")};
 const authMsg=e=>{const c=(e&&(e.code||e.error_code))||"",m=(e&&e.message)||"";
  if(c==="otp_disabled"||/signups not allowed/i.test(m))return"No Bridge account uses that email yet. Start as a guest (Sign Up Free), then save your account with this email.";
@@ -214,7 +249,16 @@ const frName=b=>{const f=frOf(b);return f?f.display_name:b.partner_left_at?"Dele
 const partners=()=>{const m=new Map();(DB.list||[]).forEach(b=>{const f=frOf(b);if(f&&!m.has(f.user_id))m.set(f.user_id,f.display_name)});return[...m].map(([user_id,name])=>({user_id,name}))};
 const nameOf=uid=>(partners().find(p=>p.user_id===uid)||{}).name||((DB.friends||[]).find(f=>f.id===uid)||{}).display_name||((Object.values(DB.ppl).find(x=>x&&x.p&&x.p.id===uid)||{}).p||{}).display_name;
 const isFriend=uid=>(DB.friends||[]).some(f=>f.id===uid);
-const AV=(n,sz=44)=>`<div class="av" style="width:${sz}px;height:${sz}px;font-size:${Math.round(sz*.42)}px">${esc((n||"?")[0].toUpperCase())}</div>`;
+/* ---------- avatars: profile photo when there is one, the initial otherwise (the initial stays underneath as fallback) */
+const AVS={};let AVQ=new Set(),AVT=null;
+const avSrc=p=>p?CFG.SUPABASE_URL+"/storage/v1/object/public/avatars/"+p.split("/").map(encodeURIComponent).join("/").replace(/%3Fv%3D(\d+)$/,"?v=$1"):"";
+const avImg=(n,p)=>p?`<img src="${esc(avSrc(p))}" alt="Profile photo of ${esc(n||"this person")}" loading="lazy" decoding="async" onerror="this.remove()">`:"";
+function avOf(id){if(!id)return null;if(id===ME)return PROFILE&&PROFILE.avatar_url||null;if(id in AVS)return AVS[id];AVQ.add(id);if(!AVT)AVT=setTimeout(loadAvs,30);return null}
+async function loadAvs(){AVT=null;const ids=[...AVQ].filter(i=>!(i in AVS));AVQ.clear();if(!ids.length||!sb||!ME)return;ids.forEach(i=>AVS[i]=null);
+ try{for(const x of await API.avatars(ids)){AVS[x.id]=x.avatar_url;paintAv(x.id)}}catch(e){ids.forEach(i=>delete AVS[i])}}
+// update avatars already on screen in place (no re-render, so typing/focus is never disturbed)
+function paintAv(id){const p=id===ME?(PROFILE&&PROFILE.avatar_url):AVS[id];$$(`.av[data-avid="${id}"]`).forEach(d=>{const i=d.querySelector("img");if(i&&i.getAttribute("src")===avSrc(p))return;if(i)i.remove();if(p)d.insertAdjacentHTML("beforeend",avImg(d.dataset.avn,p))})}
+const AV=(n,sz=44,id=null,path)=>{const p=path!==undefined?path:avOf(id);return `<div class="av"${id?` data-avid="${esc(id)}" data-avn="${esc(n||"")}"`:""} style="width:${sz}px;height:${sz}px;font-size:${Math.round(sz*.42)}px"><span aria-hidden="true">${esc((n||"?")[0].toUpperCase())}</span>${avImg(n,p)}</div>`};
 const handle=u=>u?"@"+u:"";
 const profLink=p=>APP_URL+"#u/"+(p.username?"@"+p.username:p.id);
 const shareProfile=p=>share(`${p.display_name} on Bridge: ${profLink(p)}`);
@@ -229,7 +273,7 @@ function friendBtns(p,big){const s=p.friend_status,u=p.id,c=big?"btn":"btn s";
  if(s==="incoming")return `<button class="${c}" data-fa="accept" data-u="${u}">Accept</button>${big?"":" "}<button class="${c} o" data-fa="decline" data-u="${u}">Decline</button>`;
  if(s==="blocked")return `<button class="${c} o" data-fa="unblock" data-u="${u}">Unblock</button>`;
  return s==="self"?"":`<button class="${c}" data-fa="add" data-u="${u}">＋ Add friend</button>`}
-const personRow=p=>`<div class="person" data-person="${p.id}">${AV(p.display_name)}<div class="pi" onclick="go('u/${p.id}')"><b>${esc(p.display_name)}</b><span class="sm mut">${esc(handle(p.username))}${p.username&&p.bio?" · ":""}${esc(p.bio||"")}</span></div>${friendBtns(p)}</div>`;
+const personRow=p=>`<div class="person" data-person="${p.id}">${AV(p.display_name,44,p.id)}<div class="pi" onclick="go('u/${p.id}')"><b>${esc(p.display_name)}</b><span class="sm mut">${esc(handle(p.username))}${p.username&&p.bio?" · ":""}${esc(p.bio||"")}</span></div>${friendBtns(p)}</div>`;
 // stage for me: 1 Answer, 2 Talk (0 Invite is done once the bridge exists). Chat opens once you have answered.
 const stage=m=>!m||!m.answered_at?1:2;
 const progTxt=(m,invited)=>!m?`${esc(invited)}: <b>not joined yet</b>`:`${m.user_id===ME?"You":esc(m.display_name)}: ${m.answered_at?"<b>✓ answered</b> · in the chat":"joined · answering next"}`;
@@ -243,7 +287,7 @@ function clipCard(c,who){return `<div class="card" style="cursor:pointer" onclic
 </div>`}
 const loading='<p class="mut c" style="padding-top:40px">Loading…</p>';
 const saveNote=where=>isGuest()?`<div class="note" id="savenote">💾 <b>Save your account</b> so you can get ${where} back on another phone. <a href="#account">Add your email</a></div>`:"";
-const bridgeCard=b=>{const me=meOf(b),fr=frOf(b),st=stage(me);return `<div class="card" style="cursor:pointer" onclick="go('bridge/${b.id}')"><span class="tag">${esc(b.clip_type)}</span>${me&&me.role==="friend"?'<span class="tag">Invited by '+esc(fr?fr.display_name:"friend")+"</span>":""}<div class="ti" style="margin:6px 0 2px">You & ${esc(frName(b))}</div><div class="mut sm">${esc(b.clip_title)}</div>
+const bridgeCard=b=>{const me=meOf(b),fr=frOf(b),st=stage(me);return `<div class="card" style="cursor:pointer" onclick="go('bridge/${b.id}')"><span class="tag">${esc(b.clip_type)}</span>${me&&me.role==="friend"?'<span class="tag">Invited by '+esc(fr?fr.display_name:"friend")+"</span>":""}<div class="bcrow" style="margin:6px 0 2px">${AV(frName(b),40,fr?fr.user_id:null)}<div><div class="ti">You & ${esc(frName(b))}</div><div class="mut sm">${esc(b.clip_title)}</div></div></div>
 ${stepbar(st,st)}<div class="sm">${st===2?"💬 Chat open":"Next: <b>"+STEPS[st]+"</b>"}</div><div class="prog">${progTxt(me)}<br>${progTxt(fr,frName(b))}</div></div>`};
 // 2-step email + code form (used by sign-in and save-account)
 const codeForm=(title,intro,btn)=>`<h1 style="font-size:1.6rem">${title}</h1><p class="mut">${intro}</p><div id="ef"><label>Email</label><input id="em" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com"><button class="btn" id="esend">${btn}</button></div>
@@ -264,7 +308,7 @@ topics(){return `<h1>Pick your topics</h1><p class="mut">Choose 3 or more.</p><d
 invite(tok){const p=DB.pv[tok];if(p===undefined)return loading;
  if(!p)return `<div class="c wel" style="padding-top:10px">${LOGO}<h1>Invite not found</h1><p class="mut">This invite link doesn't work. Ask your friend to send it again.</p><a class="btn o" href="#bridges">Go to Bridge</a></div>`;
  if(p.member_count>=2&&!p.is_member)return `<div class="c wel" style="padding-top:10px">${LOGO}<h1>This bridge is full</h1><p class="mut">${esc(p.owner_name)}'s bridge already has two people. Ask them for a new invite.</p><a class="btn o" href="#bridges">Go to Bridge</a></div>`;
- return `<div class="c wel inv" style="padding-top:4px">${LOGO}<h1 style="font-size:1.7rem">${esc(p.owner_name)} invited you to meet on the Bridge</h1><p class="mut">We don't have to agree to understand each other.</p></div>
+ return `<div class="c wel inv" style="padding-top:4px">${p.owner_avatar?AV(p.owner_name,84,null,p.owner_avatar):LOGO}<h1 style="font-size:1.7rem">${esc(p.owner_name)} invited you to meet on the Bridge</h1><p class="mut">We don't have to agree to understand each other.</p></div>
 <div class="card"><span class="tag">${esc(p.clip_type)}</span><div class="ti" style="margin:8px 0">${esc(p.clip_title)}</div><a class="btn o s" href="${esc(safeUrl(p.clip_url))}" target="_blank" rel="noopener">Open link ↗</a></div>
 ${stepbar(0,0,null,"Join")}<p class="mut sm">Listen to it, answer 3 quick questions, then talk about where you see it differently. You'll see ${esc(p.owner_name)}'s answers after you share yours.</p>
 <label>Your name</label><input id="jname" placeholder="Your first name" maxlength="40" value="${esc(PROFILE?PROFILE.display_name:"")}"><button class="btn big" id="jgo">Join the bridge</button><p class="mut sm c">No password needed.${PROFILE?"":` Have a Bridge account? <a href="#signin" id="jsignin">Sign in first</a>`}</p>`},
@@ -287,7 +331,7 @@ bridge(id,sp){const D=DB.d[id];if(D===undefined)return loading;if(!D||!D.b)retur
 <p class="sm mut">${frStatus("answered",fr&&fr.answered_at)}</p><p class="sm" id="qhint" style="color:var(--r)"></p><button class="btn" id="qsave">Submit answers · Unlock chat</button>`;
   else h+=`<h2>Answers</h2>${QS.map((q,i)=>`<div class="card"><div class="sm" style="font-weight:600">${i+1}. ${q}</div><div class="who">You</div><div class="qa">${esc(myA["a"+(i+1)])}</div>${frA?`<div class="who">${fn}</div><div class="qa fr">${esc(frA["a"+(i+1)])}</div>`:""}</div>`).join("")}
 ${frA||gone?"":`<p class="sm mut">${!fr?fn+" hasn't joined yet — you'll see their answers here when they do.":fn+" hasn't answered yet — you'll see their answers here when they do."}</p>`}<button class="btn" onclick="go('bridge/${id}/2')">Next: Talk</button>`}
- if(cur===2){let prev=null;h+=`<h2>💬 Talk</h2>${fr&&fr.answered_at||gone?"":`<div class="card sm" style="background:var(--bl);border-color:rgba(160,69,43,.18)">${!fr?fn+" hasn't joined yet":fn+" hasn't answered yet"} — they'll see the chat once they do.</div>`}<div id="chat">${D.messages.map(m=>{const mine=m.user_id===ME,who=mine?"":(m.user_id!==prev?`<div class="who">${fn}</div>`:"");prev=m.user_id;return who+`<div class="bub ${mine?"me":""}">${esc(m.body)}</div>`+(mine?"":`<button class="rp" data-rep="message" data-id="${m.id}" data-u="${m.user_id}" data-who="${fn}">Report</button>`)}).join("")||(gone?"":'<p class="mut sm">Start the conversation: where do you see it differently?</p>')}</div>${gone?"":`<div class="row"><input id="ct" placeholder="Add your thought…" maxlength="2000"><button class="btn s" id="cs">Send</button></div>`}`}
+ if(cur===2){let prev=null;h+=`<h2>💬 Talk</h2>${fr&&fr.answered_at||gone?"":`<div class="card sm" style="background:var(--bl);border-color:rgba(160,69,43,.18)">${!fr?fn+" hasn't joined yet":fn+" hasn't answered yet"} — they'll see the chat once they do.</div>`}<div id="chat">${D.messages.map(m=>{const mine=m.user_id===ME,who=mine?"":(m.user_id!==prev?`<div class="who">${AV(frName(b),24,m.user_id)}${fn}</div>`:"");prev=m.user_id;return who+`<div class="bub ${mine?"me":""}">${esc(m.body)}</div>`+(mine?"":`<button class="rp" data-rep="message" data-id="${m.id}" data-u="${m.user_id}" data-who="${fn}">Report</button>`)}).join("")||(gone?"":'<p class="mut sm">Start the conversation: where do you see it differently?</p>')}</div>${gone?"":`<div class="row"><input id="ct" placeholder="Add your thought…" maxlength="2000"><button class="btn s" id="cs">Send</button></div>`}`}
  else h+=`<div class="lock" style="margin-top:16px">${LOCK}<div class="ti" style="margin-top:6px">Chat locked</div><p class="mut sm">Unlocks after you answer the three questions.</p></div>`;
  return h},
 clip(id){const c=findClip(id);if(!c)return DB.lib===null||DB.flib.__loading?loading:"<h1>Not found</h1><p class='mut'>This item isn't in your library or a friend's.</p>";
@@ -309,8 +353,8 @@ if(profTab==="Discover"){const F=DB.feed;let l=(F||[]).map(it=>({c:fromItem(it),
  `<div class="chips">${["All",...TOPICS.map(t=>t[0])].map(c=>`<button class="chip${c===feedCat?" on":""}" data-cat="${c}">${c}</button>`).join("")}</div>${l.map(x=>clipCard(x.c,x.who)).join("")||`<p class="mut">${F.length?"Nothing in this category.":"Your friends haven't added anything yet (or keep their library private)."}</p>`}`)}
 if(profTab==="Friends")body=(nIn?`<h2>Friend requests</h2>${incoming().map(r=>personRow({...r,friend_status:"incoming"})).join("")}`:"")+`<h2>Your friends${DB.friends?` (${DB.friends.length})`:""}</h2>`+
  (DB.friends===null?loading:DB.friends.length?DB.friends.map(personRow).join(""):'<p class="mut sm">No friends yet.</p>')+`<button class="btn o" onclick="go('people')">Find people</button>`;
-if(profTab==="Bridges")body=L.map(b=>`<div class="card" onclick="go('bridge/${b.id}')" style="cursor:pointer"><b>You & ${esc(frName(b))}</b> <span class="mut sm">· ${stage(meOf(b))===2?"Chat open":"Next: "+STEPS[stage(meOf(b))]}</span></div>`).join("")||'<p class="mut">No bridges yet.</p>';
-if(profTab==="Settings"){const v=PROFILE.library_visibility||"friends";body=`<div class="card"><b>Your name</b><input id="pname" maxlength="40" value="${esc(PROFILE.display_name)}" style="margin-top:8px"><button class="btn o s" id="psave">Save name</button><p class="mut sm">Used for new bridges you start or join.</p></div>
+if(profTab==="Bridges")body=L.map(b=>`<div class="card bcrow" onclick="go('bridge/${b.id}')" style="cursor:pointer">${AV(frName(b),36,frOf(b)?.user_id||null)}<div><b>You & ${esc(frName(b))}</b> <span class="mut sm">· ${stage(meOf(b))===2?"Chat open":"Next: "+STEPS[stage(meOf(b))]}</span></div></div>`).join("")||'<p class="mut">No bridges yet.</p>';
+if(profTab==="Settings"){const v=PROFILE.library_visibility||"friends";body=`<div class="card" id="avcard"><b>Profile photo</b><div class="avrow">${AV(PROFILE.display_name,64,ME)}<div class="row"><button class="btn o s" id="avchg">${PROFILE.avatar_url?"Change photo":"Add a photo"}</button>${PROFILE.avatar_url?'<button class="btn o s" id="avdel">Remove photo</button>':""}</div></div><p class="mut sm">Square, shown to signed-in people. JPG, PNG or WebP.</p></div><div class="card"><b>Your name</b><input id="pname" maxlength="40" value="${esc(PROFILE.display_name)}" style="margin-top:8px"><button class="btn o s" id="psave">Save name</button><p class="mut sm">Used for new bridges you start or join.</p></div>
 <div class="card"><b>Public profile</b><p class="mut sm" style="margin:4px 0 0">People signed in to Bridge can find you by name or @username.</p><label>@username <span class="mut sm">(optional)</span></label><div class="at"><b>@</b><input id="puser" maxlength="20" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="yourname" value="${esc(PROFILE.username||sugH)}"></div><p class="sm" id="uhint" style="margin:6px 0 0;color:var(--m)">${!PROFILE.username&&sugH?"Suggested for you. Tap Save profile to claim it.":"3–20 letters, numbers or _"}</p>
 <label>Short bio <span class="mut sm">(optional)</span></label><textarea id="pbio" rows="2" maxlength="160" placeholder="e.g. Podcasts about science and cities">${esc(PROFILE.bio||"")}</textarea><button class="btn s" id="pubsave">Save profile</button> <button class="btn o s" id="shme">Share my profile</button></div>
 <div class="card vis"><b>Who can see my library</b>${Object.entries(VIS).map(([k,[t,d]])=>`<label class="${k===v?"on":""}"><input type="radio" name="vis" value="${k}" ${k===v?"checked":""}><div>${t}<span>${d}</span></div></label>`).join("")}<p class="mut sm">Your name, @username and bio are visible to people signed in to Bridge.</p></div>
@@ -318,7 +362,7 @@ ${DB.blocks&&DB.blocks.length?`<div class="card"><b>Blocked</b>${DB.blocks.map(p
 <div class="card"><b>Account</b>${isGuest()?`<p class="mut sm">You're using a guest account on this device. Save it with your email to keep your bridges and library and sign in on other phones. No password needed.</p><button class="btn" id="gosave" onclick="go('account')">💾 Save your account</button>`:`<p class="mut sm">Signed in as <b>${esc(USER&&USER.email)}</b>. Your bridges and library sync on every device where you sign in.</p>`}<button class="btn o" id="sout">Sign out</button></div>
 <div class="card"><b>About Bridge</b><p class="sm" style="margin:6px 0 0"><a href="privacy.html">Privacy Policy</a> · <a href="terms.html">Terms of Use</a> · <a href="support.html">Support</a></p></div>
 <div class="card" id="delcard"><b>Delete account</b><p class="mut sm" style="margin:4px 0 0">Permanently deletes your account, profile, library, friends, answers and chat messages. Bridges you share with someone stay for them, shown as “Deleted user”. This can't be undone.</p>${S.delAsk?`<label for="delc">Type DELETE to confirm</label><input id="delc" autocapitalize="characters" autocomplete="off" placeholder="DELETE"><div class="row"><button class="btn o s" id="delno" style="flex:none">Cancel</button><button class="btn s danger" id="delyes">Delete my account</button></div>`:`<button class="btn o danger-o" id="delbtn">Delete account…</button>`}</div>`}
-return `<div class="c">${AV(PROFILE.display_name,72)}<h1 style="font-size:1.5rem;margin:6px 0 0">${esc(PROFILE.display_name)}</h1><div class="handle">${PROFILE.username?esc(handle(PROFILE.username)):'<a href="#" data-pt="Settings">Pick a @username</a>'}</div>${PROFILE.bio?`<p style="margin:6px 0 0">${esc(PROFILE.bio)}</p>`:""}<p class="mut sm" style="margin:4px 0 10px">${esc(S.topics.join(" · "))||"No topics picked"}</p></div>
+return `<div class="c"><button class="avbtn" id="avbtn" aria-label="${PROFILE.avatar_url?"Change":"Add"} profile photo">${AV(PROFILE.display_name,72,ME)}<span class="cam" aria-hidden="true">📷</span></button><h1 style="font-size:1.5rem;margin:6px 0 0">${esc(PROFILE.display_name)}</h1><div class="handle">${PROFILE.username?esc(handle(PROFILE.username)):'<a href="#" data-pt="Settings">Pick a @username</a>'}</div>${PROFILE.bio?`<p style="margin:6px 0 0">${esc(PROFILE.bio)}</p>`:""}<p class="mut sm" style="margin:4px 0 10px">${esc(S.topics.join(" · "))||"No topics picked"}</p></div>
 <div class="stat"><div><b>${L.filter(b=>b.created_by===ME).length}</b><span class="sm">Sent</span></div><div><b>${L.filter(b=>meOf(b)?.answered_at).length}</b><span class="sm">Answered</span></div><div><b>${DB.friends?DB.friends.length:"–"}</b><span class="sm">Friends</span></div><div><b>${(DB.lib||[]).length}</b><span class="sm">Library</span></div></div>
 <button class="btn o s" id="shme2" style="margin-top:10px">🔗 Share my profile</button>
 <div class="tabs sc" style="margin-top:10px">${["Library","Add","Discover","Friends","Bridges","Settings"].map(t=>`<button class="${t===profTab?"on":""}" data-pt="${t}">${t}${t==="Friends"&&nIn?`<span class="badge in">${nIn}</span>`:""}</button>`).join("")}</div>${body}`},
@@ -335,7 +379,7 @@ u(key){key=decodeURIComponent(key||"");const P=DB.ppl[key];if(P===undefined)retu
  const libH=!p.can_view_library?`<div class="lock" style="margin-top:10px">${LOCK}<div class="ti" style="margin-top:6px">${p.library_visibility==="private"?fn+" keeps their library private":fn+"'s library is for friends"}</div><p class="mut sm">${p.library_visibility==="private"?"Only "+fn+" can see it.":p.friend_status==="outgoing"?"You'll see it when "+fn+" accepts your request.":"Add "+fn+" as a friend to see it."}</p></div>`:
   P.lib==null?loading:P.lib.length?P.lib.map(it=>clipCard(fromItem(it))).join(""):`<p class="mut">${fn} hasn't added anything yet.</p>`;
  const frH=P.fr&&P.fr.length?P.fr.map(personRow).join(""):`<p class="mut sm">${fr?fn+" has no other friends on Bridge yet.":"Only "+fn+"'s friends can see who they're friends with."}</p>`;
- return `<p class="mut sm"><a href="#people">← People</a></p><div class="c">${AV(p.display_name,72)}<h1 style="font-size:1.5rem;margin:6px 0 0">${fn}</h1><div class="handle">${esc(handle(p.username))}</div>${p.bio?`<p style="margin:6px 0 0">${esc(p.bio)}</p>`:""}</div>
+ return `<p class="mut sm"><a href="#people">← People</a></p><div class="c">${AV(p.display_name,72,p.id)}<h1 style="font-size:1.5rem;margin:6px 0 0">${fn}</h1><div class="handle">${esc(handle(p.username))}</div>${p.bio?`<p style="margin:6px 0 0">${esc(p.bio)}</p>`:""}</div>
 <div class="stat" style="margin-top:12px"><div><b>${p.bridges_count}</b><span class="sm">Bridges</span></div><div><b>${p.friends_count}</b><span class="sm">Friends</span></div><div><b>${p.library_count??"🔒"}</b><span class="sm">Library</span></div></div>
 <div class="row" style="margin-top:10px" id="fbtns">${friendBtns(p,true)}</div>
 ${fr?`<button class="btn" id="meetfr" onclick="go('new//${p.id}')">🌉 Meet ${fn} on the Bridge</button>`:""}
@@ -382,7 +426,7 @@ if(NATIVE&&Capacitor.registerPlugin){const App=Capacitor.registerPlugin("App"),B
  // https://bridgeappllc.github.io/bridge-demo/#b/<token>, ...?b=<token>, ...#u/@name or bridge://b/<token>
  const openUrl=u=>{try{const x=new URL(u);let h=x.searchParams.get("b")?"#b/"+x.searchParams.get("b"):x.hash;if(!h&&x.protocol==="bridge:")h="#"+(x.host+x.pathname).replace(/^\/+/,"");if(h&&h!==location.hash)location.hash=h}catch(e){}};
  App.addListener("appUrlOpen",e=>openUrl(e.url));App.getLaunchUrl().then(r=>{if(r&&r.url)openUrl(r.url)}).catch(()=>{});
- App.addListener("backButton",e=>{if(closeReport())return;if(e.canGoBack&&location.hash&&!/^#(bridges)?$/.test(location.hash))history.back();else App.exitApp()});
+ App.addListener("backButton",e=>{if(closeReport()||closePhoto())return;if(e.canGoBack&&location.hash&&!/^#(bridges)?$/.test(location.hash))history.back();else App.exitApp()});
  StatusBar.setStyle({style:"LIGHT"}).catch(()=>{});
  document.addEventListener("click",e=>{const a=e.target.closest("a[href]");if(!a)return;const h=a.getAttribute("href");if(/^https?:/i.test(h)&&!h.startsWith(PUBLIC_URL)){e.preventDefault();Browser.open({url:h}).catch(()=>window.open(h,"_blank"))}},true)}
 // Report a user, library item or chat message (store requirement; reports are private, reviewed by Bridge)
@@ -390,7 +434,7 @@ const REASONS=[["spam","Spam or scam"],["harassment","Harassment or bullying"],[
 function openReport(type,id,uid,who){closeReport();const what={user:esc(who),message:"a message from "+esc(who),library_item:"an item from "+esc(who)+"'s library"}[type];
  const bg=document.createElement("div");bg.className="sheet-bg";bg.id="repsheet";bg.innerHTML=`<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="reph"><h2 id="reph" style="margin-top:0">Report ${what}</h2>
 <p class="mut sm" style="margin:0 0 6px">Reports are private. We review them within 24 hours and remove content or accounts that break our <a href="terms.html" target="_blank">Terms</a>.</p>
-<div class="vis">${REASONS.map(([k,t])=>`<label><input type="radio" name="rr" value="${k}"><div>${t}</div></label>`).join("")}</div>
+<div class="vis">${(type==="user"&&avOf(uid)?[["inappropriate_photo","Inappropriate profile photo"],...REASONS]:REASONS).map(([k,t])=>`<label><input type="radio" name="rr" value="${k}"><div>${t}</div></label>`).join("")}</div>
 <label for="rnote">Anything else? <span class="mut sm">(optional)</span></label><textarea id="rnote" rows="2" maxlength="1000" placeholder="Add details that help us review this"></textarea>
 ${uid&&!isBlockedId(uid)?`<label class="chk"><input type="checkbox" id="rblock"> Also block ${esc(who)}</label>`:""}
 <div class="row" style="margin-top:8px"><button class="btn o" id="rcancel">Cancel</button><button class="btn" id="rsend" disabled>Send report</button></div></div>`;
@@ -484,7 +528,7 @@ const pu=$("#puser");if(pu){const hint=(t,c)=>{$("#uhint").textContent=t;$("#uhi
 const an=$("#anote");if(an){an.oninput=e=>$("#cnt").textContent=e.target.value.length;$("#asave").onclick=async()=>{const url=normUrl($("#aurl").value);if(!url)return toast("Please paste a link");if(!modOk($("#atitle"),false)||!modOk(an,false))return;busy($("#asave"),true);
  try{const it=await API.addLib({url,title:($("#atitle").value.trim()||url).slice(0,300),category:$("#acat").value,kind:kindOf(url),creator:"",note:an.value.trim()});DB.lib=[it,...(DB.lib||[])];toast("Saved to your Library");profTab="Library";go("clip/"+it.id)}catch(e){busy($("#asave"),false);if(e.dup)toast(e.message);else if(!modFail(e,/note/.test(e.details||"")?an:$("#atitle")))fail(e)}}}
 const ps=$("#psave");if(ps)ps.onclick=async()=>{const n=$("#pname").value.trim();if(!n)return toast("Please enter your name");if(!modOk($("#pname"),true))return;try{await API.saveProfile({display_name:n});toast("Saved");render()}catch(e){if(!modFail(e,$("#pname"),MSG.name))fail(e)}};
-const db=$("#delbtn");if(db)db.onclick=()=>{S.delAsk=1;render(true);setTimeout(()=>{const i=$("#delc");if(i){i.focus();i.scrollIntoView({block:"center"})}},30)};
+bindPhoto();const db=$("#delbtn");if(db)db.onclick=()=>{S.delAsk=1;render(true);setTimeout(()=>{const i=$("#delc");if(i){i.focus();i.scrollIntoView({block:"center"})}},30)};
  const dn=$("#delno");if(dn)dn.onclick=()=>{delete S.delAsk;render(true)};
  const dy=$("#delyes");if(dy)dy.onclick=async()=>{if(($("#delc").value||"").trim().toUpperCase()!=="DELETE"){toast("Type DELETE to confirm");$("#delc").focus();return}
   busy(dy,true);try{await API.deleteAccount();history.replaceState(null,"",location.pathname);onRoute();toast("Your account and data were deleted")}catch(e){busy(dy,false);fail(e)}};
