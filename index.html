@@ -86,6 +86,11 @@ input[type=checkbox],input[type=radio]{accent-color:#2B4C7E}
 .rp{border:0;background:none;color:var(--m);font:inherit;font-size:.75rem;text-decoration:underline;cursor:pointer;padding:2px 2px;margin:-2px 0 4px}
 .bub+.rp{display:block}.bub.me+.rp{display:none}
 .btn.danger{background:#9E2A1E;border-color:#9E2A1E;color:#FFFFFF}.btn.danger:not(:disabled):hover{background:#7F2016;border-color:#7F2016}.btn.danger-o{color:#9E2A1E;border-color:#9E2A1E}.btn.danger-o:not(:disabled):hover{background:#F6E1DC}
+#bell{position:relative;background:none;border:1px solid transparent;border-radius:999px;width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;color:var(--b);cursor:pointer;flex:none;padding:0}#bell:hover{background:var(--bl);border-color:var(--b)}#bell:focus-visible{outline:2px solid var(--b);outline-offset:2px}#bell svg{width:22px;height:22px}
+#bell .nb{position:absolute;top:1px;right:0;background:#B42318;color:#FFFFFF;box-shadow:0 0 0 2px var(--bg);border-radius:999px;font-size:.66rem;font-weight:700;min-width:18px;height:18px;line-height:18px;padding:0 5px;text-align:center}#bell .nb[hidden]{display:none}
+.nlist{list-style:none;margin:10px 0 0;padding:0}.nlist li{margin:0 0 8px}.nrow{display:flex;gap:12px;align-items:center;width:100%;text-align:left;background:var(--sf);border:1px solid var(--l);border-radius:12px;padding:12px;font:inherit;color:var(--n);cursor:pointer}.nrow:hover{border-color:var(--b)}.nrow:focus-visible{outline:2px solid var(--b);outline-offset:2px}.nrow.un{background:var(--bl);border-color:var(--b)}.nrow .nt{display:block;line-height:1.35}.nrow .mut{display:block;margin-top:2px}.nrow .dot{width:10px;height:10px;border-radius:50%;background:var(--b);flex:none;margin-left:auto}
+.um{min-width:0;flex:0 1 auto}@media(max-width:380px){header{padding-left:14px;padding-right:14px;gap:4px}#ubtn{max-width:36vw;padding:6px 8px}#bell{width:36px}}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}.card.inc{border:2px solid var(--b)}.tag.to{background:var(--bl);color:var(--b)}.sdq{background:var(--bl);color:var(--n);border-left:3px solid var(--b);border-radius:8px;padding:8px 12px;margin:10px 0;font-size:.9rem}
 .sheet-bg{position:fixed;inset:0;background:rgba(22,35,59,.45);z-index:30;display:flex;align-items:flex-end;justify-content:center}
 .sheet{background:var(--sf);width:100%;max-width:430px;border-radius:18px 18px 0 0;padding:20px 20px calc(18px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto;box-shadow:0 -8px 30px rgba(22,35,59,.2)}
 .sheet .vis label{margin:6px 0 0;padding:10px 12px;font-weight:500}
@@ -128,10 +133,10 @@ const legacyItems=()=>S.clips.filter(c=>c&&!c.ex&&c.url);
 
 /* ---------- backend adapter (Supabase) ---------- */
 let ME=null,USER=null,PROFILE=null;
-const freshDB=()=>({list:null,d:{},pv:{},lib:null,flib:{},req:null,friends:null,sugg:null,blocks:null,feed:null,ppl:{},srch:{q:"",rows:null}});let DB=freshDB();
+const freshDB=()=>({inc:null,ntf:null,list:null,d:{},pv:{},lib:null,flib:{},req:null,friends:null,sugg:null,blocks:null,feed:null,ppl:{},srch:{q:"",rows:null}});let DB=freshDB();
 const isGuest=()=>!!USER&&USER.is_anonymous===true;
 const ok=({data,error})=>{if(error)throw error;return data};
-const BCOLS="id,invite_token,created_by,partner_left_at,clip_title,clip_url,clip_type,clip_cat,clip_creator,friend_label,reward,created_at,bridge_members(user_id,display_name,role,answered_at)";
+const BCOLS="id,invite_token,created_by,partner_left_at,direct_to,direct_to_name,direct_status,clip_title,clip_url,clip_type,clip_cat,clip_creator,friend_label,reward,created_at,bridge_members(user_id,display_name,role,answered_at)";
 const LCOLS="id,user_id,url,title,category,kind,creator,note,created_at";
 const API={
  async boot(){const {data}=await sb.auth.getSession();const s=data.session;USER=s?s.user:null;ME=USER?USER.id:null;if(!s)return;
@@ -153,12 +158,18 @@ const API={
  async removeFriend(uid){return ok(await sb.rpc("remove_friend",{p_user:uid}))},
  async block(uid){ok(await sb.rpc("block_user",{p_user:uid}))},
  async unblock(uid){ok(await sb.rpc("unblock_user",{p_user:uid}))},
+ // direct bridges + notifications (supabase/migrations/20261012160000_direct_bridges_notifications.sql)
+ async sendDirect(to,c,note){return ok(await sb.rpc("send_direct_bridge",{p_to:to,p_clip_title:c.title,p_clip_url:c.url,p_clip_type:c.type||"Article",p_clip_cat:c.cat||"",p_clip_creator:c.creator||"",p_note:note||""}))},
+ async incoming(){return ok(await sb.rpc("my_incoming_bridges"))||[]},
+ async respondDirect(bid,yes){return ok(await sb.rpc("respond_direct_bridge",{p_bridge:bid,p_accept:yes}))},
+ async notifs(){return ok(await sb.from("notifications").select("id,kind,actor,actor_name,bridge_id,title,count,created_at,read_at").order("created_at",{ascending:false}).limit(50))||[]},
+ async markRead(ids){return ok(await sb.rpc("mark_notifications_read",{p_ids:ids||null}))},
  async addFriendToBridge(bid,uid){ok(await sb.rpc("add_friend_to_bridge",{p_bridge:bid,p_friend:uid}))},
  async feed(ids){return ok(await sb.from("library_items").select(LCOLS).in("user_id",ids).order("created_at",{ascending:false}).limit(60))},
- async signOut(){try{await sb.auth.signOut()}finally{ME=null;USER=null;PROFILE=null;DB=freshDB();try{localStorage.removeItem(KEY)}catch(e){}S={topics:[],clips:[]};save();profTab="Library"}},
+ async signOut(){stopNotifs();try{await sb.auth.signOut()}finally{ME=null;USER=null;PROFILE=null;DB=freshDB();try{localStorage.removeItem(KEY)}catch(e){}S={topics:[],clips:[]};save();profTab="Library"}},
  // store requirements (see supabase/migrations/20261011150000_account_deletion_and_reports.sql)
  async report(type,id,reason,note){return ok(await sb.rpc("report_content",{p_type:type,p_id:String(id),p_reason:reason,p_note:note||""}))},
- async deleteAccount(){if(PROFILE&&PROFILE.avatar_url)ok(await sb.from("profiles").update({avatar_url:null}).eq("id",ME));await this.removePhotoFiles(null);ok(await sb.rpc("delete_my_account"));try{await sb.auth.signOut({scope:"local"})}catch(e){}
+ async deleteAccount(){stopNotifs();if(PROFILE&&PROFILE.avatar_url)ok(await sb.from("profiles").update({avatar_url:null}).eq("id",ME));await this.removePhotoFiles(null);ok(await sb.rpc("delete_my_account"));try{await sb.auth.signOut({scope:"local"})}catch(e){}
   try{localStorage.removeItem(KEY);localStorage.removeItem("bridge-auth")}catch(e){}ME=null;USER=null;PROFILE=null;DB=freshDB();S={topics:[],clips:[]}},
  async createBridge(o){return ok(await sb.rpc("create_bridge",{p_display_name:PROFILE.display_name,p_clip_title:o.title,p_clip_url:o.url,p_clip_type:o.type,p_clip_cat:o.cat||"",p_clip_creator:o.creator||"",p_friend_label:o.friend||"",p_reward:o.reward||""}))},
  async preview(t){const [d,a]=await Promise.all([sb.rpc("preview_bridge",{p_token:t}),sb.rpc("invite_avatar",{p_token:t})]);const p=(ok(d)||[])[0]||null;if(p&&!a.error)p.owner_avatar=a.data||null;return p},
@@ -244,6 +255,34 @@ function copy(t){(navigator.clipboard?navigator.clipboard.writeText(t):Promise.r
 function share(t){if(navigator.share)navigator.share({text:t}).catch(()=>{});else copy(t)}
 const go=h=>location.hash=h;
 let menuOpen=false;
+/* ---------- notifications: Supabase Realtime on public.notifications (RLS: only my rows) + polling fallback ---------- */
+let NW=null,lastN=0;
+async function loadNotifs(){if(!PROFILE||!ME)return;lastN=Date.now();try{const [n,i]=await Promise.all([API.notifs(),API.incoming()]);if(!PROFILE)return;DB.ntf=n;DB.inc=i;paintBell();rerender()}catch(e){console.warn(e)}}
+function stopNotifs(){if(NW){NW.stop();NW=null}}
+function startNotifs(){if(!PROFILE||!ME||!sb){stopNotifs();return}if(NW&&NW.uid===ME)return;stopNotifs();const uid=ME;let ch=null;
+ try{ch=sb.channel("ntf:"+uid+":"+rid());ch.on("postgres_changes",{event:"*",schema:"public",table:"notifications",filter:"user_id=eq."+uid},()=>{loadNotifs();const v=viewOf();if(v==="bridges")loadList()});ch.subscribe(st=>{window.__ntfRealtime=st})}catch(e){ch=null}
+ const iv=setInterval(()=>{if(!document.hidden)loadNotifs()},window.NTF_MS||15000);NW={uid,stop(){clearInterval(iv);if(ch)sb.removeChannel(ch)}};loadNotifs()}
+const unread=()=>(DB.ntf||[]).filter(n=>!n.read_at).length;
+const BELL='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>';
+const bellLabel=n=>n?`Notifications, ${n} unread`:"Notifications";
+function paintBell(){const b=$("#bell");if(!b)return;const n=unread();b.setAttribute("aria-label",bellLabel(n));const s=b.querySelector(".nb");if(s){s.textContent=n>99?"99+":String(n);s.hidden=!n}}
+const since=t=>{const m=Math.max(0,Math.round((Date.now()-new Date(t))/6e4));return m<1?"just now":m<60?m+" min ago":m<1440?Math.round(m/60)+" h ago":Math.round(m/1440)+" d ago"};
+function nText(n){const a=`<b>${esc(n.actor_name||"Someone")}</b>`,t=n.title?` “${esc(n.title)}”`:"";
+ return{direct_bridge:`${a} sent you a bridge:${t}`,friend_request:`${a} wants to be friends`,friend_accepted:`${a} accepted your friend request`,message:`${a} sent ${n.count>1?n.count+" messages":"a message"} on${t}`,answered:`${a} answered the 3 questions on${t}`,joined:`${a} joined your bridge${t}`}[n.kind]||a}
+const nTarget=n=>n.kind==="direct_bridge"?"bridges":n.kind==="friend_request"?"people":n.kind==="friend_accepted"?(n.actor?"u/"+n.actor:"people"):n.bridge_id?"bridge/"+n.bridge_id:"bridges";
+const nItem=n=>`<li><button class="nrow${n.read_at?"":" un"}" data-nid="${n.id}">${AV(n.actor_name||"?",40,n.actor)}<span><span class="nt">${nText(n)}</span><span class="mut sm">${since(n.created_at)}${n.read_at?"":'<span class="sr"> · unread</span>'}</span></span>${n.read_at?"":'<span class="dot" aria-hidden="true"></span>'}</button></li>`;
+const incCard=i=>`<div class="card inc" id="inc-${i.id}"><span class="tag">${esc(i.clip_type)}</span><span class="tag to">Sent to you</span><div class="bcrow" style="margin:6px 0 2px">${AV(i.sender_name,40,i.sender)}<div><div class="ti">${esc(i.sender_name)} sent you a bridge</div><div class="mut sm">${esc(i.clip_title)}</div></div></div>${i.note?`<p class="sdq">“${esc(i.note)}”</p>`:""}<p class="mut sm" style="margin:6px 0 0">Accept to listen, answer 3 questions, then talk with ${esc(i.sender_name)}.</p><div class="row"><button class="btn s" data-acc="${i.id}">Accept &amp; join</button><button class="btn o s" data-dec="${i.id}">Decline</button></div></div>`;
+function closeSend(){const s=$("#sdsheet");if(s){s.remove();return true}return false}
+async function openSend(p){if(DB.lib===null)await loadLib();closeSend();const fn=esc(p.display_name),bg=document.createElement("div");bg.className="sheet-bg";bg.id="sdsheet";
+ bg.innerHTML=`<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sdh"><h2 id="sdh" style="margin-top:0">Send a bridge to ${fn}</h2><p class="mut sm" style="margin:0">${fn} gets it in Your Bridges. If they accept, you both listen, answer 3 questions, then talk.</p>
+<label for="sdpick">Pick from your library</label><select id="sdpick"><option value="">— Paste a new link —</option>${(DB.lib||[]).map(it=>`<option value="${it.id}">${esc(it.title)}</option>`).join("")}</select>
+<div id="sdnew"><label for="sdurl">Link</label><input id="sdurl" inputmode="url" autocomplete="off" placeholder="https://…"><label for="sdtitle">Title</label><input id="sdtitle" maxlength="300" placeholder="What is it?"></div>
+<label for="sdnote">Note to ${fn} (optional)</label><textarea id="sdnote" rows="2" maxlength="300" placeholder="Why you think they'd like it"></textarea>
+<div class="row" style="margin-top:8px"><button class="btn o" id="sdno">Cancel</button><button class="btn" id="sdgo">${GLYPH}Send</button></div></div>`;
+ document.body.appendChild(bg);bg.addEventListener("click",e=>{if(e.target===bg)closeSend()});$("#sdno").onclick=closeSend;const pk=$("#sdpick");pk.onchange=()=>$("#sdnew").style.display=pk.value?"none":"block";pk.focus();
+ $("#sdgo").onclick=async()=>{let c;const it=(DB.lib||[]).find(x=>x.id===pk.value);if(it)c=fromItem(it);else{const url=normUrl($("#sdurl").value);if(!/^https?:\/\/\S+\.\S+/i.test(url))return ierr($("#sdurl"),"Paste a link (https://…)");const t=$("#sdtitle").value.trim();if(!t)return ierr($("#sdtitle"),"Add a title");if(!modOk($("#sdtitle"),false))return;c={title:t,url,type:kindOf(url),cat:S.topics[0]||"",creator:""}}
+  const ne=$("#sdnote");if(!modOk(ne,false))return;const b=$("#sdgo");busy(b,true);try{await API.sendDirect(p.id,c,ne.value.trim());closeSend();toast(`Bridge sent to ${p.display_name}`);loadList()}catch(e){busy(b,false);if(!modFail(e,ne))fail(e)}}}
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeSend()});
 async function doSignOut(){if(!confirm(isGuest()?"Sign out? This is a guest account, so you won't be able to get back to your bridges or library. Save your account with your email first to keep them.":"Sign out of Bridge on this device? Sign back in any time with your email."))return;try{await API.signOut()}catch(e){}menuOpen=false;go("");onRoute()}
 function setMenu(o,focusBtn){menuOpen=o;render(true);const b=document.getElementById("ubtn");if(o){const f=document.querySelector("#umenu button");f&&f.focus()}else if(focusBtn&&b)b.focus()}
 document.addEventListener("click",e=>{const t=e.target.closest&&e.target.closest("#home,#ubtn,[data-um]");
@@ -298,7 +337,7 @@ function clipCard(c,who){return `<div class="card" style="cursor:pointer" onclic
 </div>`}
 const loading='<p class="mut c" style="padding-top:40px">Loading…</p>';
 const saveNote=where=>isGuest()?`<div class="note" id="savenote">💾 <b>Save your account</b> so you can get ${where} back on another phone. <a href="#account">Add your email</a></div>`:"";
-const bridgeCard=b=>{const me=meOf(b),fr=frOf(b),st=stage(me);return `<div class="card" style="cursor:pointer" onclick="go('bridge/${b.id}')"><span class="tag">${esc(b.clip_type)}</span>${me&&me.role==="friend"?'<span class="tag">Invited by '+esc(fr?fr.display_name:"friend")+"</span>":""}<div class="bcrow" style="margin:6px 0 2px">${AV(frName(b),40,fr?fr.user_id:null)}<div><div class="ti">You & ${esc(frName(b))}</div><div class="mut sm">${esc(b.clip_title)}</div></div></div>
+const bridgeCard=b=>{const me=meOf(b),fr=frOf(b),st=stage(me);return `<div class="card" style="cursor:pointer" onclick="go('bridge/${b.id}')"><span class="tag">${esc(b.clip_type)}</span>${me&&me.role==="friend"?'<span class="tag">Invited by '+esc(fr?fr.display_name:"friend")+"</span>":""}${!fr&&b.direct_status==="pending"?'<span class="tag to">Sent to '+esc(b.direct_to_name||"")+" · waiting</span>":!fr&&b.direct_status==="declined"&&b.direct_to_name?'<span class="tag">'+esc(b.direct_to_name)+" passed · share the invite link</span>":""}<div class="bcrow" style="margin:6px 0 2px">${AV(frName(b),40,fr?fr.user_id:null)}<div><div class="ti">You & ${esc(frName(b))}</div><div class="mut sm">${esc(b.clip_title)}</div></div></div>
 ${stepbar(st,st)}<div class="sm">${st===2?"💬 Chat open":"Next: <b>"+STEPS[st]+"</b>"}</div><div class="prog">${progTxt(me)}<br>${progTxt(fr,frName(b))}</div></div>`};
 // 2-step email + code form (used by sign-in and save-account)
 const codeForm=(title,intro,btn)=>`<h1 style="font-size:1.6rem">${title}</h1><p class="mut">${intro}</p><div id="ef"><label>Email</label><input id="em" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com"><button class="btn" id="esend">${btn}</button></div>
@@ -323,9 +362,9 @@ invite(tok){const p=DB.pv[tok];if(p===undefined)return loading;
 <div class="card"><span class="tag">${esc(p.clip_type)}</span><div class="ti" style="margin:8px 0">${esc(p.clip_title)}</div><a class="btn o s" href="${esc(safeUrl(p.clip_url))}" target="_blank" rel="noopener">Open link ↗</a></div>
 ${stepbar(0,0,null,"Join")}<p class="mut sm">Listen to it, answer 3 quick questions, then talk about where you see it differently. You'll see ${esc(p.owner_name)}'s answers after you share yours.</p>
 <label>Your name</label><input id="jname" placeholder="Your first name" maxlength="40" value="${esc(PROFILE?PROFILE.display_name:"")}"><button class="btn big" id="jgo">Join the bridge</button><p class="mut sm c">No password needed.${PROFILE?"":` Have a Bridge account? <a href="#signin" id="jsignin">Sign in first</a>`}</p>`},
-bridges(){const L=DB.list;return `<h1>Your Bridges</h1><p class="mut">Invite a friend, listen, answer, then talk.</p><button class="btn big" onclick="go('new')">${GLYPH}Meet Me on the Bridge</button>
+bridges(){const L=DB.list;return `<h1>Your Bridges</h1><p class="mut">Invite a friend, listen, answer, then talk.</p><button class="btn big" onclick="go('new')">${GLYPH}Meet Me on the Bridge</button>${(DB.inc||[]).length?`<h2 style="margin:18px 0 6px;font-size:1.15rem">Sent to you</h2>${DB.inc.map(incCard).join("")}`:""}
 ${L&&L.length&&isGuest()&&!S.hideSave?`<div class="card" id="savecard"><b>💾 Save your account</b><p class="mut sm">Add your email so you can get your bridges back on another phone. No password.</p><button class="btn s" onclick="go('account')">Save account</button> <button class="btn o s" id="nosave">Not now</button></div>`:""}
-${L===null?loading:L.length?L.map(bridgeCard).join(""):'<div class="card c"><p class="ti" style="margin:4px 0">No bridges yet</p><p class="mut sm">Pick something to listen to, then text the invite link to a friend.</p></div>'}`},
+${L===null?loading:L.length?L.map(bridgeCard).join(""):(DB.inc||[]).length?"":'<div class="card c"><p class="ti" style="margin:4px 0">No bridges yet</p><p class="mut sm">Pick something to listen to, then text the invite link to a friend.</p></div>'}`},
 new(pre,fid){const pc=pre&&findClip(pre);const fr=fid&&(DB.friends||[]).find(f=>f.id===fid);const fnm=fid&&(fr?fr.display_name:nameOf(fid))||"";const mine=(DB.lib||[]).map(fromItem);const opts=[...mine,...(pc&&!mine.some(c=>c.id===pc.id)?[pc]:[]),...EXAMPLES];const sel=pc?pc.id:"";
  return stepbar(0,0)+`<h1>Meet Me on the Bridge</h1><p class="mut">Pick something for you and a friend to listen to.</p><label>Pick from your library</label><select id="mclip"><option value="">— Paste a new link —</option>${opts.map(c=>`<option value="${c.id}" ${c.id===sel?"selected":""}>${esc(c.title)}${c.ex?" (example)":c.owner&&c.owner!==ME?" ("+esc(nameOf(c.owner)||"friend")+"'s library)":""}</option>`).join("")}</select>
 <div id="paste" style="display:${sel?"none":"block"}"><label>Link (URL)</label><input id="murl" type="url" placeholder="https://…"><label>Title</label><input id="mtitle" placeholder="What is it called?" maxlength="300"><p class="mut sm">New links are also saved to your library.</p></div>
@@ -384,6 +423,7 @@ ${inc.length?`<h2>Friend requests <span class="badge in">${inc.length}</span></h
 <h2>People you've bridged with</h2>${DB.sugg===null?loading:DB.sugg.length?DB.sugg.map(personRow).join(""):'<p class="mut sm">People you meet on a bridge show up here, so you can add them as friends.</p>'}
 ${out.length?`<h2>Sent requests</h2>${out.map(r=>personRow({...r,friend_status:"outgoing"})).join("")}`:""}
 <p class="sm" style="margin-top:18px"><a href="#profile" onclick="profTab='Friends'">Your friends (${DB.friends?DB.friends.length:"…"}) →</a></p><button class="btn o" id="shme">🔗 Share my profile link</button>`},
+notifications(){const L=DB.ntf;return `<h1>Notifications</h1>${L&&L.some(n=>!n.read_at)?'<button class="btn o s" id="nall">Mark all as read</button>':""}${L===null?loading:L.length?`<ul class="nlist">${L.map(nItem).join("")}</ul>`:'<div class="card c"><p class="ti" style="margin:4px 0">You\'re all caught up</p><p class="mut sm">Bridges sent to you, friend requests and new messages show up here.</p></div>'}`},
 u(key){key=decodeURIComponent(key||"");const P=DB.ppl[key];if(P===undefined)return loading;const p=P.p;
  if(!p)return `<p class="mut sm"><a href="#people">← People</a></p><h1>Profile not found</h1><p class="mut">This profile doesn't exist or isn't available.</p><a class="btn o" href="#people">Find people</a>`;
  const fn=esc(p.display_name),tab=S.utab==="Friends"?"Friends":"Library",fr=p.friend_status==="friends";
@@ -393,7 +433,7 @@ u(key){key=decodeURIComponent(key||"");const P=DB.ppl[key];if(P===undefined)retu
  return `<p class="mut sm"><a href="#people">← People</a></p><div class="c">${AV(p.display_name,72,p.id)}<h1 style="font-size:1.5rem;margin:6px 0 0">${fn}</h1><div class="handle">${esc(handle(p.username))}</div>${p.bio?`<p style="margin:6px 0 0">${esc(p.bio)}</p>`:""}</div>
 <div class="stat" style="margin-top:12px"><div><b>${p.bridges_count}</b><span class="sm">Bridges</span></div><div><b>${p.friends_count}</b><span class="sm">Friends</span></div><div><b>${p.library_count??"🔒"}</b><span class="sm">Library</span></div></div>
 <div class="row" style="margin-top:10px" id="fbtns">${friendBtns(p,true)}</div>
-${fr?`<button class="btn" id="meetfr" onclick="go('new//${p.id}')">${GLYPH}Meet ${fn} on the Bridge</button>`:""}
+${fr?`<button class="btn" id="meetfr" onclick="go('new//${p.id}')">${GLYPH}Meet ${fn} on the Bridge</button>`:""}<button class="btn${fr?" o":""}" id="sendb">📨 Send a bridge to ${fn}</button>
 <div class="row"><button class="btn o s" id="shp" style="flex:none">🔗 Share profile</button><span style="flex:1"></span><button class="btn o s" id="repu" data-rep="user" data-id="${p.id}" data-u="${p.id}" data-who="${fn}" style="flex:none;border-color:var(--fl);color:var(--m)">Report</button><button class="btn o s" data-fa="block" data-u="${p.id}" style="flex:none;border-color:var(--fl);color:var(--m)">Block</button></div>
 <div class="tabs" style="margin-top:10px"><button class="${tab==="Library"?"on":""}" data-ut="Library">${fn}'s library</button><button class="${tab==="Friends"?"on":""}" data-ut="Friends">Friends</button></div>${tab==="Library"?libH:frH}`}};
 
@@ -405,13 +445,13 @@ function snapshot(){const els=$$("#app input,#app textarea,#app select");const a
 function restore(s){const els=$$("#app input,#app textarea,#app select");if(els.length===s.vals.length)els.forEach((e,i)=>{if(e.type!=="hidden"&&!e.readOnly)e.value=s.vals[i]});const f=els[s.focus];if(f){f.focus();if(s.sel)try{f.setSelectionRange(...s.sel)}catch(e){}}window.scrollTo(0,s.y)}
 const sig=o=>JSON.stringify(o);
 const shown={}; // data signature as of the last successful render of each view (so a failed render self-heals on the next poll)
-const viewData=(v,id)=>v==="bridge"?DB.d[id]:v==="bridges"?DB.list:v==="profile"?[DB.list,DB.lib,DB.req,DB.friends,DB.feed,DB.blocks,PROFILE,profTab,feedCat]:v==="people"?[DB.srch,DB.req,DB.sugg,DB.friends]:v==="u"?[DB.ppl[decodeURIComponent(id||"")],S.utab,DB.friends]:v==="lib"?[DB.flib[id],DB.list]:v==="clip"||v==="new"?[DB.lib,DB.flib,DB.list,DB.friends]:null;
+const viewData=(v,id)=>v==="bridge"?DB.d[id]:v==="bridges"?[DB.list,DB.inc]:v==="notifications"?DB.ntf:v==="profile"?[DB.list,DB.lib,DB.req,DB.friends,DB.feed,DB.blocks,PROFILE,profTab,feedCat]:v==="people"?[DB.srch,DB.req,DB.sugg,DB.friends]:v==="u"?[DB.ppl[decodeURIComponent(id||"")],S.utab,DB.friends]:v==="lib"?[DB.flib[id],DB.list]:v==="clip"||v==="new"?[DB.lib,DB.flib,DB.list,DB.friends]:null;
 let curTab="",sugH="";
 function navHTML(){const n=incoming().length;return ["bridges","people","new","profile"].map(k=>`<button class="${k===curTab?"on":""}" onclick="go('${k}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">${IC[k]}</svg>${NAVL[k]}${k==="people"&&n?`<span class="badge" id="nbadge">${n}</span>`:""}</button>`).join("")}
 function paintNav(){if($("#nav").style.display!=="none")$("#nav").innerHTML=navHTML()}
-function render(refresh){const {id,sp}=parse(),v=viewOf(),key=v+"/"+id+"/"+(sp||"");const keep=refresh&&key===lastKey?snapshot():null;
+function render(refresh){if(PROFILE)startNotifs();else stopNotifs();const {id,sp}=parse(),v=viewOf(),key=v+"/"+id+"/"+(sp||"");const keep=refresh&&key===lastKey?snapshot():null;
 if(refresh&&v==="new"&&$("#mout")&&$("#mout").innerHTML)return; // never wipe a freshly created invite
-const app=!["welcome","topics","setup","invite","signin"].includes(v);$("#hd").innerHTML=`<button id="home" aria-label="${PROFILE?"Bridge: go to Your Bridges":"Bridge: go to Welcome"}">${LOGO}<b>Bridge</b></button><span class="sp"></span>${PROFILE?`<div class="um"><button id="ubtn" aria-haspopup="menu" aria-expanded="${menuOpen}" aria-controls="umenu">Hi, ${esc(PROFILE.display_name)} ▾</button>${menuOpen?`<div id="umenu" role="menu"><button role="menuitem" data-um="profile">My profile</button><button role="menuitem" data-um="settings">Settings</button><hr><button role="menuitem" id="mout2" data-um="out">↪ Sign out</button></div>`:""}</div>`:""}`;if(!PROFILE)menuOpen=false;
+const app=!["welcome","topics","setup","invite","signin"].includes(v);$("#hd").innerHTML=`<button id="home" aria-label="${PROFILE?"Bridge: go to Your Bridges":"Bridge: go to Welcome"}">${LOGO}<b>Bridge</b></button><span class="sp"></span>${PROFILE?`<button id="bell" aria-label="${bellLabel(unread())}" onclick="go('notifications')">${BELL}<span class="nb" ${unread()?"":"hidden"}>${unread()>99?"99+":unread()}</span></button><div class="um"><button id="ubtn" aria-haspopup="menu" aria-expanded="${menuOpen}" aria-controls="umenu">Hi, ${esc(PROFILE.display_name)} ▾</button>${menuOpen?`<div id="umenu" role="menu"><button role="menuitem" data-um="profile">My profile</button><button role="menuitem" data-um="settings">Settings</button><hr><button role="menuitem" id="mout2" data-um="out">↪ Sign out</button></div>`:""}</div>`:""}`;if(!PROFILE)menuOpen=false;
 $("#nav").style.display=app?"flex":"none";curTab={bridges:"bridges",bridge:"bridges",new:"new",profile:"profile",clip:"profile",lib:"people",u:"people",people:"people",account:"profile"}[v];$("#nav").innerHTML=navHTML();
 $("#app").innerHTML=V[v](id,sp);if(keep)restore(keep);else if(key!==lastKey)window.scrollTo(0,0);lastKey=key;(B[v]||(()=>{}))(id,sp);
 shown[key]=sig(viewData(v,id));
@@ -477,6 +517,7 @@ function onRoute(){if(unwatch){unwatch();unwatch=null}if(/^#lib\//.test(location
  if(PROFILE&&!["welcome","topics","setup","invite","signin"].includes(v)&&Date.now()-lastSoc>15000)loadSocial();
  if(v==="people"){loadSugg();if(DB.srch.q)searchPeople(DB.srch.q);unwatch=API.watch(null,()=>{loadSocial();loadSugg()},15000)}
  if(v==="u"){const key=decodeURIComponent(id||"");if(key===ME||(PROFILE&&PROFILE.username&&key==="@"+PROFILE.username)){go("profile");return}if(DB.list===null)loadList();loadPerson(key);unwatch=API.watch(null,()=>loadPerson(key),15000)}
+ if(PROFILE&&!["welcome","topics","setup","invite","signin"].includes(v)&&(v==="notifications"||v==="bridges"||Date.now()-lastN>5000))loadNotifs();
  if(v==="bridges"){loadList();unwatch=API.watch(null,loadList,10000)}
  if(v==="profile"){const tabData=()=>{if(profTab==="Discover")loadFeed();if(profTab==="Settings")loadBlocks()};loadList();loadLib();loadSocial();tabData();unwatch=API.watch(null,()=>{loadList();loadLib();loadSocial();tabData()},10000)}
  if(v==="new"){loadLib();if(DB.list===null)loadList();if(DB.friends===null)loadSocial();if(id&&!findClip(id))loadItem(id)}
@@ -507,7 +548,11 @@ topics(){$$(".topic").forEach(b=>b.onclick=()=>{const t=b.dataset.t;S.topics=S.t
 invite(tok){const js=$("#jsignin");if(js)js.onclick=()=>{S.after="b/"+tok;save()};const j=$("#jgo");if(!j)return;const doJoin=async()=>{const n=$("#jname").value.trim();if(!n)return toast("Please enter your name");if(!modOk($("#jname"),true))return;busy(j,true);
  try{if(!PROFILE){await API.saveProfile({display_name:n,topics:[]});migrateLocal()}else await API.ensureUser();const id=await API.join(tok,n);DB.list=null;toast("You're on the bridge");go("bridge/"+id+"/1")}catch(e){busy(j,false);if(!modFail(e,$("#jname"),MSG.name))fail(e)}};
  j.onclick=doJoin;$("#jname").onkeydown=e=>{if(e.key==="Enter")doJoin()}},
-bridges(){const n=$("#nosave");if(n)n.onclick=e=>{e.stopPropagation();S.hideSave=1;save();render()}},
+notifications(){const a=$("#nall");if(a)a.onclick=async()=>{busy(a,true);try{await API.markRead(null);(DB.ntf||[]).forEach(n=>n.read_at=n.read_at||new Date().toISOString());paintBell();render(true)}catch(e){busy(a,false);fail(e)}};
+ $$("[data-nid]").forEach(el=>el.onclick=async()=>{const n=(DB.ntf||[]).find(x=>String(x.id)===el.dataset.nid);if(!n)return;if(!n.read_at){n.read_at=new Date().toISOString();paintBell();API.markRead([n.id]).catch(console.warn)}go(nTarget(n))})},
+bridges(){$$("[data-acc]").forEach(b=>b.onclick=async()=>{busy(b,true);try{const id=await API.respondDirect(b.dataset.acc,true);DB.inc=(DB.inc||[]).filter(i=>i.id!==b.dataset.acc);toast("You're on the bridge");await loadList();go("bridge/"+id)}catch(e){busy(b,false);fail(e);loadNotifs()}});
+ $$("[data-dec]").forEach(b=>b.onclick=async()=>{if(!confirm("Decline this bridge? The sender will see that you passed."))return;busy(b,true);try{await API.respondDirect(b.dataset.dec,false);DB.inc=(DB.inc||[]).filter(i=>i.id!==b.dataset.dec);toast("Declined");render(true);loadNotifs()}catch(e){busy(b,false);fail(e)}});
+ const n=$("#nosave");if(n)n.onclick=e=>{e.stopPropagation();S.hideSave=1;save();render()}},
 new(pre,fid){const sel=$("#mclip");const direct=fid&&isFriend(fid)?fid:null;sel.onchange=()=>$("#paste").style.display=sel.value?"none":"block";
 $("#mgo").onclick=async()=>{let c=findClip(sel.value),fresh=false;if(!c){const url=normUrl($("#murl").value);if(!url)return toast("Paste a link or pick a clip");
  c={title:$("#mtitle").value.trim()||url,creator:"",type:kindOf(url),cat:S.topics[0]||"",url};fresh=true}
@@ -527,7 +572,7 @@ $$(".q").forEach(t=>t.oninput=()=>$("#qhint").textContent="");const q=$("#qsave"
  if(!confirm("Submit your answers? You can't edit them afterwards."))return;busy(q,true);try{await API.answer(id,a);await loadBridge(id);toast("Chat unlocked 💬");go(`bridge/${id}/2`)}catch(e){busy(q,false);if(isMod(e)){MOD.load(true);$("#qhint").textContent=MSG.post}else fail(e)}};
 const cs=$("#cs");if(cs){let sending=false;const send=async()=>{const t=$("#ct").value.trim();if(!t||sending)return;if(!modOk($("#ct"),false))return;const masked=MOD.scan(t)==="profanity";sending=true;cs.disabled=true;try{await API.send(id,t);$("#ct").value="";await loadBridge(id);if(masked)toast("Sent — some words were hidden with ***")}catch(e){if(!modFail(e,$("#ct")))fail(e)}sending=false;if($("#cs"))$("#cs").disabled=false;if($("#ct"))$("#ct").focus()};cs.onclick=send;$("#ct").onkeydown=e=>{if(e.key==="Enter")send()}}},
 people(){const q=$("#pq");let t;q.oninput=()=>{clearTimeout(t);t=setTimeout(()=>searchPeople(q.value),250)};const sh=$("#shme");if(sh)sh.onclick=()=>shareProfile({...PROFILE,id:ME})},
-u(key){const P=DB.ppl[decodeURIComponent(key||"")];$$("[data-ut]").forEach(b=>b.onclick=()=>{S.utab=b.dataset.ut;save();render(true)});const sh=$("#shp");if(sh&&P&&P.p)sh.onclick=()=>shareProfile(P.p)},
+u(key){const P=DB.ppl[decodeURIComponent(key||"")];$$("[data-ut]").forEach(b=>b.onclick=()=>{S.utab=b.dataset.ut;save();render(true)});const sh=$("#shp");if(sh&&P&&P.p)sh.onclick=()=>shareProfile(P.p);const sd=$("#sendb");if(sd&&P&&P.p)sd.onclick=()=>openSend(P.p)},
 profile(){$$("[data-pt]").forEach(b=>b.onclick=e=>{e.preventDefault();profTab=b.dataset.pt;render();if(profTab==="Discover")loadFeed();if(profTab==="Settings")loadBlocks();if(profTab==="Friends")loadSocial()});
 [$("#shme"),$("#shme2")].forEach(b=>{if(b)b.onclick=()=>shareProfile({...PROFILE,id:ME})});
 $$("input[name=vis]").forEach(r=>r.onchange=async()=>{try{await API.updateProfile({library_visibility:r.value});toast("Library visible to: "+VIS[r.value][0]);render(true)}catch(e){fail(e)}});
