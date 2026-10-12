@@ -26,7 +26,7 @@ body{font-family:'DM Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
 #phone{max-width:430px;min-height:100vh;margin:0 auto;background:var(--bg);position:relative;box-shadow:0 0 0 1px rgba(22,35,59,.06),0 0 40px rgba(22,35,59,.10)}
 @media(min-width:600px){#phone{margin:20px auto;min-height:calc(100vh - 40px);border-radius:28px;overflow:hidden}}
 header{position:sticky;top:0;z-index:5;background:rgba(243,246,250,.96);backdrop-filter:blur(8px);display:flex;align-items:center;gap:9px;padding:13px 20px;border-bottom:1px solid var(--l)}
-header .mk{width:30px;height:30px;flex:none}header b{font-family:'DM Serif Display',var(--serif);font-weight:400;font-size:1.4rem;color:var(--n);letter-spacing:.005em}header .sp{flex:1}header .mut{font-size:.82rem;letter-spacing:.02em}
+header .mk{width:30px;height:30px;flex:none}header b{font-family:'DM Serif Display',var(--serif);font-weight:400;font-size:1.4rem;color:var(--n);letter-spacing:.005em}header .sp{flex:1}header .mut{font-size:.82rem;letter-spacing:.02em}#home{display:flex;align-items:center;gap:9px;background:none;border:0;padding:0;margin:0;cursor:pointer;font:inherit;color:inherit;border-radius:8px}.um{position:relative}#ubtn{background:none;border:1px solid transparent;border-radius:999px;padding:6px 10px;font:inherit;font-size:.82rem;letter-spacing:.02em;color:var(--b);font-weight:600;cursor:pointer;max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#ubtn:hover,#ubtn[aria-expanded=true]{background:var(--bl);border-color:var(--b)}#home:focus-visible,#ubtn:focus-visible,#umenu button:focus-visible{outline:2px solid var(--b);outline-offset:2px}#umenu{position:absolute;right:0;top:calc(100% + 6px);min-width:180px;background:#fff;border:1px solid var(--b);border-radius:12px;box-shadow:0 8px 24px rgba(22,35,59,.18);padding:6px;z-index:20}#umenu button{display:block;width:100%;text-align:left;background:none;border:0;border-radius:8px;padding:11px 12px;font:inherit;font-size:.95rem;color:var(--n);cursor:pointer}#umenu button:hover{background:var(--bl);color:var(--b)}#umenu hr{border:0;border-top:1px solid var(--l);margin:4px 0}#umenu #mout2{color:var(--b);font-weight:600}
 main{padding:18px 20px 104px}
 nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;display:flex;background:var(--sf);border-top:1px solid var(--l);padding-bottom:env(safe-area-inset-bottom);z-index:6}
 nav button{flex:1;border:0;background:none;padding:10px 0 11px;font:inherit;font-size:.72rem;letter-spacing:.02em;color:var(--m);display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
@@ -243,6 +243,15 @@ const authMsg=e=>{const c=(e&&(e.code||e.error_code))||"",m=(e&&e.message)||"";
 function copy(t){(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast("Copied to clipboard"),()=>prompt("Copy this:",t))}
 function share(t){if(navigator.share)navigator.share({text:t}).catch(()=>{});else copy(t)}
 const go=h=>location.hash=h;
+let menuOpen=false;
+async function doSignOut(){if(!confirm(isGuest()?"Sign out? This is a guest account, so you won't be able to get back to your bridges or library. Save your account with your email first to keep them.":"Sign out of Bridge on this device? Sign back in any time with your email."))return;try{await API.signOut()}catch(e){}menuOpen=false;go("");onRoute()}
+function setMenu(o,focusBtn){menuOpen=o;render(true);const b=document.getElementById("ubtn");if(o){const f=document.querySelector("#umenu button");f&&f.focus()}else if(focusBtn&&b)b.focus()}
+document.addEventListener("click",e=>{const t=e.target.closest&&e.target.closest("#home,#ubtn,[data-um]");
+ if(t&&t.id==="home"){e.preventDefault();menuOpen=false;if(PROFILE){if(location.hash==="#bridges")render(true);else go("bridges")}else{if(location.hash&&location.hash!=="#")go("");else render(true)}return}
+ if(t&&t.id==="ubtn"){setMenu(!menuOpen);return}
+ if(t&&t.dataset.um){const a=t.dataset.um;menuOpen=false;if(a==="out"){render(true);doSignOut();return}profTab=a==="settings"?"Settings":"Library";if(location.hash==="#profile")render();else go("profile");return}
+ if(menuOpen&&!(e.target.closest&&e.target.closest("#umenu")))setMenu(false)});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&menuOpen)setMenu(false,true)});
 const busy=(el,on)=>{if(el){el.disabled=on;if(on){el.dataset.t=el.textContent;el.textContent="…"}else if(el.dataset.t)el.textContent=el.dataset.t}};
 const inviteLink=b=>APP_URL+"#b/"+b.invite_token;
 const inviteTxt=b=>`Meet me on the Bridge: listen to "${b.clip_title}" in the next 3 days.\n${b.clip_url}${+b.reward>0?`\nI'll send you $${b.reward} when you finish it.`:""}\nThen join me here: we each answer 3 quick questions, then talk about where we see it differently:\n${inviteLink(b)}`;
@@ -402,7 +411,7 @@ function navHTML(){const n=incoming().length;return ["bridges","people","new","p
 function paintNav(){if($("#nav").style.display!=="none")$("#nav").innerHTML=navHTML()}
 function render(refresh){const {id,sp}=parse(),v=viewOf(),key=v+"/"+id+"/"+(sp||"");const keep=refresh&&key===lastKey?snapshot():null;
 if(refresh&&v==="new"&&$("#mout")&&$("#mout").innerHTML)return; // never wipe a freshly created invite
-const app=!["welcome","topics","setup","invite","signin"].includes(v);$("#hd").innerHTML=LOGO+`<b>Bridge</b><span class="sp"></span>${PROFILE?`<span class="mut sm">Hi, ${esc(PROFILE.display_name)}</span>`:""}`;
+const app=!["welcome","topics","setup","invite","signin"].includes(v);$("#hd").innerHTML=`<button id="home" aria-label="${PROFILE?"Bridge: go to Your Bridges":"Bridge: go to Welcome"}">${LOGO}<b>Bridge</b></button><span class="sp"></span>${PROFILE?`<div class="um"><button id="ubtn" aria-haspopup="menu" aria-expanded="${menuOpen}" aria-controls="umenu">Hi, ${esc(PROFILE.display_name)} ▾</button>${menuOpen?`<div id="umenu" role="menu"><button role="menuitem" data-um="profile">My profile</button><button role="menuitem" data-um="settings">Settings</button><hr><button role="menuitem" id="mout2" data-um="out">↪ Sign out</button></div>`:""}</div>`:""}`;if(!PROFILE)menuOpen=false;
 $("#nav").style.display=app?"flex":"none";curTab={bridges:"bridges",bridge:"bridges",new:"new",profile:"profile",clip:"profile",lib:"people",u:"people",people:"people",account:"profile"}[v];$("#nav").innerHTML=navHTML();
 $("#app").innerHTML=V[v](id,sp);if(keep)restore(keep);else if(key!==lastKey)window.scrollTo(0,0);lastKey=key;(B[v]||(()=>{}))(id,sp);
 shown[key]=sig(viewData(v,id));
@@ -534,7 +543,7 @@ bindPhoto();const db=$("#delbtn");if(db)db.onclick=()=>{S.delAsk=1;render(true);
  const dn=$("#delno");if(dn)dn.onclick=()=>{delete S.delAsk;render(true)};
  const dy=$("#delyes");if(dy)dy.onclick=async()=>{if(($("#delc").value||"").trim().toUpperCase()!=="DELETE"){toast("Type DELETE to confirm");$("#delc").focus();return}
   busy(dy,true);try{await API.deleteAccount();history.replaceState(null,"",location.pathname);onRoute();toast("Your account and data were deleted")}catch(e){busy(dy,false);fail(e)}};
- const so=$("#sout");if(so)so.onclick=async()=>{if(!confirm(isGuest()?"Sign out? This is a guest account, so you won't be able to get back to your bridges or library. Save your account with your email first to keep them.":"Sign out of Bridge on this device? Sign back in any time with your email."))return;try{await API.signOut()}catch(e){}go("");onRoute()}}};
+ const so=$("#sout");if(so)so.onclick=doSignOut}};
 
 /* ---------- boot ---------- */
 (async()=>{const qb=new URLSearchParams(location.search).get("b");if(qb){history.replaceState(null,"",location.pathname+"#b/"+encodeURIComponent(qb))}

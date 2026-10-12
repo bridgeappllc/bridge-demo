@@ -1,7 +1,7 @@
 """E2E for store requirements: legal pages + links, Report (message, user+block, library item),
 and Settings > Delete account (the partner keeps the bridge, shown as "Deleted user").
   BASE=<app url> (default local). DB checks run only against the local stack (DSN reachable)."""
-import os, re, uuid
+import os, re, time, uuid
 from playwright.sync_api import sync_playwright, expect
 BASE = os.environ.get("BASE", "http://127.0.0.1:8080/"); LOCAL = "127.0.0.1" in BASE or "localhost" in BASE
 HERE = os.path.dirname(os.path.abspath(__file__)); SHOTS = os.environ.get("SHOTS_DIR") or os.path.join(HERE, "shots"); os.makedirs(SHOTS, exist_ok=True)
@@ -64,7 +64,11 @@ with sync_playwright() as p:
     pa.goto(BASE + f"#u/{ben_id}"); expect(pa.get_by_text("Ben's questionable item")).to_be_visible(timeout=T)
     pa.click("text=Ben's questionable item"); expect(pa.locator("#repi")).to_be_visible(timeout=T)
     pa.click("#repi"); pa.click("#repsheet label:has-text('Spam')"); pa.click("#rsend"); expect(pa.locator(".toast")).to_have_text("Thanks — your report was sent", timeout=T)
-    if db: assert q("select count(*) from reports r join profiles p on p.id=r.reporter where p.display_name=%s and target_type='library_item' and reason='spam'", (A,)) == [(1,)]
+    if db:  # poll: the identical toast from the previous (message) report can still be on screen
+        for _ in range(40):
+            if q("select count(*) from reports r join profiles p on p.id=r.reporter where p.display_name=%s and target_type='library_item' and reason='spam'", (A,)) == [(1,)]: break
+            time.sleep(0.25)
+        else: raise AssertionError("library_item report not stored")
     step("Report an item in someone's library (from the item page)")
     # report the user + block
     pa.goto(BASE + f"#u/{ben_id}"); expect(pa.locator("#repu")).to_be_visible(timeout=T); shot(pa, "st-06-profile-report-block")
