@@ -28,7 +28,7 @@ with sync_playwright() as p:
     expect(ierr(pa)).to_contain_text(R, timeout=T); expect(pa.locator("#nm")).to_have_attribute("aria-invalid", "true"); shot(pa, "fl-01-signup-name")
     assert pa.evaluate("ME") is None, "no account should be created for a rejected name"
     pa.fill("#nm", A); expect(ierr(pa)).to_have_count(0)
-    pa.click("#nok"); expect(pa.get_by_text("Pick your topics")).to_be_visible(timeout=T); pa.click("text=Skip"); expect(pa.get_by_text("Your Bridges")).to_be_visible(timeout=T)
+    pa.click("#nok"); expect(pa.get_by_text("Pick your topics")).to_be_visible(timeout=T); pa.click("text=Skip"); expect(pa.get_by_text("Your Clubs")).to_be_visible(timeout=T)
     step("Sign-up: a profane name gets an inline 'Please keep it respectful' (no account created); the error clears when typing")
     # 2. settings: name, @username, bio
     pa.goto(BASE + "#profile"); pa.click(".tabs button:has-text('Settings')"); expect(pa.locator("#pname")).to_be_visible(timeout=T)
@@ -45,14 +45,14 @@ with sync_playwright() as p:
     pa.wait_for_function("MOD.t&&MOD.t.length>10", timeout=T)
     if db: assert q("select bio from profiles where display_name=%s", (A,)) == [("Classic cocktails in Scunthorpe",)]
     step("Without the client list the server rejects it and the app still shows the friendly inline message (and reloads the list)")
-    # 4. second user with a bridge; chat masking + slur blocking
+    # 4. second user with a club; chat masking + slur blocking
     pb.goto(BASE); pb.click("#sbtn"); pb.fill("#nm", B); pb.click("#nok"); expect(pb.get_by_text("Pick your topics")).to_be_visible(timeout=T); pb.click("text=Skip")
     pa.goto(BASE + "#new"); pa.fill("#murl", "https://example.org/filter-test"); pa.fill("#mtitle", "Filter test"); pa.fill("#mfriend", B)
     pa.click("#mgo"); expect(pa.locator("#itxt")).to_be_visible(timeout=T)
     link = re.search(r"(https?://\S+#b/[0-9a-f]{32})", pa.locator("#itxt").input_value()).group(1)
     pb.goto(link); pb.fill("#jname", "Dickhead"); pb.click("#jgo"); expect(ierr(pb)).to_contain_text(R, timeout=T)
     pb.fill("#jname", B); pb.click("#jgo"); expect(pb.get_by_text("Answer three questions")).to_be_visible(timeout=T)
-    step("Joining a bridge with a profane name is stopped inline")
+    step("Joining a club with a profane name is stopped inline")
     pb.locator(".q").nth(0).fill("Honestly, kys"); pb.locator(".q").nth(1).fill("okay then"); pb.locator(".q").nth(2).fill("fine by me")
     pb.click("#qsave"); expect(ierr(pb)).to_contain_text(R, timeout=T)
     pb.locator(".q").nth(0).fill("It was fucking great"); pb.click("#qsave"); expect(pb.get_by_text("💬 Talk")).to_be_visible(timeout=T)

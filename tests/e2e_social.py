@@ -1,6 +1,6 @@
 """E2E for social features (3 phones): public profiles + @username (suggested),
 People search, friend requests (send / accept / decline / cancel / unfriend),
-pending badge, friends' libraries, Discover feed from friends, starting a bridge
+pending badge, friends' libraries, Discover feed from friends, starting a club
 directly with a friend from their library, library privacy (Everyone / Friends only /
 Only me), shareable profile link (incl. before sign-up), block/unblock, old #lib route.
   BASE=<app url> (default http://127.0.0.1:8080/)   SHOTS_DIR=<dir>"""
@@ -33,7 +33,7 @@ with sync_playwright() as p:
 
     alice, bob, carol = phone("alice"), phone("bob"), phone("carol")
     # --- Alice signs up, fills her library, claims the suggested @username
-    signup(alice, A); expect(alice.get_by_text("No bridges yet")).to_be_visible(timeout=T)
+    signup(alice, A); expect(alice.get_by_text("No clubs yet")).to_be_visible(timeout=T)
     expect(alice.locator("nav")).to_contain_text("People")
     item(alice, f"https://example.org/fav-science-{tag}", "Cities and the climate", "Science")
     item(alice, f"https://example.org/fav-culture-{tag}", "Why we tell stories", "Culture")
@@ -69,7 +69,7 @@ with sync_playwright() as p:
     profile_tab(alice, "Friends"); expect(alice.locator(".person", has_text=B)).to_contain_text("✓ Friends", timeout=T); shot(alice, "s05-friends-tab")
     step("Alice accepts; Bob appears in her friends list; badge clears")
 
-    # --- Bob now sees Alice's whole library, Discover feed, starts a bridge directly with her from an item
+    # --- Bob now sees Alice's whole library, Discover feed, starts a club directly with her from an item
     bob.goto(BASE + "#u/@" + handle); expect(bob.locator("#fbtns")).to_contain_text("✓ Friends", timeout=T)
     expect(bob.locator(".card", has_text="Cities and the climate")).to_be_visible(timeout=T); expect(bob.locator(".card", has_text="Why we tell stories")).to_be_visible()
     expect(bob.locator(".stat")).to_contain_text("2Library"); bob.click("[data-ut=Friends]"); expect(bob.locator(".person", has_text=B)).to_have_count(1, timeout=T); bob.click("[data-ut=Library]"); shot(bob, "s06-friend-profile")
@@ -79,19 +79,19 @@ with sync_playwright() as p:
     bob.click(".chip[data-cat=All]"); assert bob.get_by_text("Example").count() == 0; shot(bob, "s07-discover-friends")
     step("Discover shows friends' real recent library items with category filter (no example feed)")
     bob.goto(BASE + "#u/@" + handle); bob.locator(".card", has_text="Cities and the climate").click()
-    bob.click(f"text=Meet {A} on the Bridge with this"); expect(bob.locator("#mfriend")).to_have_value(A, timeout=T); expect(bob.locator("#direct")).to_be_visible()
+    bob.click(f"text=Send to {A}: Check this out"); expect(bob.locator("#mfriend")).to_have_value(A, timeout=T); expect(bob.locator("#direct")).to_be_visible()
     expect(bob.locator("#mclip")).to_have_value(re.compile(r"[0-9a-f-]{36}")); shot(bob, "s08-new-bridge-with-friend", 300)
-    bob.click("#mgo"); expect(bob.locator("#addednote")).to_contain_text(f"{A} is on this bridge", timeout=T); bob.evaluate("document.querySelector('#addednote').scrollIntoView({block:'start'}); window.scrollBy(0,-70)"); shot(bob, "s09-friend-added", top=False)
-    step("Start a bridge from a friend's library item: friend prefilled and added directly")
+    bob.click("#mgo"); expect(bob.locator("#addednote")).to_contain_text(f"{A} is in this club", timeout=T); bob.evaluate("document.querySelector('#addednote').scrollIntoView({block:'start'}); window.scrollBy(0,-70)"); shot(bob, "s09-friend-added", top=False)
+    step("Start a club from a friend's library item: friend prefilled and added directly")
     alice.goto(BASE + "#bridges"); card = alice.locator(".card", has_text=f"Invited by {B}"); expect(card).to_be_visible(timeout=T)
     expect(card).to_contain_text("Cities and the climate"); card.click(); expect(alice.get_by_text("Answer three questions")).to_be_visible(timeout=T)
-    step("Alice finds the new bridge in her Bridges list without any link, ready to answer")
+    step("Alice finds the new bridge in her Clubs list without any link, ready to answer")
     alice.goto(BASE + "#u/" + bob.evaluate("ME")); expect(alice.locator("#meetfr")).to_be_visible(timeout=T); alice.click("#meetfr")
-    expect(alice.locator("#mfriend")).to_have_value(B, timeout=T); expect(alice.locator("#direct")).to_be_visible(); step("'Meet <friend> on the Bridge' on a friend's profile prefills the friend")
+    expect(alice.locator("#mfriend")).to_have_value(B, timeout=T); expect(alice.locator("#direct")).to_be_visible(); step("'Send to <friend>: Check this out' on a friend's profile prefills the friend")
 
     # --- privacy levels
     vis(alice, "private"); bob.goto(BASE + "#u/@" + handle); expect(bob.get_by_text(f"{A} keeps their library private")).to_be_visible(timeout=T)
-    assert bob.locator(".card", has_text="Cities and the climate").count() == 0; step("'Only me': even a friend (and bridge partner) can't see the library")
+    assert bob.locator(".card", has_text="Cities and the climate").count() == 0; step("'Only me': even a friend (and club partner) can't see the library")
     vis(alice, "everyone")
     alice.goto(BASE + "#profile"); alice.click("#shme2"); link = alice.evaluate("window.__shared")[-1]["text"]; assert link.endswith("#u/@" + handle), link
     step(f"Share my profile gives a link: {link[-40:]}")
@@ -111,9 +111,9 @@ with sync_playwright() as p:
     carol.reload(); expect(carol.locator("#fbtns")).to_contain_text("Add friend", timeout=T); step("Decline a request (requester can ask again later)")
     bob.goto(BASE + "#u/@" + handle); bob.click("#fbtns [data-fa=unfriend]"); expect(bob.locator("#fbtns")).to_contain_text("Add friend", timeout=T)
     expect(bob.locator(".card", has_text="Cities and the climate")).to_be_visible(timeout=T)
-    step("Unfriend works; as a bridge partner Bob still sees a 'Friends only' library (existing rule kept)")
+    step("Unfriend works; as a club partner Bob still sees a 'Friends only' library (existing rule kept)")
     alice.goto(BASE + "#people"); expect(alice.locator(".person", has_text=B)).to_contain_text("Add friend", timeout=T); shot(alice, "s12-people-suggestions")
-    step("'People you've bridged with' suggests Bob again after unfriending")
+    step("'People from your clubs' suggests Bob again after unfriending")
     bob.goto(BASE + "#lib/" + alice.evaluate("ME")); expect(bob.locator("h1")).to_have_text(A, timeout=T); assert "#u/" in bob.url; step("Old #lib/<id> links open the new profile page")
 
     # --- block / unblock

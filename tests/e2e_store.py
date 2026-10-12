@@ -35,7 +35,7 @@ with sync_playwright() as p:
         pg.goto(BASE); pg.click("#sbtn"); expect(pg.locator("#agree")).to_be_visible()
         assert pg.locator("#agree a").evaluate_all("els=>els.map(e=>e.getAttribute('href'))") == ["terms.html", "privacy.html"]
         pg.fill("#nm", nm); pg.click("#nok"); expect(pg.get_by_text("Pick your topics")).to_be_visible(timeout=T); pg.click("text=Skip")
-        expect(pg.get_by_text("Your Bridges")).to_be_visible(timeout=T)
+        expect(pg.get_by_text("Your Clubs")).to_be_visible(timeout=T)
     signup(pa, A); shot(pa, "st-04-bridges"); signup(pb, B); step("Sign-up shows the 13+ / Terms / Privacy agreement with links")
     # bridge A -> B, both answer, B chats
     pa.goto(BASE + "#new"); pa.fill("#murl", "https://example.org/store-test"); pa.fill("#mtitle", "Store test episode"); pa.fill("#mfriend", B)

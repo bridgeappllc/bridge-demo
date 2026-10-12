@@ -39,7 +39,7 @@ with sync_playwright() as p:
     shot = lambda pg, nm: pg.screenshot(path=f"{SHOTS}/{nm}.png")
     def signup(pg, nm):
         pg.goto(BASE); pg.click("#sbtn"); pg.fill("#nm", nm); pg.click("#nok"); expect(pg.get_by_text("Pick your topics")).to_be_visible(timeout=T)
-        pg.click("text=Skip"); expect(pg.get_by_text("Your Bridges")).to_be_visible(timeout=T)
+        pg.click("text=Skip"); expect(pg.get_by_text("Your Clubs")).to_be_visible(timeout=T)
     def choose(pg, trigger, path):
         with pg.expect_file_chooser() as fc: pg.click(trigger)
         fc.value.set_files(path)

@@ -1,7 +1,7 @@
 """Upgrade test for the rating-step removal (migration 20261009090000).
 Phase 1 (BEFORE, old UI with rating, DB at v2): Paul + Sam answer, Paul rates and
 posts, Sam stops at the old Rate step. Phase 2: apply the v3 migration; row counts
-must be unchanged. Phase 3 (AFTER, new UI): Sam's bridge is now in Talk, he sees
+must be unchanged. Phase 3 (AFTER, new UI): Sam's club is now in Talk, he sees
 Paul's earlier message and can reply; Paul sees the reply.
 Same origin for both phases (so the phones keep their sessions): run
 `INDEX=/tmp/bridge_index_current.html SB_KEY=... python3 tests/serve.py 8090`; this
@@ -49,7 +49,7 @@ with sync_playwright() as p:
     card.click(); expect(sam.get_by_text("💬 Talk")).to_be_visible(timeout=T)
     expect(sam.locator(".bub").first).to_have_text("Posted before the update", timeout=T)
     assert sam.locator(".steps button").all_inner_texts() == ["✓ Joined", "✓ Answer", "Talk"], sam.locator(".steps button").all_inner_texts()
-    step("AFTER (new app): Sam's bridge is in Talk (chat open), he sees Paul's earlier message")
+    step("AFTER (new app): Sam's club is in Talk (chat open), he sees Paul's earlier message")
     sam.goto(NEW + "#bridge/" + bid + "/3"); expect(sam.get_by_text("💬 Talk")).to_be_visible(timeout=T); step("Old step URL (/3) still lands in Talk")
     sam.fill("#ct", "Replying after the update"); sam.click("#cs")
     paul.goto(NEW + "#bridge/" + bid); expect(paul.get_by_text("💬 Talk")).to_be_visible(timeout=T)
@@ -61,6 +61,6 @@ with sync_playwright() as p:
     for pg in (paul, sam):
         for h in ("/0", "/1", "/2"):
             pg.goto(NEW + "#bridge/" + bid + h); pg.wait_for_timeout(1000); t = pg.locator("body").inner_text(); assert not bad.search(t), (h, bad.search(t).group(0))
-    step("No rating wording on any step of a bridge that had ratings")
+    step("No rating wording on any step of a club that had ratings")
     assert not errors, errors; step("No uncaught JS errors"); br.close()
 print(f"\nUpgrade test: {n} checks passed")

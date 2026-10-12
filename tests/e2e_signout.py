@@ -28,7 +28,7 @@ with sync_playwright() as p:
         [pg.click(f".topic[data-t={t}]") for t in topics]; pg.click("#tgo")
     pg.goto(BASE); signup("SmokeGuest", ("Politics", "Culture", "Science")); settings()
     btn = pg.locator("#sout"); expect(btn).to_have_text(re.compile("Sign out"))
-    assert btn.evaluate("e=>getComputedStyle(e).color") == "rgb(43, 76, 126)", btn.evaluate("e=>getComputedStyle(e).color")
+    assert btn.evaluate("e=>getComputedStyle(e).color") == "rgb(29, 78, 216)", btn.evaluate("e=>getComputedStyle(e).color")
     pg.screenshot(path=f"{SHOTS}/signout.png", full_page=True); step("Settings shows a Harbor Blue 'Sign out' button")
     dlg["accept"] = False; btn.click(); pg.wait_for_timeout(500)
     assert "guest" in dlg["msgs"][-1].lower() and "save your account" in dlg["msgs"][-1].lower(), dlg["msgs"]
