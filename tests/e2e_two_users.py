@@ -39,7 +39,7 @@ with sync_playwright() as p:
     expect(paul.get_by_text("Pick your topics")).to_be_visible(timeout=T)
     for t in ("Politics", "Economics", "Culture"): paul.click(f".topic[data-t={t}]")
     paul.click("#tgo"); expect(paul.get_by_text("No bridges yet")).to_be_visible(timeout=T); step(f"{P} signs up (anonymous auth + profile), picks topics")
-    paul.click("text=🌉 Meet Me on the Bridge")
+    paul.click("text=Meet Me on the Bridge")
     paul.fill("#murl", "https://www.youtube.com/watch?v=dQw4w9WgXcQ"); paul.fill("#mtitle", "Smoke test video"); paul.fill("#mfriend", S); paul.fill("#mrew", "5")
     paul.click("#mgo"); expect(paul.locator("#itxt")).to_be_visible(timeout=T)
     invite = paul.locator("#itxt").input_value()

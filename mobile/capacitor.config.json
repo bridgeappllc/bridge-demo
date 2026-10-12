@@ -2,11 +2,27 @@
   "appId": "com.bridgeappllc.bridge",
   "appName": "Bridge",
   "webDir": "www",
-  "backgroundColor": "#F3EBDF",
-  "android": { "backgroundColor": "#F3EBDF" },
-  "ios": { "backgroundColor": "#F3EBDF", "contentInset": "never", "scheme": "Bridge" },
+  "backgroundColor": "#F3F6FA",
+  "android": {
+    "backgroundColor": "#F3F6FA"
+  },
+  "ios": {
+    "backgroundColor": "#F3F6FA",
+    "contentInset": "never",
+    "scheme": "Bridge"
+  },
   "plugins": {
-    "SplashScreen": { "launchShowDuration": 1200, "launchAutoHide": true, "backgroundColor": "#F3EBDF", "showSpinner": false, "androidScaleType": "CENTER_INSIDE" },
-    "StatusBar": { "style": "LIGHT", "backgroundColor": "#F3EBDF", "overlaysWebView": false }
+    "SplashScreen": {
+      "launchShowDuration": 1200,
+      "launchAutoHide": true,
+      "backgroundColor": "#2B4C7E",
+      "showSpinner": false,
+      "androidScaleType": "CENTER_INSIDE"
+    },
+    "StatusBar": {
+      "style": "LIGHT",
+      "backgroundColor": "#F3F6FA",
+      "overlaysWebView": false
+    }
   }
 }

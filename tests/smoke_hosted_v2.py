@@ -31,7 +31,7 @@ with sync_playwright() as p:
     paul.click("[data-pt=Add]"); paul.fill("#aurl", "https://www.youtube.com/watch?v=smoke-lib"); paul.fill("#atitle", "Smoke test video"); paul.select_option("#acat", "Science")
     paul.fill("#anote", "Changed how I think about energy."); paul.click("#asave"); expect(paul.get_by_text("Changed how I think about energy.")).to_be_visible(timeout=T)
     paul.goto(BASE + "#profile"); expect(paul.locator(".stat")).to_contain_text("2Library", timeout=T); paul.wait_for_timeout(600); shot(paul, "library"); step("Add to Library saves online")
-    paul.locator(".card", has_text="Smoke test video").click(); paul.click("text=🌉 Meet me on the Bridge with this")
+    paul.locator(".card", has_text="Smoke test video").click(); paul.click("text=Meet me on the Bridge with this")
     expect(paul.locator("#mclip")).to_have_value(re.compile(r"[0-9a-f-]{36}"), timeout=T); paul.fill("#mfriend", S); paul.click("#mgo")
     expect(paul.locator("#itxt")).to_be_visible(timeout=T); link = re.search(r"(https?://\S+#b/[0-9a-f]{32})", paul.locator("#itxt").input_value()).group(1)
     expect(paul.locator("#savenote")).to_be_visible(); step("Bridge started from a library item; 'Save your account' prompt shown")

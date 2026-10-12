@@ -53,7 +53,7 @@ with sync_playwright() as p:
     step("Add to Library (URL, title, category, note) saves online; Library shows 2 items")
 
     # 3) start a bridge from a library item -> save-account prompt
-    paul.locator(".card", has_text="A talk that changed my mind").click(); paul.click("text=🌉 Meet me on the Bridge with this")
+    paul.locator(".card", has_text="A talk that changed my mind").click(); paul.click("text=Meet me on the Bridge with this")
     expect(paul.locator("#mclip")).to_have_value(re.compile(r"[0-9a-f-]{36}"), timeout=T)
     paul.fill("#mfriend", "SmokeSam"); paul.click("#mgo"); expect(paul.locator("#itxt")).to_be_visible(timeout=T)
     link = re.search(r"(https?://\S+#b/[0-9a-f]{32})", paul.locator("#itxt").input_value()).group(1)

@@ -185,7 +185,7 @@ Pick a song, video or article. You and a friend each answer three quick question
 | Asset | Size | Notes |
 |---|---|---|
 | App icon | 512×512 PNG (32-bit) | Export from `mobile/resources/icon-only.png` |
-| Feature graphic | 1024×500 JPG/PNG, no alpha | **Required.** Terracotta cream background + Logo C + "Listen together, then talk". |
+| Feature graphic | 1024×500 JPG/PNG, no alpha | **Required.** Harbor Blue background + Logo 3 (Suspension) + "Listen together, then talk". |
 | Phone screenshots | 2–8 images, 9:16, e.g. 1080×1920 or 1440×2560 | Min 320px, max 3840px per side |
 | 7"/10" tablet | optional | Only if you want the "designed for tablets" placement |
 
@@ -349,7 +349,7 @@ npm ci
 npm run build:web        # copies ../index.html, legal pages, assets → www/, vendors JS
 npx cap sync             # android + ios
 npm run android:debug    # → android/app/build/outputs/apk/debug/app-debug.apk
-npx @capacitor/assets generate --iconBackgroundColor '#F3EBDF' --splashBackgroundColor '#F3EBDF'   # after changing resources/
+npx @capacitor/assets generate --iconBackgroundColor '#2B4C7E' --splashBackgroundColor '#2B4C7E' --splashBackgroundColorDark '#16233B'   # after changing resources/
 ```
 
 - iOS: open `mobile/ios/App/App.xcodeproj` in Xcode 26+ (Swift Package Manager, no CocoaPods).

@@ -79,7 +79,7 @@ with sync_playwright() as p:
     bob.click(".chip[data-cat=All]"); assert bob.get_by_text("Example").count() == 0; shot(bob, "s07-discover-friends")
     step("Discover shows friends' real recent library items with category filter (no example feed)")
     bob.goto(BASE + "#u/@" + handle); bob.locator(".card", has_text="Cities and the climate").click()
-    bob.click(f"text=🌉 Meet {A} on the Bridge with this"); expect(bob.locator("#mfriend")).to_have_value(A, timeout=T); expect(bob.locator("#direct")).to_be_visible()
+    bob.click(f"text=Meet {A} on the Bridge with this"); expect(bob.locator("#mfriend")).to_have_value(A, timeout=T); expect(bob.locator("#direct")).to_be_visible()
     expect(bob.locator("#mclip")).to_have_value(re.compile(r"[0-9a-f-]{36}")); shot(bob, "s08-new-bridge-with-friend", 300)
     bob.click("#mgo"); expect(bob.locator("#addednote")).to_contain_text(f"{A} is on this bridge", timeout=T); bob.evaluate("document.querySelector('#addednote').scrollIntoView({block:'start'}); window.scrollBy(0,-70)"); shot(bob, "s09-friend-added", top=False)
     step("Start a bridge from a friend's library item: friend prefilled and added directly")
