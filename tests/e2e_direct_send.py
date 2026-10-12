@@ -13,7 +13,7 @@ with sync_playwright() as p:
     br = p.chromium.launch(); errors = []
     def phone(who):
         ctx = br.new_context(**{**p.devices["iPhone 13"], "viewport": {"width": 375, "height": 760}})
-        ctx.add_init_script("window.NTF_MS=4000"); pg = ctx.new_page()
+        ctx.add_init_script(f"window.NTF_MS={os.environ.get('NTF_MS', '4000')}"); pg = ctx.new_page()
         pg.on("pageerror", lambda e: errors.append(f"{who}: {e}")); pg.on("dialog", lambda d: d.accept()); return pg
     def shot(pg, name): pg.wait_for_timeout(400); pg.screenshot(path=f"{SHOTS}/ds-{name}.png")
     def signup(pg, name):
