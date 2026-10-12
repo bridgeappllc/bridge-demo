@@ -62,7 +62,7 @@ with sync_playwright() as p:
     expect(sam.get_by_text(f"{P} hasn't answered yet.")).to_be_visible(timeout=T)
 
     # --- Paul answers first -> his chat opens right away; Sam sees progress but not the content
-    for i, t in enumerate(["Paul moment", "Paul agreed/disagreed", "Paul takeaway"]): paul.locator(".q").nth(i).fill(t)
+    for i, t in enumerate(["Paul moment", "Paul surprised", "Paul takeaway"]): paul.locator(".q").nth(i).fill(t)
     paul.click("#qsave"); expect(paul.get_by_text("💬 Talk")).to_be_visible(timeout=T)
     expect(paul.get_by_text(f"{S} hasn't answered yet — they'll see the chat once they do.")).to_be_visible()
     assert paul.locator(".steps button").all_inner_texts() == ["✓ Invite", "✓ Answer", "Talk"], paul.locator(".steps button").all_inner_texts()
@@ -76,7 +76,7 @@ with sync_playwright() as p:
     step(f"{S} sees {P}'s progress (live) but not his answers or the chat")
     sam.locator(".q").nth(0).fill("Sam moment"); sam.wait_for_timeout(5000)
     assert sam.locator(".q").nth(0).input_value() == "Sam moment"; step("Background refresh doesn't wipe typing")
-    sam.locator(".q").nth(1).fill("Sam agreed/disagreed"); sam.locator(".q").nth(2).fill("Sam takeaway")
+    sam.locator(".q").nth(1).fill("Sam surprised"); sam.locator(".q").nth(2).fill("Sam takeaway")
     sam.click("#qsave"); expect(sam.get_by_text("💬 Talk")).to_be_visible(timeout=T)
     expect(sam.locator(".bub").first).to_have_text("Hey, I thought it was pretty one-sided.", timeout=T); step(f"{S} answers -> straight into Talk, sees {P}'s message")
     sam.click(".steps button:has-text('Answer')"); expect(sam.get_by_text("Paul moment")).to_be_visible(timeout=T)
