@@ -35,7 +35,7 @@ h1,h2,h3{font-family:var(--serif);font-weight:700;letter-spacing:-.005em}
 h1{font-size:1.9rem;margin:10px 0 8px;line-height:1.12}h2{font-size:1.3rem;margin:20px 0 8px;line-height:1.2}
 .mut{color:var(--m)}.sm{font-size:.85rem}.c{text-align:center}
 .btn{display:block;width:100%;border:1px solid var(--b);background:var(--b);color:var(--onp);border-radius:10px;padding:13px;font:inherit;font-weight:600;font-size:1rem;letter-spacing:.01em;cursor:pointer;margin:10px 0;transition:background .15s,border-color .15s}
-.btn:not(:disabled):hover{background:#3A5645;border-color:#3A5645}
+@media (hover:hover){.btn:not(:disabled):hover{background:#3A5645;border-color:#3A5645}}
 a.btn{text-decoration:none;text-align:center}.btn.o{background:transparent;color:var(--b);border-color:var(--b)}.btn.o:not(:disabled):hover{background:var(--bl)}.btn.s{display:inline-block;width:auto;padding:8px 16px;font-size:.88rem;margin:4px 0}
 .btn:disabled,.btn.o:disabled{background:#DDE2D6;border-color:#DDE2D6;color:#5F6A62;cursor:not-allowed}
 .card{border:1px solid var(--l);border-radius:12px;padding:14px 15px;margin:12px 0;background:var(--sf);box-shadow:0 1px 2px rgba(36,48,42,.04)}
@@ -97,7 +97,7 @@ input[type=checkbox],input[type=radio]{accent-color:#4A6B57}
 label.chk{display:flex;gap:8px;align-items:center;font-weight:500}label.chk input{width:auto}
 .legal a{color:var(--m)}
 header{padding-top:calc(13px + max(env(safe-area-inset-top),var(--safe-area-inset-top,0px)))}nav{padding-bottom:max(env(safe-area-inset-bottom),var(--safe-area-inset-bottom,0px))}#agree a{color:var(--b)}
-.btn .gl{width:1.15em;height:1.15em;vertical-align:-.2em;margin-right:7px}
+.btn .pl{fill:#FFFFFF}.btn:not(.o) .pl{fill:var(--b)}.gl{width:1.15em;height:1.15em;vertical-align:-.2em;margin-right:7px}
 </style></head><body><div id="phone"><header id="hd"></header><main id="app"></main><nav id="nav"></nav></div>
 <script>
 const CFG=window.BRIDGE_CONFIG||{};
@@ -109,10 +109,10 @@ const PUBLIC_URL="https://bridgeappllc.github.io/bridge-demo/";
 const NATIVE=!!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()); // packaged iOS/Android app (see mobile/)
 const APP_URL=NATIVE?PUBLIC_URL:location.origin+location.pathname;
 const POLL_MS=+new URLSearchParams(location.search).get("poll")||4000; // ?poll=ms is only used by tests
-const GLYPH='<svg class="gl" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M2 14.5Q5 12 7.4 6.5Q12 16.5 16.6 6.5Q19 12 22 14.5" stroke-width="1.6"/><path d="M7.4 5.5V19M16.6 5.5V19" stroke-width="2.4"/><path d="M1.5 15.5h21" stroke-width="2"/></svg>';
+const GLYPH='<svg class="gl" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="13" height="9.5" rx="3"/><path d="M4.6 12.4 3.4 16l4.2-3.6"/><rect x="8" y="8.5" width="14" height="10" rx="3" fill="currentColor"/><path d="M17.4 18 20 21.4V18z" fill="currentColor"/><path class="pl" d="M13.4 11.2 17.4 13.5 13.4 15.8z" stroke="none"/></svg>';
 const LOGO='<svg class="mk" viewBox="0 0 100 100" role="img" aria-label="Clip Club logo"><g stroke-linejoin="round"><rect x="6" y="12" width="54" height="40" rx="13" fill="#A9C2B0"/><path d="M15 48 L9 64 L31 50 Z" fill="#A9C2B0" stroke="#A9C2B0" stroke-width="3"/><g stroke="#F4F5EF" stroke-width="5" paint-order="stroke"><path d="M78 72 L90 88 L88 72 Z" fill="#4A6B57"/><rect x="32" y="31" width="62" height="45" rx="14" fill="#4A6B57"/></g><path d="M77 72 L89 87 L87 70 Z" fill="#4A6B57" stroke="#4A6B57" stroke-width="3"/><path d="M57 44 L74 53.5 L57 63 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="4"/></g></svg>';
 const LOCK='<svg viewBox="0 0 24 24" fill="none" stroke="#4A6B57" stroke-width="1.8"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
-const IC={people:'<circle cx="9" cy="8" r="3.5"/><path d="M2 20c.8-3.5 3.6-5.5 7-5.5s6.2 2 7 5.5"/><circle cx="17" cy="9" r="2.8"/><path d="M17 14.5c2.6 0 4.6 1.6 5 4.5"/>',bridges:'<path d="M2 15.5Q5 12.5 7 6.5Q12 16 17 6.5Q19 12.5 22 15.5"/><path d="M7 5v15M17 5v15M2 16.5h20"/>',new:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',profile:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/>'};
+const IC={people:'<circle cx="9" cy="8" r="3.5"/><path d="M2 20c.8-3.5 3.6-5.5 7-5.5s6.2 2 7 5.5"/><circle cx="17" cy="9" r="2.8"/><path d="M17 14.5c2.6 0 4.6 1.6 5 4.5"/>',bridges:'<rect x="2" y="3" width="13" height="9.5" rx="3"/><path d="M4.6 12.4 3.4 16l4.2-3.6"/><rect x="8" y="8.5" width="14" height="10" rx="3" fill="currentColor"/><path d="M17.4 18 20 21.4V18z" fill="currentColor"/><path class="pl" d="M13.4 11.2 17.4 13.5 13.4 15.8z" stroke="none"/>',new:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',profile:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/>'};
 const NAVL={people:"People",bridges:"Clubs",new:"New Club",profile:"Profile"};
 const TOPICS=[["Politics","🏛️"],["Economics","📈"],["Culture","🎭"],["Education","🎓"],["Religion","🕊️"],["Science","🔬"]];
 const QS=["What's one specific moment, insight, or story that stuck with you the most—and why?","Was there anything that surprised you or made you think? What was it?","If you had to describe the main takeaway in one or two sentences, what would you say?"];
