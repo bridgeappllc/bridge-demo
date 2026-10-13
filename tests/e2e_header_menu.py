@@ -16,7 +16,7 @@ with sync_playwright() as p:
     ub.click(); m = pg.locator("#umenu"); expect(m).to_be_visible(); expect(ub).to_have_attribute("aria-expanded", "true")
     expect(m.get_by_role("menuitem")).to_have_text(["My profile", "Settings", re.compile("Sign out")])
     bx = m.bounding_box(); vw = pg.viewport_size["width"]; assert bx["x"] >= 0 and bx["x"] + bx["width"] <= vw, (bx, vw)
-    assert m.evaluate("e=>getComputedStyle(e).borderTopColor") == "rgb(29, 78, 216)"
+    assert m.evaluate("e=>getComputedStyle(e).borderTopColor") == "rgb(74, 107, 87)"
     if SHOT: pg.screenshot(path=SHOT)
     step("Name button opens an on-screen Harbor Blue menu (aria-expanded, 3 items) at 375px")
     pg.keyboard.press("Escape"); expect(m).to_have_count(0); expect(ub).to_be_focused(); step("Escape closes and returns focus")
