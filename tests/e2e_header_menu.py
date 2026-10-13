@@ -23,7 +23,7 @@ with sync_playwright() as p:
     ub.click(); pg.mouse.click(150, 400); expect(m).to_have_count(0); expect(ub).to_have_attribute("aria-expanded", "false"); step("Outside tap closes")
     ub.click(); m.get_by_text("My profile").click(); expect(pg).to_have_url(re.compile("#profile")); expect(pg.locator("h1")).to_contain_text("SmokeMenu", timeout=T); step("My profile opens the profile")
     pg.locator("#ubtn").click(); pg.locator("#umenu").get_by_text("Settings").click(); expect(pg.locator("#sout")).to_be_visible(timeout=T); step("Settings opens Profile > Settings")
-    home.click(); expect(pg).to_have_url(re.compile("#bridges")); expect(pg.get_by_text("Your Clubs")).to_be_visible(timeout=T); step("Logo goes to Your Clubs when signed in")
+    home.click(); expect(pg).to_have_url(re.compile("#bridges")); expect(pg.get_by_text("Your Pods")).to_be_visible(timeout=T); step("Logo goes to Your Pods when signed in")
     pg.locator("#ubtn").click(); pg.locator("#umenu").get_by_text("Sign out").click(); pg.wait_for_timeout(400)
     assert "guest" in dlg["msgs"][-1].lower(); expect(pg.locator("#ubtn")).to_be_visible(); step("Sign out (guest) shows the save-first warning; Cancel keeps you in")
     dlg["accept"] = True; pg.locator("#ubtn").click(); pg.locator("#umenu").get_by_text("Sign out").click(); expect(pg.locator("#lbtn")).to_be_visible(timeout=T)

@@ -1,5 +1,5 @@
 """E2E (two phones): A opens B's profile -> 'Send a clip' (pick from library + note) -> B's bell shows a red
-unread count -> notifications list -> incoming bridge in Your Clubs -> accept -> answer 3 questions -> talk;
+unread count -> notifications list -> incoming bridge in Your Pods -> accept -> answer 3 questions -> talk;
 A gets 'joined' / 'answered' / message notifications and opens the bridge from one. Works locally (polling) and
 on a hosted build (BASE=..., Realtime). Users are named Smoke* so hosted runs can be cleaned up."""
 import os, re, time
@@ -36,12 +36,12 @@ with sync_playwright() as p:
     b.click("#bell"); row = b.locator(".nrow").first; expect(row).to_contain_text(f"{A} wants you to listen to this", timeout=T); expect(row).to_have_class(re.compile("un")); shot(b, "4-list")
     row.click(); expect(b).to_have_url(re.compile("#bridges")); expect(nb).to_be_hidden(timeout=T)
     inc = b.locator(".card.inc"); expect(inc).to_contain_text("A talk worth arguing about", timeout=T); expect(inc).to_contain_text("Curious what you make of this"); shot(b, "5-incoming")
-    step("Tap notification -> marked read, opens Your Clubs with the incoming bridge + note")
+    step("Tap notification -> marked read, opens Your Pods with the incoming bridge + note")
     b.click("[data-acc]"); expect(b).to_have_url(re.compile("#bridge/"), timeout=T)
     for i, t in enumerate(["B moment", "B surprised", "B takeaway"]): b.locator(".q").nth(i).fill(t)
     b.click("#qsave"); expect(b.get_by_text("💬 Talk")).to_be_visible(timeout=T); step("B accepts -> normal Answer 3 questions -> Talk")
     expect(a.locator("#bell .nb")).to_have_text(re.compile(r"[12]"), timeout=T)
-    a.click("#bell"); expect(a.locator(".nrow", has_text="joined your club")).to_be_visible(timeout=T); expect(a.locator(".nrow", has_text="answered the 3 questions")).to_be_visible(timeout=T)
+    a.click("#bell"); expect(a.locator(".nrow", has_text="joined your pod")).to_be_visible(timeout=T); expect(a.locator(".nrow", has_text="answered the 3 questions")).to_be_visible(timeout=T)
     step("A is notified: B joined + answered")
     a.locator(".nrow", has_text="answered").click(); expect(a).to_have_url(re.compile("#bridge/"))
     for i, t in enumerate(["A moment", "A surprised", "A takeaway"]): a.locator(".q").nth(i).fill(t)

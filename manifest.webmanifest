@@ -1,6 +1,6 @@
 {
-  "name": "Clip Club",
-  "short_name": "Clip Club",
+  "name": "Pod Club",
+  "short_name": "Pod Club",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

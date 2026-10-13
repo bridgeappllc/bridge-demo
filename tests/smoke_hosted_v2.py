@@ -1,5 +1,5 @@
 """Hosted-safe smoke test for v2 (2 anonymous sign-ups, sends NO email):
-old local library migrates, add to library, start a club from an item, friend
+old local library migrates, add to library, start a pod from an item, friend
 joins and views/copies from your library, save-account + sign-in screens render,
 and sign-in with an unknown address is refused by the API (no account, no email)."""
 import json, os, re, time
@@ -21,7 +21,7 @@ with sync_playwright() as p:
     anon = page(br.new_context(**iphone), "signin")
     anon.goto(BASE); anon.click("#lbtn"); expect(anon.get_by_text("Welcome back")).to_be_visible(timeout=T); shot(anon, "signin")
     anon.fill("#em", f"smoke-nobody-{int(time.time())}@example.com"); anon.click("#esend")
-    expect(anon.locator("#emsg")).to_contain_text("No Clip Club account uses that email", timeout=T); step("Sign-in API refuses an unknown email (no account created, no email sent)")
+    expect(anon.locator("#emsg")).to_contain_text("No Pod Club account uses that email", timeout=T); step("Sign-in API refuses an unknown email (no account created, no email sent)")
     pc = br.new_context(**iphone)
     pc.add_init_script("if(!sessionStorage.getItem('seeded')){localStorage.setItem('bridge_real_v1', %s);sessionStorage.setItem('seeded','1')}" % json.dumps(json.dumps(LEGACY)))
     paul = page(pc, "paul")

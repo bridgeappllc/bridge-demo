@@ -106,14 +106,14 @@ denied("other's profile not readable", sam, "select * from profiles where id=%s"
 denied("cannot create profile for someone else", mallory, "insert into profiles (id, display_name) values (%s,'x')", (sam,))
 b2 = run(mallory, "select id from public.create_bridge('M','Other','https://x.y/z')")[0][0]
 check("Paul lists only his bridges", [str(r[0]) for r in run(paul, "select id from bridges")] == [bid])
-denied("Paul cannot see Mallory's club", paul, "select * from bridges where id=%s", (str(b2),))
+denied("Paul cannot see Mallory's pod", paul, "select * from bridges where id=%s", (str(b2),))
 check("owner can delete own bridge", run(mallory, "delete from bridges where id=%s", (str(b2),)) == 1)
 
 print("library (v2)")
 li = run(paul, "insert into library_items (url,title,category,note) values ('https://example.org/lib1','Lib one','Politics','why it matters') returning id")[0][0]
 check("owner adds a library item", li is not None)
 check("owner reads own library", len(run(paul, "select * from library_items where user_id=%s", (paul,))) == 1)
-check("club partner reads owner's library", [r[0] for r in run(sam, "select title from library_items where user_id=%s", (paul,))] == ["Lib one"])
+check("pod partner reads owner's library", [r[0] for r in run(sam, "select title from library_items where user_id=%s", (paul,))] == ["Lib one"])
 denied("outsider can't read library", eve, "select * from library_items where user_id=%s", (paul,))
 denied("anon can't read library", None, "select * from library_items")
 denied("can't add to someone else's library", sam, "insert into library_items (user_id,url,title) values (%s,'https://x.y/1','t')", (paul,))

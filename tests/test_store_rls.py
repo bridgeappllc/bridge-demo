@@ -62,7 +62,7 @@ check("A reports user B -> report id returned", isinstance(r_ab, int))
 r_ca = run(C, "select report_content('message',%s,'spam','')", (str(adm("select id from messages where bridge_id=%s and user_id=%s", (b3, A))[0][0]),))[0][0]
 check("C reports A's chat message in their shared bridge", isinstance(r_ca, int))
 check("B reports C's message in shared bridge b4", isinstance(run(B, "select report_content('message',%s,'hate')", (str(c_msg_b4),))[0][0], int))
-raises("D can't report a message from a club they're not on", D, "select report_content('message',%s,'spam')", (str(c_msg_b4),), "not found")
+raises("D can't report a message from a pod they're not on", D, "select report_content('message',%s,'spam')", (str(c_msg_b4),), "not found")
 raises("can't report yourself", B, "select report_content('user',%s,'spam')", (B,), "yourself")
 raises("invalid reason rejected", B, "select report_content('user',%s,'boring')", (C,), "reports_reason_check")
 raises("unknown type rejected", B, "select report_content('bridge',%s,'spam')", (C,), "unknown report type")

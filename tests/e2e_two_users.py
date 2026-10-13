@@ -34,11 +34,11 @@ with sync_playwright() as p:
         try: pg.screenshot(path=f"{SHOTS}/{n}.png", timeout=15000)
         except Exception as e: print(f"    (screenshot {n} skipped: {str(e).splitlines()[0][:80]})")
 
-    # --- Paul signs up and creates a club from a pasted link
+    # --- Paul signs up and creates a pod from a pasted link
     paul.goto(BASE); paul.click("#sbtn"); paul.fill("#nm", P); paul.click("#nok")
     expect(paul.get_by_text("Pick your topics")).to_be_visible(timeout=T)
     for t in ("Politics", "Economics", "Culture"): paul.click(f".topic[data-t={t}]")
-    paul.click("#tgo"); expect(paul.get_by_text("No clubs yet")).to_be_visible(timeout=T); step(f"{P} signs up (anonymous auth + profile), picks topics")
+    paul.click("#tgo"); expect(paul.get_by_text("No pods yet")).to_be_visible(timeout=T); step(f"{P} signs up (anonymous auth + profile), picks topics")
     paul.click("text=Check this out")
     paul.fill("#murl", "https://www.youtube.com/watch?v=dQw4w9WgXcQ"); paul.fill("#mtitle", "Smoke test video"); paul.fill("#mfriend", S); paul.fill("#mrew", "5")
     paul.click("#mgo"); expect(paul.locator("#itxt")).to_be_visible(timeout=T)
@@ -109,19 +109,19 @@ with sync_playwright() as p:
         step("Realtime still works after in-bridge step navigation (polling disabled)")
     assert paul.get_by_text("Good point. I see it differently").count() == 0; step("No simulated replies")
 
-    # --- Your Clubs shows progress for both; persists across reload
+    # --- Your Pods shows progress for both; persists across reload
     paul.goto(BASE + "#bridges"); paul.reload()
     card = paul.locator(".card", has_text=f"You & {S}"); expect(card).to_be_visible(timeout=T)
     expect(card).to_contain_text("💬 Chat open"); expect(card).to_contain_text(f"{S}: ✓ answered · in the chat")
-    shot(paul, "06-paul-bridges"); step("Your Clubs lists the bridge with both people's progress after reload (session persisted)")
+    shot(paul, "06-paul-bridges"); step("Your Pods lists the bridge with both people's progress after reload (session persisted)")
     sam.goto(BASE + "#bridges"); expect(sam.locator(".card", has_text=f"You & {P}")).to_contain_text(f"Invited by {P}", timeout=T)
     sam.goto(link); expect(sam.get_by_text("💬 Talk")).to_be_visible(timeout=T); step("Re-opening the invite link takes a member straight to the bridge")
 
     # --- Outsiders
-    eve.goto(link); expect(eve.get_by_text("This club is full")).to_be_visible(timeout=T); step("3rd person with the link is refused (bridge is full)")
+    eve.goto(link); expect(eve.get_by_text("This pod is full")).to_be_visible(timeout=T); step("3rd person with the link is refused (bridge is full)")
     eve.goto(BASE + "#b/" + "0" * 32); expect(eve.get_by_text("Invite not found")).to_be_visible(timeout=T); step("Bogus invite token -> 'Invite not found'")
     eve.goto(BASE); eve.click("#sbtn"); eve.fill("#nm", E); eve.click("#nok"); expect(eve.get_by_text("Pick your topics")).to_be_visible(timeout=T)
-    eve.goto(BASE + "#bridge/" + bridge_path); expect(eve.get_by_text("Club not found")).to_be_visible(timeout=T); step("Signed-in outsider opening the bridge URL directly sees nothing")
+    eve.goto(BASE + "#bridge/" + bridge_path); expect(eve.get_by_text("Pod not found")).to_be_visible(timeout=T); step("Signed-in outsider opening the bridge URL directly sees nothing")
 
     # --- Profile stats + rename
     paul.goto(BASE + "#profile"); expect(paul.locator(".stat")).to_contain_text("1Sent", timeout=T); expect(paul.locator(".stat")).to_contain_text("1Answered")
@@ -134,12 +134,12 @@ with sync_playwright() as p:
     tmp = tempfile.NamedTemporaryFile("w", suffix=".html", delete=False); tmp.write(html); tmp.close()
     raw = br.new_context().new_page(); raw.goto("file://" + tmp.name); expect(raw.get_by_text("Almost ready")).to_be_visible(timeout=T); step("Unconfigured build shows an 'Almost ready' notice")
 
-    p2 = br.new_context(**iphone).new_page(); p2.goto(BASE + "?b=" + token); expect(p2.get_by_text("This club is full")).to_be_visible(timeout=T); step("?b=<token> link form also works")
+    p2 = br.new_context(**iphone).new_page(); p2.goto(BASE + "?b=" + token); expect(p2.get_by_text("This pod is full")).to_be_visible(timeout=T); step("?b=<token> link form also works")
     import re as _re
     bad = _re.compile(r"\brat(e|ed|ing|ings)\b|propaganda|redpill|neutral", _re.I); seen = []
     for h in ["#bridges", "#bridge/" + bridge_path + "/0", "#bridge/" + bridge_path + "/1", "#bridge/" + bridge_path + "/2", "#profile", "#new", "#clip/k1"]:
         paul.goto(BASE + h); paul.wait_for_timeout(1200); seen += [(h, m.group(0)) for m in bad.finditer(paul.locator("body").inner_text())]
-    for tab in ["Library", "Discover", "Clubs", "Settings"]:
+    for tab in ["Library", "Discover", "Pods", "Settings"]:
         paul.goto(BASE + "#profile"); paul.click(f"[data-pt={tab}]"); paul.wait_for_timeout(500); seen += [(tab, m.group(0)) for m in bad.finditer(paul.locator("body").inner_text())]
     sam.goto(link); sam.wait_for_timeout(1500); seen += [("invite(member)", m.group(0)) for m in bad.finditer(sam.locator("body").inner_text())]
     seen += [("invite text", m.group(0)) for m in bad.finditer(invite)]

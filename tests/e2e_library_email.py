@@ -1,5 +1,5 @@
 """E2E for v2 features: online library (+ migration of old device-local items),
-club partners viewing your library, starting a club from a library item,
+pod partners viewing your library, starting a pod from a library item,
 'Save your account' (guest -> email, same user id) and email-code sign-in on a
 second browser with library/bridges syncing. Needs a mail catcher (Mailpit) whose
 API is at MAILPIT (default http://127.0.0.1:8025) — local stack only."""
@@ -52,7 +52,7 @@ with sync_playwright() as p:
     paul.goto(BASE + "#profile"); expect(paul.locator(".stat")).to_contain_text("2Library", timeout=T); shot(paul, "v2-01-library")
     step("Add to Library (URL, title, category, note) saves online; Library shows 2 items")
 
-    # 3) start a club from a library item -> save-account prompt
+    # 3) start a pod from a library item -> save-account prompt
     paul.locator(".card", has_text="A talk that changed my mind").click(); paul.click("text=Check this out")
     expect(paul.locator("#mclip")).to_have_value(re.compile(r"[0-9a-f-]{36}"), timeout=T)
     paul.fill("#mfriend", "SmokeSam"); paul.click("#mgo"); expect(paul.locator("#itxt")).to_be_visible(timeout=T)
@@ -81,17 +81,17 @@ with sync_playwright() as p:
     sam.click("#addlib"); expect(sam.get_by_text("✓ In your library")).to_be_visible(timeout=T)
     sam.goto(BASE + "#profile"); expect(sam.locator(".card", has_text="A talk that changed my mind")).to_be_visible(timeout=T)
     expect(sam.locator(".chips")).to_contain_text("SmokePaul →")
-    step("Club partner sees your library (with notes) and can add an item to their own")
+    step("Pod partner sees your library (with notes) and can add an item to their own")
 
     # 6) Sam (guest) tries Paul's email -> 'already has an account'
     sam.goto(BASE + "#account"); sam.fill("#em", PAUL_EMAIL); sam.click("#esend")
-    expect(sam.locator("#emsg")).to_contain_text("already has a Clip Club account", timeout=T); expect(sam.locator("#exists")).to_be_visible()
+    expect(sam.locator("#emsg")).to_contain_text("already has a Pod Club account", timeout=T); expect(sam.locator("#exists")).to_be_visible()
     step("Saving with an email that's taken -> clear message + option to switch")
 
     # 7) Paul on a NEW browser: 'I have an account' -> code -> bridges + library come back
     laptop = br.new_context(viewport={"width": 1100, "height": 800}); lap = page(laptop, "paul-laptop")
     lap.goto(BASE); lap.click("#lbtn"); lap.fill("#em", "nobody-" + PAUL_EMAIL); lap.click("#esend")
-    expect(lap.locator("#emsg")).to_contain_text("No Clip Club account uses that email", timeout=T); step("Sign-in with an unknown email -> clear message (no account created)")
+    expect(lap.locator("#emsg")).to_contain_text("No Pod Club account uses that email", timeout=T); step("Sign-in with an unknown email -> clear message (no account created)")
     lap.fill("#em", PAUL_EMAIL); n0 = len(mails(PAUL_EMAIL)); lap.click("#esend")
     code, subj = new_code(PAUL_EMAIL, n0); assert "sign-in code" in subj, subj
     shot(lap, "v2-04-signin-code"); lap.fill("#code", code); lap.click("#cok")
