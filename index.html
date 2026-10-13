@@ -501,7 +501,7 @@ const isBlockedId=uid=>(DB.blocks||[]).some(b=>b.id===uid);
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeReport()});
 document.addEventListener("click",e=>{const b=e.target.closest("[data-rep]");if(!b)return;e.preventDefault();e.stopPropagation();openReport(b.dataset.rep,b.dataset.id,b.dataset.u,b.dataset.who||"this person")});
 document.addEventListener("click",e=>{const b=e.target.closest("[data-fa]");if(!b)return;e.preventDefault();e.stopPropagation();friendAction(b.dataset.fa,b.dataset.u,b)});
-function afterTopics(){const a=S.after;delete S.after;save();go(a&&!a.startsWith("b/")?a:"bridges")}
+function afterTopics(){const a=S.after;delete S.after;save();if(!["topics","welcome","setup"].includes(viewOf()))return;go(a&&!a.startsWith("b/")?a:"bridges")}/* async topic save finished after the user moved on: stay put */
 async function loadLib(){try{DB.lib=await API.lib();rerender()}catch(e){fail(e)}}
 async function loadFlib(uid){try{DB.flib[uid]=await API.lib(uid);rerender()}catch(e){fail(e)}}
 async function loadItem(id){if(findClip(id))return;if(!/^[0-9a-f-]{36}$/i.test(id||"")){render(true);return}DB.flib.__loading=1;try{const it=await API.item(id);if(it&&it.user_id!==ME)DB.flib[it.user_id]=[...(DB.flib[it.user_id]||[]),it]}catch(e){console.warn(e)}delete DB.flib.__loading;render(true)}

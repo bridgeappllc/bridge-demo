@@ -26,9 +26,9 @@ with sync_playwright() as p:
     pc.add_init_script("if(!sessionStorage.getItem('seeded')){localStorage.setItem('bridge_real_v1', %s);sessionStorage.setItem('seeded','1')}" % json.dumps(json.dumps(LEGACY)))
     paul = page(pc, "paul")
     paul.goto(BASE); paul.click("#sbtn"); paul.fill("#nm", P); paul.click("#nok"); expect(paul.get_by_text("Pick your topics")).to_be_visible(timeout=T)
-    [paul.click(f".topic[data-t={t}]") for t in ("Politics", "Science", "Culture")]; paul.click("#tgo")
+    [paul.click(f".topic[data-t={t}]") for t in ("Politics", "Science", "Culture")]; paul.click("#tgo"); expect(paul.get_by_role("heading", name="Your Pods")).to_be_visible(timeout=T)  # topic save done before leaving
     paul.goto(BASE + "#profile"); expect(paul.locator(".card", has_text="Smoke old saved podcast")).to_be_visible(timeout=T); step("Old device-local library item migrated online")
-    paul.click("[data-pt=Add]"); paul.fill("#aurl", "https://www.youtube.com/watch?v=smoke-lib"); paul.fill("#atitle", "Smoke test video"); paul.select_option("#acat", "Science")
+    expect(paul.locator("[data-pt=Add]")).to_be_visible(timeout=T); paul.click("[data-pt=Add]"); paul.fill("#aurl", "https://www.youtube.com/watch?v=smoke-lib"); paul.fill("#atitle", "Smoke test video"); paul.select_option("#acat", "Science")
     paul.fill("#anote", "Changed how I think about energy."); paul.click("#asave"); expect(paul.get_by_text("Changed how I think about energy.")).to_be_visible(timeout=T)
     paul.goto(BASE + "#profile"); expect(paul.locator(".stat")).to_contain_text("2Library", timeout=T); paul.wait_for_timeout(600); shot(paul, "library"); step("Add to Library saves online")
     paul.locator(".card", has_text="Smoke test video").click(); paul.click("text=Check this out")
