@@ -14,7 +14,16 @@ window.BRIDGE_CONFIG = {
 <title>Pod Club</title>
 <meta name="theme-color" content="#F4F5EF"><meta name="color-scheme" content="light">
 <link rel="icon" type="image/svg+xml" href="assets/icon.svg"><link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
-<link rel="apple-touch-icon" href="assets/apple-touch-icon.png"><link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+<!-- Link previews: same card for every link (static site). Absolute URLs; the preview deploy rewrites the base. -->
+<meta name="description" content="Share it with your pod.">
+<meta property="og:type" content="website"><meta property="og:site_name" content="Pod Club">
+<meta property="og:title" content="Pod Club"><meta property="og:description" content="Share it with your pod.">
+<meta property="og:url" content="https://bridgeappllc.github.io/bridge-demo/"><meta property="og:image" content="https://bridgeappllc.github.io/bridge-demo/assets/og-image.png">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:type" content="image/png">
+<meta property="og:image:alt" content="Pod Club logo: two chat bubbles">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Pod Club">
+<meta name="twitter:description" content="Share it with your pod."><meta name="twitter:image" content="https://bridgeappllc.github.io/bridge-demo/assets/og-image.png"><link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400&display=swap">
@@ -212,7 +221,7 @@ const API={
  async deleteAccount(){stopNotifs();if(PROFILE&&PROFILE.avatar_url)ok(await sb.from("profiles").update({avatar_url:null}).eq("id",ME));await this.removePhotoFiles(null);ok(await sb.rpc("delete_my_account"));try{await sb.auth.signOut({scope:"local"})}catch(e){}
   try{localStorage.removeItem(KEY);localStorage.removeItem("bridge-auth")}catch(e){}ME=null;USER=null;PROFILE=null;DB=freshDB();S={topics:[],clips:[]}},
  async createBridge(o){return ok(await sb.rpc("create_bridge",{p_display_name:PROFILE.display_name,p_clip_title:o.title,p_clip_url:o.url,p_clip_type:o.type,p_clip_cat:o.cat||"",p_clip_creator:o.creator||"",p_friend_label:o.friend||"",p_reward:o.reward||""}))},
- async preview(t){const [d,a]=await Promise.all([sb.rpc("preview_bridge",{p_token:t}),sb.rpc("invite_avatar",{p_token:t})]);const p=(ok(d)||[])[0]||null;if(p&&!a.error)p.owner_avatar=a.data||null;return p},
+ async preview(t){const [d,a]=await Promise.all([sb.rpc("preview_bridge_v2",{p_token:t}),sb.rpc("invite_avatar",{p_token:t})]);const p=(ok(d)||[])[0]||null;if(p&&!a.error)p.owner_avatar=a.data||null;return p},
  // profile photos (supabase/migrations/20261011200000_profile_photos.sql): avatars/<my id>/<random>.(webp|jpg)
  async avatars(ids){return ok(await sb.rpc("avatars",{p_ids:ids}))||[]},
  async myPhotoFiles(){const {data,error}=await sb.storage.from("avatars").list(ME,{limit:100});if(error)throw error;return(data||[]).filter(o=>o&&o.name&&o.id!==null).map(o=>ME+"/"+o.name)},
@@ -341,7 +350,8 @@ document.addEventListener("click",e=>{const t=e.target.closest&&e.target.closest
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&menuOpen)setMenu(false,true)});
 const busy=(el,on)=>{if(el){el.disabled=on;if(on){el.dataset.t=el.textContent;el.textContent="…"}else if(el.dataset.t)el.textContent=el.dataset.t}};
 const inviteLink=b=>APP_URL+"#b/"+b.invite_token;
-const inviteTxt=b=>`Check this out: "${b.clip_title}"\n${b.clip_url}${+b.reward>0?`\nI'll send you $${b.reward} when you finish it.`:""}\nListen and let's talk about it on Pod Club:\n${inviteLink(b)}`;
+// No clip URL in invites: recipients open it in Pod Club after they sign up and join.
+const inviteTxt=b=>`Check this out: "${b.clip_title}" — listen and let's talk about it on Pod Club: ${inviteLink(b)}${+b.reward>0?`\nI'll send you $${b.reward} when you finish it.`:""}`;
 const meOf=b=>(b.bridge_members||[]).find(m=>m.user_id===ME),frOf=b=>(b.bridge_members||[]).find(m=>m.user_id!==ME);
 const frName=b=>{const f=frOf(b);return f?f.display_name:b.partner_left_at?"Deleted user":(meOf(b)?.role==="owner"?(b.friend_label||"your friend"):"your friend")};
 const partners=()=>{const m=new Map();(DB.list||[]).forEach(b=>{const f=frOf(b);if(f&&!m.has(f.user_id))m.set(f.user_id,f.display_name)});return[...m].map(([user_id,name])=>({user_id,name}))};
@@ -359,7 +369,7 @@ function paintAv(id){const p=id===ME?(PROFILE&&PROFILE.avatar_url):AVS[id];$$(`.
 const AV=(n,sz=44,id=null,path)=>{const p=path!==undefined?path:avOf(id);return `<div class="av"${id?` data-avid="${esc(id)}" data-avn="${esc(n||"")}"`:""} style="width:${sz}px;height:${sz}px;font-size:${Math.round(sz*.42)}px"><span aria-hidden="true">${esc((n||"?")[0].toUpperCase())}</span>${avImg(n,p)}</div>`};
 const handle=u=>u?"@"+u:"";
 const profLink=p=>APP_URL+"#u/"+(p.username?"@"+p.username:p.id);
-const shareProfile=p=>share(`${p.display_name} on Pod Club: ${profLink(p)}`);
+const shareProfile=p=>share(`${p.display_name} is on Pod Club: ${profLink(p)}`);
 const VIS={everyone:["Everyone","Anyone signed in to Pod Club can see it."],friends:["Friends only","Your friends, plus people you've been in a pod with."],private:["Only me","Nobody else can see it."]};
 // @username suggestion from the display name: letters/digits only, 3-15 chars, then a number if taken
 const baseHandle=n=>{let b=String(n||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"").slice(0,15);return b.length<3?(b+"bridge").slice(0,15):b};
@@ -435,7 +445,7 @@ invite(tok){const p=DB.pv[tok];if(p===undefined)return loading;
  if(!p)return `<div class="c wel" style="padding-top:10px">${LOGO}<h1>Invite not found</h1><p class="mut">This invite link doesn't work. Ask your friend to send it again.</p><a class="btn o" href="#bridges">Go to Pod Club</a></div>`;
  if(p.member_count>=2&&!p.is_member)return `<div class="c wel" style="padding-top:10px">${LOGO}<h1>This pod is full</h1><p class="mut">${esc(p.owner_name)}'s pod already has two people. Ask them for a new invite.</p><a class="btn o" href="#bridges">Go to Pod Club</a></div>`;
  return `<div class="c wel inv" style="padding-top:4px">${p.owner_avatar?AV(p.owner_name,84,null,p.owner_avatar):LOGO}<h1 style="font-size:1.7rem">${esc(p.owner_name)} wants you to listen to this</h1><p class="mut">Listen together, then talk about it.</p></div>
-<div class="card"><span class="tag">${esc(p.clip_type)}</span><div class="ti" style="margin:8px 0">${esc(p.clip_title)}</div><a class="btn o s" href="${esc(safeUrl(p.clip_url))}" target="_blank" rel="noopener">Open link ↗</a></div>
+<div class="card"><span class="tag">${esc(p.clip_type)}</span><div class="ti" style="margin:8px 0">${esc(p.clip_title)}</div>${p.is_member&&p.clip_url?`<a class="btn o s" href="${esc(safeUrl(p.clip_url))}" target="_blank" rel="noopener">Open link ↗</a>`:'<p class="mut sm" id="lockl" style="margin:0">🔒 The link opens once you join.</p>'}</div>
 ${stepbar(0,0,null,"Join")}<p class="mut sm">Listen to it, answer one question and rate it, then chat. You'll see ${esc(p.owner_name)}'s answers after you share yours.</p>
 ${PROFILE?`<label>Your name</label><input id="jname" placeholder="Your first name" maxlength="40" value="${esc(PROFILE.display_name)}"><button class="btn big" id="jgo">Join the pod</button>`:signupFields("Your name","jname","","jgo","Join the pod",true)}<p class="mut sm c">${PROFILE?"":"We'll email you a code to confirm it's you. "}No password needed.${PROFILE?"":` Have a Pod Club account? <a href="#signin" id="jsignin">Sign in first</a>`}</p>`},
 newpod(){return `<p class="mut sm"><a href="#bridges">← Your Pods</a></p><h1>Create a pod</h1><p class="mut">A pod is a small group (up to 12 people) that shares clips, answers one question and rates it, then chats.</p>
