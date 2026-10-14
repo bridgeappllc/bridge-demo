@@ -56,6 +56,14 @@ with sync_playwright() as p:
     c.goto(BASE + "#pod/" + pod); expect(c.get_by_text("Chat locked")).to_be_visible(timeout=T); answer(c, "Cy")
     expect(c.locator("#gchat .bub", has_text="Loved it")).to_be_visible(timeout=T); expect(c.locator(".gclip").first.locator("details")).to_contain_text("Bo answer 1"); shot(c, "6-c-chat")
     step("C answers -> sees both answers + all messages")
+    def report(pg, sel, title):
+        pg.locator(sel).first.click(); expect(pg.locator("#reph")).to_contain_text(title, timeout=T); pg.locator("#repsheet input[name=rr]").first.check()
+        pg.click("#rsend"); expect(pg.locator(".toast")).to_contain_text("your report was sent", timeout=T)
+    report(c, "#gchat [data-rep=group_message]", "a pod message from"); shot(c, "7-reported")
+    report(c, ".gclip [data-rep=group_clip]", "a clip shared by")
+    c.click("#gmembers summary"); report(c, "#gmembers [data-rep=user]", "Report Smoke"); report(c, "#grpod", "this pod")
+    expect(c.locator(f"#gmembers [data-rep=user][data-who='{Cn}']")).to_have_count(0); expect(a.locator("#grpod")).to_have_count(0)
+    step("Report: pod message, shared clip, member, and the pod (none for yourself / owner's own pod)")
     a.goto(BASE + "#notifications"); expect(a.locator(".nrow", has_text="messages in")).to_contain_text(Bn, timeout=T); step("Message notifications are grouped per pod ('N messages in …')")
     # owner removes C, B leaves
     a.goto(BASE + "#pod/" + pod); a.click("#gmembers summary"); a.locator(f"[data-grm][data-gn='{Cn}']").click(); expect(a.get_by_text("2 of 12 people")).to_be_visible(timeout=T)

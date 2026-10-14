@@ -93,6 +93,16 @@ check("…nor B's answers", run(C, "select count(*) from group_pod_answers where
 before = nt(C, "pod_message")[1]; run(B, "select send_group_message(%s,'anyone?')", (P,))
 check("C gets no notification for B's message", nt(C, "pod_message")[1] == before)
 check("A still sees B's messages", any(str(r[0]) == B for r in run(A, "select user_id from group_pod_messages where pod_id=%s", (P,))))
+print("reports")
+RM = adm("select id from group_pod_messages where pod_id=%s and user_id=%s order by id limit 1", (P, B))[0][0]
+check("A reports B's group message", run(A, "select report_content('group_message', %s, 'harassment', 'test')", (str(RM),))[0][0] > 0)
+check("…with target user + snapshot", adm("select target_user::text, snapshot like 'pod %%' from reports where target_type='group_message' and target_id=%s", (str(RM),)) == [(B, True)])
+check("B reports the shared clip", run(B, "select report_content('group_clip', %s, 'spam')", (K,))[0][0] > 0)
+check("B reports the pod (target = owner)", run(B, "select report_content('group_pod', %s, 'other')", (P,))[0][0] > 0 and adm("select target_user::text from reports where target_type='group_pod' and target_id=%s", (P,)) == [(A,)])
+raises("non-member can't report a pod message", E, "select report_content('group_message', %s, 'spam')", (str(RM),), "not found")
+raises("can't report your own pod message", B, "select report_content('group_message', %s, 'spam')", (str(RM),), "yourself")
+denied("members can't read reports", A, "select id from reports")
+check("old report types still work", run(A, "select report_content('user', %s, 'spam')", (B,))[0][0] > 0)
 
 print("rate limits")
 Q = str(run(M, "select create_group_pod(%s, %s::uuid[])", (f"Spam {tag}", [many[0]]))[0][0])
