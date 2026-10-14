@@ -74,6 +74,12 @@ a{color:var(--b)}.row{display:flex;gap:8px;align-items:center}
 .who{font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--m);margin:10px 0 -2px}
 .qa{border-left:2px solid var(--l);padding:2px 0 2px 12px;margin:8px 0}.qa.fr{border-color:var(--ac)}
 nav button{position:relative}.badge{position:absolute;top:4px;left:calc(50% + 5px);background:var(--b);color:#FFFFFF;box-shadow:0 0 0 2px var(--sf);border-radius:999px;font-size:.66rem;font-weight:700;min-width:18px;height:18px;line-height:18px;padding:0 5px;text-align:center;letter-spacing:0;text-transform:none}.badge.in{position:static;display:inline-block;margin-left:4px;vertical-align:1px}
+.prow{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;padding:4px 2px 12px;margin:0 -2px;scrollbar-width:thin}
+.pcard{flex:0 0 92px;scroll-snap-align:start;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 6px;border:1px solid var(--l);border-radius:14px;background:var(--sf);color:var(--n);text-decoration:none;text-align:center;min-width:0}
+.pcard:focus-visible{outline:3px solid var(--b);outline-offset:2px}
+.pcard .pn{font-weight:600;font-size:14px;line-height:1.2;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pcard .ph{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pmore{flex:0 0 1px}
 .person{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--l)}.person .pi{flex:1;min-width:0;cursor:pointer}.person .pi b{display:block;font-family:var(--serif);font-weight:700;font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.person .pi .sm{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.person .btn{flex:none}
 .av{flex:none;border-radius:50%;background:var(--b);color:var(--onp);display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-weight:700;margin:0 auto;box-shadow:0 0 0 3px var(--bg),0 0 0 4px var(--ac)}.person .av{margin:0 0 0 4px}
 .handle{color:var(--m);font-size:.9rem}.row .btn{flex:1;margin:4px 0}
@@ -133,7 +139,7 @@ const legacyItems=()=>S.clips.filter(c=>c&&!c.ex&&c.url);
 
 /* ---------- backend adapter (Supabase) ---------- */
 let ME=null,USER=null,PROFILE=null;
-const freshDB=()=>({gl:null,g:{},gsel:{},inc:null,ntf:null,list:null,d:{},pv:{},lib:null,flib:{},req:null,friends:null,sugg:null,blocks:null,feed:null,ppl:{},srch:{q:"",rows:null}});let DB=freshDB();
+const freshDB=()=>({gl:null,g:{},gsel:{},inc:null,ntf:null,list:null,d:{},pv:{},lib:null,flib:{},req:null,friends:null,sugg:null,prow:null,prowEnd:false,prowX:0,blocks:null,feed:null,ppl:{},srch:{q:"",rows:null}});let DB=freshDB();
 const isGuest=()=>!!USER&&USER.is_anonymous===true;
 const ok=({data,error})=>{if(error)throw error;return data};
 const BCOLS="id,invite_token,created_by,partner_left_at,direct_to,direct_to_name,direct_status,clip_title,clip_url,clip_type,clip_cat,clip_creator,friend_label,reward,created_at,bridge_members(user_id,display_name,role,answered_at)";
@@ -151,6 +157,7 @@ const API={
  async friendsOf(uid){return ok(await sb.rpc("friends_of",{p_user:uid}))},
  async requests(){return ok(await sb.rpc("my_requests"))},
  async suggest(){return ok(await sb.rpc("suggest_people"))},
+ async everyone(before){return ok(await sb.rpc("list_people",before?{p_before:before.created_at,p_before_id:before.id,p_limit:30}:{p_limit:30}))||[]},
  async blocks(){return ok(await sb.rpc("my_blocks"))},
  async handleFree(u){return ok(await sb.rpc("username_available",{p_username:u}))},
  async sendReq(uid){return ok(await sb.rpc("send_friend_request",{p_user:uid}))},
@@ -458,6 +465,7 @@ people(){const {q,rows}=DB.srch,qq=q.trim().replace(/^@/,""),inc=incoming(),out=
  return `<h1>People</h1><p class="mut">Find friends on Pod Club by name or @username.</p><input id="pq" type="search" inputmode="search" autocomplete="off" autocapitalize="off" placeholder="Search name or @username" value="${esc(q)}">
 <div id="pres">${qq.length>=2?(rows===null?loading:rows.length?rows.map(personRow).join(""):`<p class="mut sm">No one found for “${esc(q)}”.</p>`):""}</div>
 ${inc.length?`<h2>Friend requests <span class="badge in">${inc.length}</span></h2>${inc.map(r=>personRow({...r,friend_status:"incoming"})).join("")}`:""}
+<h2 id="prowh">Everyone on Pod Club</h2><div id="prow" class="prow" role="list" aria-labelledby="prowh" tabindex="0"></div>
 <h2>People from your pods</h2>${DB.sugg===null?loading:DB.sugg.length?DB.sugg.map(personRow).join(""):'<p class="mut sm">People you meet in a pod show up here, so you can add them as friends.</p>'}
 ${out.length?`<h2>Sent requests</h2>${out.map(r=>personRow({...r,friend_status:"outgoing"})).join("")}`:""}
 <p class="sm" style="margin-top:18px"><a href="#profile" onclick="profTab='Friends'">Your friends (${DB.friends?DB.friends.length:"…"}) →</a></p><button class="btn o" id="shme">🔗 Share my profile link</button>`},
@@ -498,12 +506,22 @@ const rerender=()=>{const {id,sp}=parse(),v=viewOf(),key=v+"/"+id+"/"+(sp||"");i
 async function loadList(){try{DB.list=await API.list();rerender()}catch(e){fail(e)}}
 let lastSoc=0;
 async function loadSocial(){lastSoc=Date.now();try{const [r,f]=await Promise.all([API.requests(),API.friendsOf(ME)]);DB.req=r;DB.friends=f;rerender();paintNav()}catch(e){console.warn(e)}}
+const prowCard=p=>`<a class="pcard" role="listitem" href="#u/${p.id}" data-pc="${p.id}">${AV(p.display_name,56,p.id)}<span class="pn">${esc(p.display_name)}</span>${p.username?`<span class="sm mut ph">${esc(handle(p.username))}</span>`:""}</a>`;
+let prowBusy=false;
+function paintRow(){const el=$("#prow");if(!el)return;const L=DB.prow;
+ el.innerHTML=L===null?'<span class="mut sm" style="padding:8px 0">Loading…</span>':L.length?L.map(prowCard).join("")+(DB.prowEnd?"":'<span class="pmore" aria-hidden="true"></span>'):'<span class="mut sm" style="padding:8px 0">No one else here yet — invite a friend!</span>';
+ el.scrollLeft=DB.prowX||0;el.onscroll=()=>{DB.prowX=el.scrollLeft;if(el.scrollLeft+el.clientWidth>el.scrollWidth-240)loadRow(true)}}
+async function loadRow(more){if(prowBusy||(more&&(DB.prowEnd||!DB.prow)))return;prowBusy=true;
+ try{const last=more?DB.prow[DB.prow.length-1]:null,rows=await API.everyone(last);const seen=new Set((more?DB.prow:[]).map(p=>p.id));
+  DB.prow=(more?DB.prow:[]).concat(rows.filter(p=>!seen.has(p.id)));DB.prowEnd=rows.length<30;if(!more)DB.prowX=0;
+  const el=$("#prow");if(el&&more){const x=el.scrollLeft;el.querySelector(".pmore")?.remove();el.insertAdjacentHTML("beforeend",rows.filter(p=>!seen.has(p.id)).map(prowCard).join("")+(DB.prowEnd?"":'<span class="pmore" aria-hidden="true"></span>'));el.scrollLeft=x}else paintRow()}
+ catch(e){fail(e)}finally{prowBusy=false}}
 async function loadSugg(){try{DB.sugg=await API.suggest();rerender()}catch(e){fail(e)}}
 async function loadBlocks(){try{DB.blocks=await API.blocks();rerender()}catch(e){console.warn(e)}}
 async function loadPerson(key){try{const p=await API.profileOf(key);const P={p,lib:null,fr:null};if(p){const [l,f]=await Promise.all([p.can_view_library?API.lib(p.id):Promise.resolve(null),API.friendsOf(p.id)]);P.lib=l;P.fr=f;if(l)DB.flib[p.id]=l}DB.ppl[key]=P;if(p&&key!==p.id)DB.ppl[p.id]=P;rerender()}catch(e){if(DB.ppl[key]===undefined)DB.ppl[key]={p:null};fail(e);rerender()}}
 async function loadFeed(){try{const f=DB.friends||await API.friendsOf(ME);DB.friends=f;const ids=f.map(x=>x.id);const F=ids.length?await API.feed(ids):[];F.forEach(it=>{const a=DB.flib[it.user_id]=DB.flib[it.user_id]||[];if(!a.some(x=>x.id===it.id))a.push(it)});DB.feed=F;rerender()}catch(e){fail(e)}}
 let sq=0;async function searchPeople(q){DB.srch={q,rows:null};const t=++sq;if(q.trim().replace(/^@/,"").length<2){rerender();return}rerender();try{const r=await API.people(q);if(t===sq){DB.srch={q,rows:r};rerender()}}catch(e){fail(e)}}
-async function refreshAfter(uid){const jobs=[loadSocial()];if(viewOf()==="people")jobs.push(loadSugg(),DB.srch.q?searchPeople(DB.srch.q):0);if(viewOf()==="u")jobs.push(loadPerson(decodeURIComponent(parse().id||"")));if(viewOf()==="profile"&&profTab==="Settings")jobs.push(loadBlocks());await Promise.all(jobs)}
+async function refreshAfter(uid){const jobs=[loadSocial()];if(viewOf()==="people")jobs.push(loadSugg(),loadRow(false),DB.srch.q?searchPeople(DB.srch.q):0);if(viewOf()==="u")jobs.push(loadPerson(decodeURIComponent(parse().id||"")));if(viewOf()==="profile"&&profTab==="Settings")jobs.push(loadBlocks());await Promise.all(jobs)}
 async function friendAction(a,uid,el){const n=nameOf(uid)||"this person";
  if(a==="unfriend"&&!confirm(`Remove ${n} from your friends?`))return;
  if(a==="block"&&!confirm(`Block ${n}? You won't see each other in search, profiles or libraries, and you'll stop being friends. Pods you already share stay.`))return;
@@ -568,7 +586,7 @@ function onRoute(){if(unwatch){unwatch();unwatch=null}if(/^#lib\//.test(location
  if(/^#u\//.test(location.hash)&&!PROFILE){S.after=location.hash.slice(1);save()}
  render();if(!CONFIGURED)return;const v=viewOf(),{id}=parse();
  if(PROFILE&&!["welcome","topics","setup","invite","signin"].includes(v)&&Date.now()-lastSoc>15000)loadSocial();
- if(v==="people"){loadSugg();if(DB.srch.q)searchPeople(DB.srch.q);unwatch=API.watch(null,()=>{loadSocial();loadSugg()},15000)}
+ if(v==="people"){loadSugg();loadRow(false);if(DB.srch.q)searchPeople(DB.srch.q);unwatch=API.watch(null,()=>{loadSocial();loadSugg()},15000)}
  if(v==="u"){const key=decodeURIComponent(id||"");if(key===ME||(PROFILE&&PROFILE.username&&key==="@"+PROFILE.username)){go("profile");return}if(DB.list===null)loadList();loadPerson(key);unwatch=API.watch(null,()=>loadPerson(key),15000)}
  if(PROFILE&&!["welcome","topics","setup","invite","signin"].includes(v)&&(v==="notifications"||v==="bridges"||Date.now()-lastN>5000))loadNotifs();
  if(v==="bridges"){loadList();loadGpods();unwatch=API.watch(null,()=>{loadList();loadGpods()},10000)}
@@ -639,7 +657,7 @@ pod(id){const D=DB.g[id];if(!D||!D.pod)return;
   try{await API.ganswer(cid,a);await loadGpod(id);toast("Answers shared ✓")}catch(e){busy(b,false);if(isMod(e)){MOD.load(true);h.textContent=MSG.post}else fail(e)}});
  const cs=$("#gcs");if(cs){let sending=false;const send=async()=>{const t=$("#gct").value.trim();if(!t||sending)return;if(!modOk($("#gct"),false))return;const masked=MOD.scan(t)==="profanity";sending=true;cs.disabled=true;
   try{await API.gsend(id,t);$("#gct").value="";await loadGpod(id);if(masked)toast("Sent — some words were hidden with ***")}catch(e){if(!modFail(e,$("#gct")))fail(e)}sending=false;if($("#gcs"))$("#gcs").disabled=false;if($("#gct"))$("#gct").focus()};cs.onclick=send;$("#gct").onkeydown=e=>{if(e.key==="Enter")send()}}},
-people(){const q=$("#pq");let t;q.oninput=()=>{clearTimeout(t);t=setTimeout(()=>searchPeople(q.value),250)};const sh=$("#shme");if(sh)sh.onclick=()=>shareProfile({...PROFILE,id:ME})},
+people(){paintRow();const q=$("#pq");let t;q.oninput=()=>{clearTimeout(t);t=setTimeout(()=>searchPeople(q.value),250)};const sh=$("#shme");if(sh)sh.onclick=()=>shareProfile({...PROFILE,id:ME})},
 u(key){const P=DB.ppl[decodeURIComponent(key||"")];$$("[data-ut]").forEach(b=>b.onclick=()=>{S.utab=b.dataset.ut;save();render(true)});const sh=$("#shp");if(sh&&P&&P.p)sh.onclick=()=>shareProfile(P.p);const sd=$("#sendb");if(sd&&P&&P.p)sd.onclick=()=>openSend(P.p)},
 profile(){$$("[data-pt]").forEach(b=>b.onclick=e=>{e.preventDefault();profTab=b.dataset.pt;render();if(profTab==="Discover")loadFeed();if(profTab==="Settings")loadBlocks();if(profTab==="Friends")loadSocial()});
 [$("#shme"),$("#shme2")].forEach(b=>{if(b)b.onclick=()=>shareProfile({...PROFILE,id:ME})});
