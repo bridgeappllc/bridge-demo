@@ -73,7 +73,7 @@ with sync_playwright() as p:
 
     # 5) Sam joins, opens Paul's library, adds an item from it to his own
     samc = br.new_context(**iphone); sam = page(samc, "sam")
-    sam.goto(link); sam.fill("#jname", "SmokeSam"); sam.click("#jgo"); expect(sam.get_by_text("Answer three questions")).to_be_visible(timeout=T)
+    sam.goto(link); sam.fill("#jname", "SmokeSam"); sam.click("#jgo"); expect(sam.get_by_text("Answer & rate")).to_be_visible(timeout=T)
     sam.click("text=SmokePaul's library"); expect(sam.get_by_text("SmokePaul's library").first).to_be_visible(timeout=T)
     expect(sam.locator(".card", has_text="A talk that changed my mind")).to_be_visible(timeout=T); expect(sam.locator(".card", has_text="Old saved podcast")).to_be_visible()
     shot(sam, "v2-02-friend-library")

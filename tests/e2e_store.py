@@ -41,10 +41,10 @@ with sync_playwright() as p:
     pa.goto(BASE + "#new"); pa.fill("#murl", "https://example.org/store-test"); pa.fill("#mtitle", "Store test episode"); pa.fill("#mfriend", B)
     pa.click("#mgo"); expect(pa.locator("#itxt")).to_be_visible(timeout=T)
     link = re.search(r"(https?://\S+#b/[0-9a-f]{32})", pa.locator("#itxt").input_value()).group(1)
-    pb.goto(link); pb.fill("#jname", B); pb.click("#jgo"); expect(pb.get_by_text("Answer three questions")).to_be_visible(timeout=T)
+    pb.goto(link); pb.fill("#jname", B); pb.click("#jgo"); expect(pb.get_by_text("Answer & rate")).to_be_visible(timeout=T)
     for pg in (pb, pa):
-        if pg is pa: pa.click("#nx"); expect(pa.get_by_text("Answer three questions")).to_be_visible(timeout=T)
-        for i in range(3): pg.locator(".q").nth(i).fill(f"{'Ben' if pg is pb else 'Ava'} answer {i}")
+        if pg is pa: pa.click("#nx"); expect(pa.get_by_text("Answer & rate")).to_be_visible(timeout=T)
+        pg.fill("#q3", f"{'Ben' if pg is pb else 'Ava'} answer takeaway"); pg.locator('.rate [data-rv="7"]').click()
         pg.click("#qsave"); expect(pg.get_by_text("💬 Talk")).to_be_visible(timeout=T)
     pb.fill("#ct", "Ben says hello"); pb.click("#cs"); expect(pb.locator(".bub.me")).to_have_text("Ben says hello", timeout=T)
     expect(pa.locator(".bub:not(.me)")).to_have_text("Ben says hello", timeout=T)

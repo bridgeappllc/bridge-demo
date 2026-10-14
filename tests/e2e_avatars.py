@@ -82,10 +82,10 @@ with sync_playwright() as p:
     pb.goto(link); expect(pb.locator(".inv .av img")).to_have_attribute("alt", f"Profile photo of {A}", timeout=T)
     pb.wait_for_function("document.querySelector('.inv .av img')&&document.querySelector('.inv .av img').naturalWidth>0", timeout=T); shot(pb, "av-03-invite-landing")
     step("Invite landing (before the friend has an account) shows the inviter's photo")
-    pb.fill("#jname", B); pb.click("#jgo"); expect(pb.get_by_text("Answer three questions")).to_be_visible(timeout=T)
+    pb.fill("#jname", B); pb.click("#jgo"); expect(pb.get_by_text("Answer & rate")).to_be_visible(timeout=T)
     for pg in (pb, pa):
-        if pg is pa: pa.click("#nx"); expect(pa.get_by_text("Answer three questions")).to_be_visible(timeout=T)
-        for i in range(3): pg.locator(".q").nth(i).fill(f"Answer number {i}")
+        if pg is pa: pa.click("#nx"); expect(pa.get_by_text("Answer & rate")).to_be_visible(timeout=T)
+        pg.fill("#q3", f"Answer number takeaway"); pg.locator('.rate [data-rv="7"]').click()
         pg.click("#qsave"); expect(pg.get_by_text("💬 Talk")).to_be_visible(timeout=T)
     pa.fill("#ct", "Hi from Pia"); pa.click("#cs")
     expect(pb.locator(".who .av img")).to_have_attribute("alt", f"Profile photo of {A}", timeout=T)

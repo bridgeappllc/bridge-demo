@@ -11,6 +11,7 @@ python3 "$HERE/test_avatars.py"
 python3 "$HERE/test_notifications_rls.py"
 python3 "$HERE/test_group_pods_rls.py"
 python3 "$HERE/test_people_row_rls.py"
+python3 "$HERE/test_one_question_rls.py"
 SB_KEY="$(cat "$RUN/anon.key")" nohup python3 "$HERE/serve.py" 8080 > "$RUN/serve.log" 2>&1 & echo $! > "$RUN/serve.pid"; sleep 1
 python3 "$HERE/e2e_two_users.py"
 python3 "$HERE/e2e_library_email.py"
