@@ -30,7 +30,7 @@ def raises(name, uid, sql, params=(), like=""):
     try: r = run(uid, sql, params); check(f"{name} -> unexpectedly ok: {r}", False)
     except psycopg.Error as e: check(f"{name} (error: {str(e).splitlines()[0][:70]})", like.lower() in str(e).lower())
 adm = lambda sql, p=(): conn.execute(sql, p).fetchall()
-tag = uuid.uuid4().hex[:6]
+tag = str(uuid.uuid4().int)[:6]  # digits only: random hex can trip the name filter
 A, B, C, D, E, M = (new_user(n) for n in (f"Ann{tag}", f"Ben{tag}", f"Cat{tag}", f"Dan{tag}", f"Eve{tag}", f"Max{tag}"))
 run(A, "select block_user(%s)", (D,))
 nt = lambda u, kind: adm("select count(*), coalesce(max(count),0) from notifications where user_id=%s and kind=%s and read_at is null", (u, kind))[0]

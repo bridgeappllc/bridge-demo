@@ -80,6 +80,7 @@ nav button{position:relative}.badge{position:absolute;top:4px;left:calc(50% + 5p
 .pcard .pn{font-weight:600;font-size:14px;line-height:1.2;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pcard .ph{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pmore{flex:0 0 1px}
+.pcard.you{border-color:var(--b);background:var(--bl)}
 .rate{border:0;padding:0;margin:12px 0 4px;min-width:0}.rate legend{font-weight:600;font-size:15px;padding:0;margin-bottom:8px}
 .rsc{display:grid;grid-template-columns:repeat(11,minmax(0,1fr));gap:3px}
 .rsc button{min-height:44px;min-width:0;padding:0;border:1px solid var(--fl);border-radius:10px;background:var(--sf);color:var(--n);font:600 15px var(--serif);cursor:pointer}
@@ -175,7 +176,7 @@ const API={
   const r=await fetch(CFG.SUPABASE_URL+"/functions/v1/remind",{method:"POST",headers:{Authorization:"Bearer "+t,apikey:CFG.SUPABASE_ANON_KEY,"Content-Type":"application/json"},body:JSON.stringify({kind,pod,target,app:location.origin+location.pathname,dry_run:!!window.REMIND_DRY})});
   const b=await r.json().catch(()=>({}));if(!r.ok)throw new Error(b.error||"Couldn't send the reminder");return b},
  async setReminders(on){ok(await sb.from("profiles").update({email_reminders:on}).eq("id",ME))},
- async everyone(before){return ok(await sb.rpc("list_people",before?{p_before:before.created_at,p_before_id:before.id,p_limit:30}:{p_limit:30}))||[]},
+ async everyone(before){return ok(await sb.rpc("list_people_v2",before?{p_before:before.created_at,p_before_id:before.id,p_limit:30}:{p_limit:30}))||[]},
  async blocks(){return ok(await sb.rpc("my_blocks"))},
  async handleFree(u){return ok(await sb.rpc("username_available",{p_username:u}))},
  async sendReq(uid){return ok(await sb.rpc("send_friend_request",{p_user:uid}))},
@@ -538,10 +539,11 @@ const rerender=()=>{const {id,sp}=parse(),v=viewOf(),key=v+"/"+id+"/"+(sp||"");i
 async function loadList(){try{DB.list=await API.list();rerender()}catch(e){fail(e)}}
 let lastSoc=0;
 async function loadSocial(){lastSoc=Date.now();try{const [r,f]=await Promise.all([API.requests(),API.friendsOf(ME)]);DB.req=r;DB.friends=f;rerender();paintNav()}catch(e){console.warn(e)}}
-const prowCard=p=>`<a class="pcard" role="listitem" href="#u/${p.id}" data-pc="${p.id}">${AV(p.display_name,56,p.id)}<span class="pn">${esc(p.display_name)}</span>${p.username?`<span class="sm mut ph">${esc(handle(p.username))}</span>`:""}</a>`;
+const prowCard=p=>{if(p.avatar_url!==undefined)AVS[p.id]=p.avatar_url;return `<a class="pcard" role="listitem" href="#u/${p.id}" data-pc="${p.id}">${AV(p.display_name,56,p.id,p.avatar_url||null)}<span class="pn">${esc(p.display_name)}</span>${p.username?`<span class="sm mut ph">${esc(handle(p.username))}</span>`:""}</a>`};
+const youCard=()=>ME&&PROFILE?`<a class="pcard you" role="listitem" href="#profile" data-pc="${ME}" aria-label="You — open your profile">${AV(PROFILE.display_name,56,ME)}<span class="pn">You</span>${PROFILE.username?`<span class="sm mut ph">${esc(handle(PROFILE.username))}</span>`:""}</a>`:"";
 let prowBusy=false;
 function paintRow(){const el=$("#prow");if(!el)return;const L=DB.prow;
- el.innerHTML=L===null?'<span class="mut sm" style="padding:8px 0">Loading…</span>':L.length?L.map(prowCard).join("")+(DB.prowEnd?"":'<span class="pmore" aria-hidden="true"></span>'):'<span class="mut sm" style="padding:8px 0">No one else here yet — invite a friend!</span>';
+ el.innerHTML=L===null?'<span class="mut sm" style="padding:8px 0">Loading…</span>':youCard()+(L.length?L.map(prowCard).join("")+(DB.prowEnd?"":'<span class="pmore" aria-hidden="true"></span>'):'<span class="mut sm" style="padding:8px 12px;align-self:center">No one else here yet — invite a friend!</span>');
  el.scrollLeft=DB.prowX||0;el.onscroll=()=>{DB.prowX=el.scrollLeft;if(el.scrollLeft>0&&el.scrollLeft+el.clientWidth>el.scrollWidth-240)loadRow(true)}}
 async function loadRow(more){if(prowBusy||(more&&(DB.prowEnd||!DB.prow)))return;prowBusy=true;
  try{const last=more?DB.prow[DB.prow.length-1]:null,rows=await API.everyone(last);const seen=new Set((more?DB.prow:[]).map(p=>p.id));

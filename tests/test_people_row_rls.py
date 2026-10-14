@@ -30,7 +30,7 @@ def raises(name, uid, sql, params=(), like=""):
     try: r = run(uid, sql, params); check(f"{name} -> unexpectedly ok: {r}", False)
     except psycopg.Error as e: check(f"{name} (error: {str(e).splitlines()[0][:70]})", like.lower() in str(e).lower())
 adm = lambda sql, p=(): conn.execute(sql, p).fetchall()
-tag = uuid.uuid4().hex[:6]
+tag = str(uuid.uuid4().int)[:6]  # digits only: random hex can trip the name filter
 A, B, C, D, E = (new_user(n) for n in (f"Ann{tag}", f"Ben{tag}", f"Cat{tag}", f"Dan{tag}", f"Eve{tag}"))
 S = new_user(f"SmokeTest{tag}"); G = new_user("Guest"); N = new_user(None)
 run(A, "select block_user(%s)", (D,)); run(E, "select block_user(%s)", (A,))

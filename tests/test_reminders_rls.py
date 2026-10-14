@@ -32,7 +32,7 @@ def raises(name, uid, sql, params=(), like=""):
     try: r = run(uid, sql, params); check(f"{name} -> unexpectedly ok: {r}", False)
     except psycopg.Error as e: check(f"{name} (error: {str(e).splitlines()[0][:70]})", like.lower() in str(e).lower())
 adm = lambda sql, p=(): conn.execute(sql, p).fetchall()
-tag = uuid.uuid4().hex[:6]
+tag = str(uuid.uuid4().int)[:6]  # digits only: random hex can trip the name filter
 def confirm(u, email): conn.execute("update auth.users set email=%s, email_confirmed_at=now(), is_anonymous=false where id=%s", (email, u))
 A, B, C, G, E, X = (new_user(n) for n in (f"Ann{tag}", f"Ben{tag}", f"Cat{tag}", f"Guy{tag}", f"Eve{tag}", f"Xan{tag}"))
 for u, n in ((A, "a"), (B, "b"), (C, "c"), (E, "e"), (X, "x")): confirm(u, f"{n}-{tag}@test.local")
