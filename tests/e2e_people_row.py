@@ -1,6 +1,7 @@
 """E2E: People page 'Everyone on Pod Club' row: newest first, excludes you / Smoke* / blocked, tap opens profile,
 snap scrolling, lazy-loads past 30, no overflow at 375px. Local runs use 'Row*' names (+ 45 seeded people for paging);
 hosted runs (BASE set) use only Smoke* users and check that none of them show up."""
+from authflow import signup_email, join_email, code_for, mails
 import os, re, time, uuid
 from playwright.sync_api import sync_playwright, expect
 BASE = os.environ.get("BASE", "http://127.0.0.1:8080/"); LOCAL = "127.0.0.1" in BASE
@@ -22,7 +23,7 @@ with sync_playwright() as p:
         ctx = br.new_context(**{**p.devices["iPhone 13"], "viewport": {"width": 375, "height": 760}}); pg = ctx.new_page()
         pg.on("pageerror", lambda e: errors.append(f"{who}: {e}")); pg.on("dialog", lambda d: d.accept()); return pg
     def signup(pg, name):
-        pg.goto(BASE); pg.click("#sbtn"); pg.fill("#nm", name); pg.click("#nok")
+        pg.goto(BASE); pg.click("#sbtn"); signup_email(pg, name)
         [pg.click(f".topic[data-t={t}]") for t in ("Politics", "Science", "Culture")]; pg.click("#tgo"); expect(pg.locator("#ubtn")).to_be_visible(timeout=T)
     y, z, v = phone("Y"), phone("Z"), phone("V"); signup(y, Y); signup(z, Z); signup(v, V); zid = z.evaluate("ME"); yid = y.evaluate("ME")
     def choose(pg, trigger, path):

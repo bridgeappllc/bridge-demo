@@ -1,6 +1,7 @@
 """E2E for the content filter: friendly inline errors ("Please keep it respectful") for names, @usernames and bios;
 chat/library profanity masked with ***; slurs blocked; server enforcement still works if the client list is missing.
   BASE=<app url> (default local). DB checks run only against the local stack."""
+from authflow import signup_email, join_email, code_for, mails
 import os, re, uuid
 from playwright.sync_api import sync_playwright, expect
 BASE = os.environ.get("BASE", "http://127.0.0.1:8080/"); LOCAL = "127.0.0.1" in BASE or "localhost" in BASE
@@ -28,7 +29,7 @@ with sync_playwright() as p:
     expect(ierr(pa)).to_contain_text(R, timeout=T); expect(pa.locator("#nm")).to_have_attribute("aria-invalid", "true"); shot(pa, "fl-01-signup-name")
     assert pa.evaluate("ME") is None, "no account should be created for a rejected name"
     pa.fill("#nm", A); expect(ierr(pa)).to_have_count(0)
-    pa.click("#nok"); expect(pa.get_by_text("Pick your topics")).to_be_visible(timeout=T); pa.click("text=Skip"); expect(pa.get_by_text("Your Pods")).to_be_visible(timeout=T)
+    signup_email(pa, A); expect(pa.get_by_text("Pick your topics")).to_be_visible(timeout=T); pa.click("text=Skip"); expect(pa.get_by_text("Your Pods")).to_be_visible(timeout=T)
     step("Sign-up: a profane name gets an inline 'Please keep it respectful' (no account created); the error clears when typing")
     # 2. settings: name, @username, bio
     pa.goto(BASE + "#profile"); pa.click(".tabs button:has-text('Settings')"); expect(pa.locator("#pname")).to_be_visible(timeout=T)
@@ -46,12 +47,12 @@ with sync_playwright() as p:
     if db: assert q("select bio from profiles where display_name=%s", (A,)) == [("Classic cocktails in Scunthorpe",)]
     step("Without the client list the server rejects it and the app still shows the friendly inline message (and reloads the list)")
     # 4. second user with a pod; chat masking + slur blocking
-    pb.goto(BASE); pb.click("#sbtn"); pb.fill("#nm", B); pb.click("#nok"); expect(pb.get_by_text("Pick your topics")).to_be_visible(timeout=T); pb.click("text=Skip")
+    pb.goto(BASE); pb.click("#sbtn"); signup_email(pb, B); expect(pb.get_by_text("Pick your topics")).to_be_visible(timeout=T); pb.click("text=Skip")
     pa.goto(BASE + "#new"); pa.fill("#murl", "https://example.org/filter-test"); pa.fill("#mtitle", "Filter test"); pa.fill("#mfriend", B)
     pa.click("#mgo"); expect(pa.locator("#itxt")).to_be_visible(timeout=T)
     link = re.search(r"(https?://\S+#b/[0-9a-f]{32})", pa.locator("#itxt").input_value()).group(1)
     pb.goto(link); pb.fill("#jname", "Dickhead"); pb.click("#jgo"); expect(ierr(pb)).to_contain_text(R, timeout=T)
-    pb.fill("#jname", B); pb.click("#jgo"); expect(pb.get_by_text("Answer & rate")).to_be_visible(timeout=T)
+    join_email(pb, B); expect(pb.get_by_text("Answer & rate")).to_be_visible(timeout=T)
     step("Joining a pod with a profane name is stopped inline")
     pb.fill("#q3", "Honestly, kys"); pb.locator('.rate [data-rv="7"]').click()
     pb.click("#qsave"); expect(ierr(pb)).to_contain_text(R, timeout=T)

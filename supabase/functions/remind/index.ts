@@ -1,4 +1,4 @@
-// Pod Club "Remind" — emails a pod member who hasn't answered yet, via Resend.
+// Pod Club "Remind" — nudges someone who hasn't answered yet: always in-app, plus email via Resend when they can get it.
 // The caller is identified from their JWT; all rules + the recipient's email lookup happen in the DB
 // (public.remind_prepare / remind_finish, service role only). The email address is never returned to the client.
 const SB = Deno.env.get("SUPABASE_URL")!;
@@ -51,10 +51,16 @@ Deno.serve(async (req) => {
   const app = APPS.find((a) => a === body?.app) ?? APPS[0];
   try {
     const rows = await rpc("remind_prepare", { p_sender: me.id, p_kind: kind, p_pod: pod, p_target: target, p_dry: dry });
-    const r = rows?.[0]; if (!r?.email) return json({ error: "They can't get email reminders" }, 400);
+    const r = rows?.[0]; if (!r) return json({ error: "Couldn't send the reminder" }, 500);
     const link = `${app}#${kind === "bridge" ? `bridge/${pod}/1` : `pod/${pod}`}`;
+    // Not emailable (guest, unconfirmed, or reminders off): in-app notification only. The client never learns why.
+    if (!r.email) {
+      if (dry) return json({ ok: true, dry_run: true, emailed: false });
+      await rpc("remind_finish", { p_id: r.reminder_id, p_ok: true });
+      return json({ ok: true, emailed: false });
+    }
     const mail = emailFor(r.sender_name, r.clip_title, link, `${app}#settings`);
-    if (dry) return json({ ok: true, dry_run: true, to: mask(r.email), from: FROM, subject: mail.subject, link, html_bytes: mail.html.length });
+    if (dry) return json({ ok: true, dry_run: true, emailed: true, to: mask(r.email), from: FROM, subject: mail.subject, link, html_bytes: mail.html.length });
     let sent = false, why = "";
     try {
       const s = await fetch(RESEND_URL, { method: "POST", headers: { Authorization: `Bearer ${RESEND_KEY}`, "Content-Type": "application/json" },
@@ -62,8 +68,9 @@ Deno.serve(async (req) => {
           headers: { "List-Unsubscribe": `<${app}#settings>` }, tags: [{ name: "type", value: "reminder" }] }) });
       sent = s.ok; if (!s.ok) why = (await s.text()).slice(0, 200);
     } catch (e) { why = String(e).slice(0, 200); }
-    await rpc("remind_finish", { p_id: r.reminder_id, p_ok: sent });
-    if (!sent) { console.error("resend failed", why); return json({ error: "Couldn't send the email. Try again later." }, 502); }
-    return json({ ok: true });
+    // The in-app notification goes out either way; a failed email just makes it in-app only.
+    await rpc("remind_finish", { p_id: r.reminder_id, p_ok: true });
+    if (!sent) console.error("resend failed", why);
+    return json({ ok: true, emailed: sent });
   } catch (e: any) { return json({ error: e.message }, e.status ?? 500); }
 });

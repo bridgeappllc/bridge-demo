@@ -2,6 +2,7 @@
 unread count -> notifications list -> incoming bridge in Your Pods -> accept -> answer 3 questions -> talk;
 A gets 'joined' / 'answered' / message notifications and opens the bridge from one. Works locally (polling) and
 on a hosted build (BASE=..., Realtime). Users are named Smoke* so hosted runs can be cleaned up."""
+from authflow import signup_email, join_email, code_for, mails
 import os, re, time
 from playwright.sync_api import sync_playwright, expect
 BASE = os.environ.get("BASE", "http://127.0.0.1:8080/")
@@ -17,7 +18,7 @@ with sync_playwright() as p:
         pg.on("pageerror", lambda e: errors.append(f"{who}: {e}")); pg.on("dialog", lambda d: d.accept()); return pg
     def shot(pg, name): pg.wait_for_timeout(400); pg.screenshot(path=f"{SHOTS}/ds-{name}.png")
     def signup(pg, name):
-        pg.goto(BASE); pg.click("#sbtn"); pg.fill("#nm", name); pg.click("#nok")
+        pg.goto(BASE); pg.click("#sbtn"); signup_email(pg, name)
         [pg.click(f".topic[data-t={t}]") for t in ("Politics", "Science", "Culture")]; pg.click("#tgo"); expect(pg.locator("#ubtn")).to_be_visible(timeout=T)
     a, b = phone("A"), phone("B"); signup(a, A); signup(b, Bn); bid = b.evaluate("ME")
     expect(a.locator("#bell .nb")).to_be_hidden(); expect(a.locator("#bell")).to_have_attribute("aria-label", "Notifications")

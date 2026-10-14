@@ -1,6 +1,7 @@
 """E2E for store requirements: legal pages + links, Report (message, user+block, library item),
 and Settings > Delete account (the partner keeps the bridge, shown as "Deleted user").
   BASE=<app url> (default local). DB checks run only against the local stack (DSN reachable)."""
+from authflow import signup_email, join_email, code_for, mails
 import os, re, time, uuid
 from playwright.sync_api import sync_playwright, expect
 BASE = os.environ.get("BASE", "http://127.0.0.1:8080/"); LOCAL = "127.0.0.1" in BASE or "localhost" in BASE
@@ -34,14 +35,14 @@ with sync_playwright() as p:
     def signup(pg, nm):
         pg.goto(BASE); pg.click("#sbtn"); expect(pg.locator("#agree")).to_be_visible()
         assert pg.locator("#agree a").evaluate_all("els=>els.map(e=>e.getAttribute('href'))") == ["terms.html", "privacy.html"]
-        pg.fill("#nm", nm); pg.click("#nok"); expect(pg.get_by_text("Pick your topics")).to_be_visible(timeout=T); pg.click("text=Skip")
+        signup_email(pg, nm); expect(pg.get_by_text("Pick your topics")).to_be_visible(timeout=T); pg.click("text=Skip")
         expect(pg.get_by_text("Your Pods")).to_be_visible(timeout=T)
     signup(pa, A); shot(pa, "st-04-bridges"); signup(pb, B); step("Sign-up shows the 13+ / Terms / Privacy agreement with links")
     # bridge A -> B, both answer, B chats
     pa.goto(BASE + "#new"); pa.fill("#murl", "https://example.org/store-test"); pa.fill("#mtitle", "Store test episode"); pa.fill("#mfriend", B)
     pa.click("#mgo"); expect(pa.locator("#itxt")).to_be_visible(timeout=T)
     link = re.search(r"(https?://\S+#b/[0-9a-f]{32})", pa.locator("#itxt").input_value()).group(1)
-    pb.goto(link); pb.fill("#jname", B); pb.click("#jgo"); expect(pb.get_by_text("Answer & rate")).to_be_visible(timeout=T)
+    pb.goto(link); join_email(pb, B); expect(pb.get_by_text("Answer & rate")).to_be_visible(timeout=T)
     for pg in (pb, pa):
         if pg is pa: pa.click("#nx"); expect(pa.get_by_text("Answer & rate")).to_be_visible(timeout=T)
         pg.fill("#q3", f"{'Ben' if pg is pb else 'Ava'} answer takeaway"); pg.locator('.rate [data-rv="7"]').click()

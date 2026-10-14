@@ -1,6 +1,7 @@
 """E2E for profile photos: pick -> square crop -> resize -> preview -> upload; replace; shown to others
 (invite landing, bridge card, chat, search, profile); report a photo; remove; account deletion removes the files.
   BASE=<app url> (default local). SHOTS_DIR for screenshots. DB checks only against the local stack."""
+from authflow import signup_email, join_email, code_for, mails
 import io, os, re, uuid, requests
 from PIL import Image
 from playwright.sync_api import sync_playwright, expect
@@ -38,7 +39,7 @@ with sync_playwright() as p:
         pg.on("pageerror", lambda e, w=w: errors.append(f"{w}: {e}")); pg.on("dialog", lambda d: d.accept())
     shot = lambda pg, nm: pg.screenshot(path=f"{SHOTS}/{nm}.png")
     def signup(pg, nm):
-        pg.goto(BASE); pg.click("#sbtn"); pg.fill("#nm", nm); pg.click("#nok"); expect(pg.get_by_text("Pick your topics")).to_be_visible(timeout=T)
+        pg.goto(BASE); pg.click("#sbtn"); signup_email(pg, nm); expect(pg.get_by_text("Pick your topics")).to_be_visible(timeout=T)
         pg.click("text=Skip"); expect(pg.get_by_text("Your Pods")).to_be_visible(timeout=T)
     def choose(pg, trigger, path):
         with pg.expect_file_chooser() as fc: pg.click(trigger)
@@ -82,7 +83,7 @@ with sync_playwright() as p:
     pb.goto(link); expect(pb.locator(".inv .av img")).to_have_attribute("alt", f"Profile photo of {A}", timeout=T)
     pb.wait_for_function("document.querySelector('.inv .av img')&&document.querySelector('.inv .av img').naturalWidth>0", timeout=T); shot(pb, "av-03-invite-landing")
     step("Invite landing (before the friend has an account) shows the inviter's photo")
-    pb.fill("#jname", B); pb.click("#jgo"); expect(pb.get_by_text("Answer & rate")).to_be_visible(timeout=T)
+    join_email(pb, B); expect(pb.get_by_text("Answer & rate")).to_be_visible(timeout=T)
     for pg in (pb, pa):
         if pg is pa: pa.click("#nx"); expect(pa.get_by_text("Answer & rate")).to_be_visible(timeout=T)
         pg.fill("#q3", f"Answer number takeaway"); pg.locator('.rate [data-rv="7"]').click()
