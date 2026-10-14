@@ -30,7 +30,7 @@ def raises(name, uid, sql, params=(), like=""):
     try: r = run(uid, sql, params); check(f"{name} -> unexpectedly ok: {r}", False)
     except psycopg.Error as e: check(f"{name} (error: {str(e).splitlines()[0][:70]})", like.lower() in str(e).lower())
 adm = lambda sql, p=(): conn.execute(sql, p).fetchall()
-tag = uuid.uuid4().hex[:6]
+tag = str(uuid.uuid4().int)[:6]  # digits only: random hex can trip the name filter
 A, B, C, E = (new_user(n) for n in (f"Ann{tag}", f"Ben{tag}", f"Cat{tag}", f"Eve{tag}"))
 print("2-person pods")
 b = run(A, "select id, invite_token from create_bridge(%s,'One Q','https://example.org/oneq')", (f"Ann{tag}",))[0]; bid = str(b[0])

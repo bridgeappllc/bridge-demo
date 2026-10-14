@@ -1,6 +1,7 @@
 """E2E (three phones): A creates a group pod with B and C (search + pick), B and C are notified, A shares a clip,
 B and C are notified, chat stays locked until you answer the newest clip, group chat works across all three
 (Realtime + polling), owner removes / member leaves. Users are named Smoke* so hosted runs can be cleaned up."""
+from authflow import signup_email, join_email, code_for, mails
 import os, re, time
 from playwright.sync_api import sync_playwright, expect
 BASE = os.environ.get("BASE", "http://127.0.0.1:8080/")
@@ -17,7 +18,7 @@ with sync_playwright() as p:
         pg.on("pageerror", lambda e: errors.append(f"{who}: {e}")); pg.on("dialog", lambda d: d.accept()); return pg
     def shot(pg, name): pg.wait_for_timeout(400); pg.screenshot(path=f"{SHOTS}/gp-{name}.png")
     def signup(pg, name):
-        pg.goto(BASE); pg.click("#sbtn"); pg.fill("#nm", name); pg.click("#nok")
+        pg.goto(BASE); pg.click("#sbtn"); signup_email(pg, name)
         [pg.click(f".topic[data-t={t}]") for t in ("Politics", "Science", "Culture")]; pg.click("#tgo"); expect(pg.locator("#ubtn")).to_be_visible(timeout=T)
     def answer(pg, who):
         g = pg.locator(".gclip").first; g.locator(".gq").fill(f"{who} answer 1")

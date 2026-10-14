@@ -1,6 +1,7 @@
 """E2E: Profile > Settings > Sign out. Guest gets a 'save your account first' warning (cancel keeps
 the account), email user gets a simple confirm; sign-out clears local app state and lands on Welcome,
 then 'I Have an Account' sign-in and a fresh sign-up both work. Local stack (Mailpit) only."""
+from authflow import signup_email, join_email, code_for, mails
 import json, os, re, time, urllib.request, urllib.parse
 from playwright.sync_api import sync_playwright, expect
 BASE = os.environ.get("BASE", "http://127.0.0.1:8080/"); MAILPIT = os.environ.get("MAILPIT", "http://127.0.0.1:8025")
@@ -23,18 +24,17 @@ with sync_playwright() as p:
     def on_dialog(d): dlg["msgs"].append(d.message); d.accept() if dlg["accept"] else d.dismiss()
     pg.on("dialog", on_dialog)
     def settings(): pg.get_by_text("Profile", exact=True).last.click(); pg.click("[data-pt=Settings]"); expect(pg.locator("#sout")).to_be_visible(timeout=T)
-    def signup(name, topics=("Science", "Economics", "Education")):
-        pg.click("#sbtn"); pg.fill("#nm", name); pg.click("#nok"); expect(pg.get_by_text("Pick your topics")).to_be_visible(timeout=T)
+    def signup(name, topics=("Science", "Economics", "Education"), email=None):
+        pg.click("#sbtn"); signup_email(pg, name, email); expect(pg.get_by_text("Pick your topics")).to_be_visible(timeout=T)
         [pg.click(f".topic[data-t={t}]") for t in topics]; pg.click("#tgo")
-    pg.goto(BASE); signup("SmokeGuest", ("Politics", "Culture", "Science")); settings()
+    pg.goto(BASE); signup("SmokeGuest", ("Politics", "Culture", "Science"), EMAIL); settings()
     btn = pg.locator("#sout"); expect(btn).to_have_text(re.compile("Sign out"))
     expect(btn).to_have_css("color", "rgb(74, 107, 87)", timeout=T)
     pg.screenshot(path=f"{SHOTS}/signout.png", full_page=True); step("Settings shows a Harbor Blue 'Sign out' button")
     dlg["accept"] = False; btn.click(); pg.wait_for_timeout(500)
-    assert "guest" in dlg["msgs"][-1].lower() and "save your account" in dlg["msgs"][-1].lower(), dlg["msgs"]
-    expect(pg.locator("#sout")).to_be_visible(); step("Guest: warning suggests saving the account first; Cancel keeps you signed in")
-    pg.click("#gosave"); pg.fill("#em", EMAIL); n0 = len(mails(EMAIL)); pg.click("#esend"); pg.fill("#code", code_for(EMAIL, n0)); pg.click("#cok")
-    expect(pg.get_by_text("Account saved")).to_be_visible(timeout=T); settings(); expect(pg.get_by_text(EMAIL)).to_be_visible()
+    assert "sign back in any time with your email" in dlg["msgs"][-1].lower(), dlg["msgs"]
+    expect(pg.locator("#sout")).to_be_visible(); step("Sign-out confirm (email account); Cancel keeps you signed in")
+    expect(pg.get_by_text(EMAIL)).to_be_visible()
     dlg["accept"] = True; pg.click("#sout"); expect(pg.locator("#lbtn")).to_be_visible(timeout=T)
     assert "guest" not in dlg["msgs"][-1].lower(), dlg["msgs"][-1]
     st = pg.evaluate("localStorage.getItem('bridge_real_v1')"); assert "Politics" not in (st or ""), st

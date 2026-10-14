@@ -4,6 +4,7 @@ pending badge, friends' libraries, Discover feed from friends, starting a pod
 directly with a friend from their library, library privacy (Everyone / Friends only /
 Only me), shareable profile link (incl. before sign-up), block/unblock, old #lib route.
   BASE=<app url> (default http://127.0.0.1:8080/)   SHOTS_DIR=<dir>"""
+from authflow import signup_email, join_email, code_for, mails
 import os, re, time
 from playwright.sync_api import sync_playwright, expect
 BASE = os.environ.get("BASE", "http://127.0.0.1:8080/")
@@ -25,7 +26,7 @@ with sync_playwright() as p:
         try: pg.screenshot(path=f"{SHOTS}/{name}.png", timeout=15000)
         except Exception: print("    (screenshot skipped)", name)
     def signup(pg, name, url=BASE):
-        pg.goto(url); pg.click("#sbtn"); pg.fill("#nm", name); pg.click("#nok"); expect(pg.get_by_text("Pick your topics")).to_be_visible(timeout=T); pg.click("text=Skip")
+        pg.goto(url); pg.click("#sbtn"); signup_email(pg, name); expect(pg.get_by_text("Pick your topics")).to_be_visible(timeout=T); pg.click("text=Skip")
     def item(pg, url, title, cat):
         pg.goto(BASE + "#profile"); pg.click("[data-pt=Add]"); pg.fill("#aurl", url); pg.fill("#atitle", title); pg.select_option("#acat", cat); pg.click("#asave"); expect(pg.get_by_text("Remove from Library")).to_be_visible(timeout=T)
     def profile_tab(pg, t): pg.goto(BASE + "#profile"); pg.click(f"[data-pt={t}]")

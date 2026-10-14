@@ -8,6 +8,7 @@ delivers a chat message with polling effectively disabled.
   P=, S=, E=              display names (default SmokePaul/SmokeSam/SmokeEve so
                           test rows can be found and deleted afterwards)
 """
+from authflow import signup_email, join_email, code_for, mails
 import re, sys, os, tempfile, time
 from playwright.sync_api import sync_playwright, expect
 BASE = os.environ.get("BASE", "http://127.0.0.1:8080/")
@@ -35,7 +36,7 @@ with sync_playwright() as p:
         except Exception as e: print(f"    (screenshot {n} skipped: {str(e).splitlines()[0][:80]})")
 
     # --- Paul signs up and creates a pod from a pasted link
-    paul.goto(BASE); paul.click("#sbtn"); paul.fill("#nm", P); paul.click("#nok")
+    paul.goto(BASE); paul.click("#sbtn"); signup_email(paul, P)
     expect(paul.get_by_text("Pick your topics")).to_be_visible(timeout=T)
     for t in ("Politics", "Economics", "Culture"): paul.click(f".topic[data-t={t}]")
     paul.click("#tgo"); expect(paul.get_by_text("No pods yet")).to_be_visible(timeout=T); step(f"{P} signs up (anonymous auth + profile), picks topics")
@@ -51,15 +52,15 @@ with sync_playwright() as p:
     paul.click("#cp"); assert paul.evaluate("navigator.clipboard.readText()") == invite; step("Copy invite text puts it on the clipboard")
     paul.click("#nx")
     expect(paul.get_by_text("Answer & rate")).to_be_visible(timeout=T)
-    expect(paul.get_by_text(f"{S} hasn't joined yet.")).to_be_visible(timeout=T)
+    expect(paul.get_by_text(f"{S} hasn't joined yet.").first).to_be_visible(timeout=T)
 
     # --- Sam opens the link on "his phone"
     sam.goto(link)
     expect(sam.get_by_text(f"{P} wants you to listen to this")).to_be_visible(timeout=T)
     expect(sam.get_by_text("Smoke test video")).to_be_visible(); shot(sam, "02-sam-invite-landing")
-    sam.fill("#jname", S); sam.click("#jgo")
+    join_email(sam, S)
     expect(sam.get_by_text("Answer & rate")).to_be_visible(timeout=T); step(f"{S} opens link, enters only a name, joins")
-    expect(sam.get_by_text(f"{P} hasn't answered yet.")).to_be_visible(timeout=T)
+    expect(sam.get_by_text(f"{P} hasn't answered yet.").first).to_be_visible(timeout=T)
 
     # --- Paul answers first -> his chat opens right away; Sam sees progress but not the content
     paul.fill("#q3", "Paul takeaway"); paul.locator('.rate [data-rv="7"]').click()
@@ -120,7 +121,7 @@ with sync_playwright() as p:
     # --- Outsiders
     eve.goto(link); expect(eve.get_by_text("This pod is full")).to_be_visible(timeout=T); step("3rd person with the link is refused (bridge is full)")
     eve.goto(BASE + "#b/" + "0" * 32); expect(eve.get_by_text("Invite not found")).to_be_visible(timeout=T); step("Bogus invite token -> 'Invite not found'")
-    eve.goto(BASE); eve.click("#sbtn"); eve.fill("#nm", E); eve.click("#nok"); expect(eve.get_by_text("Pick your topics")).to_be_visible(timeout=T)
+    eve.goto(BASE); eve.click("#sbtn"); signup_email(eve, E); expect(eve.get_by_text("Pick your topics")).to_be_visible(timeout=T)
     eve.goto(BASE + "#bridge/" + bridge_path); expect(eve.get_by_text("Pod not found")).to_be_visible(timeout=T); step("Signed-in outsider opening the bridge URL directly sees nothing")
 
     # --- Profile stats + rename

@@ -3,6 +3,7 @@ pod partners viewing your library, starting a pod from a library item,
 'Save your account' (guest -> email, same user id) and email-code sign-in on a
 second browser with library/bridges syncing. Needs a mail catcher (Mailpit) whose
 API is at MAILPIT (default http://127.0.0.1:8025) — local stack only."""
+from authflow import signup_email, join_email, code_for, mails
 import json, os, re, time, urllib.request
 from playwright.sync_api import sync_playwright, expect
 BASE = os.environ.get("BASE", "http://127.0.0.1:8080/")
@@ -35,8 +36,8 @@ with sync_playwright() as p:
     phone.add_init_script("if(!sessionStorage.getItem('seeded')){localStorage.setItem('bridge_real_v1', %s);sessionStorage.setItem('seeded','1')}" % json.dumps(json.dumps(LEGACY)))
     paul = page(phone, "paul-phone")
 
-    # 1) guest sign-up migrates the old device-local library into the account
-    paul.goto(BASE); paul.click("#sbtn"); paul.fill("#nm", "SmokePaul"); paul.click("#nok")
+    # 1) email sign-up migrates the old device-local library into the account
+    paul.goto(BASE); paul.click("#sbtn"); signup_email(paul, "SmokePaul", PAUL_EMAIL)
     expect(paul.get_by_text("Pick your topics")).to_be_visible(timeout=T); paul.click("text=Skip")
     paul.goto(BASE + "#profile"); expect(paul.locator(".card", has_text="Old saved podcast")).to_be_visible(timeout=T)
     expect(paul.locator(".card", has_text="Old saved podcast")).to_contain_text("from the old app")
@@ -58,22 +59,11 @@ with sync_playwright() as p:
     paul.fill("#mfriend", "SmokeSam"); paul.click("#mgo"); expect(paul.locator("#itxt")).to_be_visible(timeout=T)
     link = re.search(r"(https?://\S+#b/[0-9a-f]{32})", paul.locator("#itxt").input_value()).group(1)
     assert "A talk that changed my mind" in paul.locator("#itxt").input_value()
-    expect(paul.locator("#savenote")).to_be_visible(); step("Bridge started from a library item; invite shows 'Save your account' prompt")
-
-    # 4) save account: guest -> email with a 6-digit code (same user id, data kept)
-    paul.click("#savenote a"); expect(paul.get_by_text("Save your account").first).to_be_visible(timeout=T)
-    paul.fill("#em", PAUL_EMAIL); n0 = len(mails(PAUL_EMAIL)); paul.click("#esend")
-    code, subj = new_code(PAUL_EMAIL, n0); assert "confirmation code" in subj, subj
-    expect(paul.locator("#code")).to_be_visible(timeout=T); shot(paul, "v2-03-save-account-code")
-    paul.fill("#code", "000000"); paul.click("#cok"); expect(paul.locator("#emsg")).to_contain_text("wrong or expired", timeout=T); step("Wrong code shows a clear error")
-    paul.fill("#code", code); paul.click("#cok")
-    expect(paul.get_by_text(f"Signed in as {PAUL_EMAIL}")).to_be_visible(timeout=T)
-    assert paul.evaluate("ME") == paul_id and paul.evaluate("USER.is_anonymous") is False
-    step("Save your account: email code converts the guest in place (same user id, no longer anonymous)")
+    expect(paul.locator("#savenote")).to_have_count(0); step("Bridge started from a library item (no 'Save your account' prompt: accounts have email now)")
 
     # 5) Sam joins, opens Paul's library, adds an item from it to his own
     samc = br.new_context(**iphone); sam = page(samc, "sam")
-    sam.goto(link); sam.fill("#jname", "SmokeSam"); sam.click("#jgo"); expect(sam.get_by_text("Answer & rate")).to_be_visible(timeout=T)
+    sam.goto(link); join_email(sam, "SmokeSam"); expect(sam.get_by_text("Answer & rate")).to_be_visible(timeout=T)
     sam.click("text=SmokePaul's library"); expect(sam.get_by_text("SmokePaul's library").first).to_be_visible(timeout=T)
     expect(sam.locator(".card", has_text="A talk that changed my mind")).to_be_visible(timeout=T); expect(sam.locator(".card", has_text="Old saved podcast")).to_be_visible()
     shot(sam, "v2-02-friend-library")
@@ -82,11 +72,6 @@ with sync_playwright() as p:
     sam.goto(BASE + "#profile"); expect(sam.locator(".card", has_text="A talk that changed my mind")).to_be_visible(timeout=T)
     expect(sam.locator(".chips")).to_contain_text("SmokePaul →")
     step("Pod partner sees your library (with notes) and can add an item to their own")
-
-    # 6) Sam (guest) tries Paul's email -> 'already has an account'
-    sam.goto(BASE + "#account"); sam.fill("#em", PAUL_EMAIL); sam.click("#esend")
-    expect(sam.locator("#emsg")).to_contain_text("already has a Pod Club account", timeout=T); expect(sam.locator("#exists")).to_be_visible()
-    step("Saving with an email that's taken -> clear message + option to switch")
 
     # 7) Paul on a NEW browser: 'I have an account' -> code -> bridges + library come back
     laptop = br.new_context(viewport={"width": 1100, "height": 800}); lap = page(laptop, "paul-laptop")

@@ -1,4 +1,5 @@
 """E2E: header name menu (My profile / Settings / Sign out, a11y, outside tap + Escape close) and logo -> home."""
+from authflow import signup_email, join_email, code_for, mails
 import os, re
 from playwright.sync_api import sync_playwright, expect
 BASE = os.environ.get("BASE", "http://127.0.0.1:8080/"); SHOT = os.environ.get("MENU_SHOT")
@@ -11,7 +12,7 @@ with sync_playwright() as p:
     dlg = {"accept": False, "msgs": []}
     pg.on("dialog", lambda d: (dlg["msgs"].append(d.message), d.accept() if dlg["accept"] else d.dismiss()))
     pg.goto(BASE); home = pg.locator("#home"); home.click(); expect(pg.locator("#sbtn")).to_be_visible(); step("Signed out: logo stays on Welcome")
-    pg.click("#sbtn"); pg.fill("#nm", "SmokeMenu"); pg.click("#nok"); [pg.click(f".topic[data-t={t}]") for t in ("Politics", "Science", "Culture")]; pg.click("#tgo")
+    pg.click("#sbtn"); signup_email(pg, "SmokeMenu"); [pg.click(f".topic[data-t={t}]") for t in ("Politics", "Science", "Culture")]; pg.click("#tgo")
     ub = pg.locator("#ubtn"); expect(ub).to_contain_text("Hi, SmokeMenu", timeout=T); expect(ub).to_have_attribute("aria-expanded", "false")
     ub.click(); m = pg.locator("#umenu"); expect(m).to_be_visible(); expect(ub).to_have_attribute("aria-expanded", "true")
     expect(m.get_by_role("menuitem")).to_have_text(["My profile", "Settings", re.compile("Sign out")])
@@ -25,7 +26,7 @@ with sync_playwright() as p:
     pg.locator("#ubtn").click(); pg.locator("#umenu").get_by_text("Settings").click(); expect(pg.locator("#sout")).to_be_visible(timeout=T); step("Settings opens Profile > Settings")
     home.click(); expect(pg).to_have_url(re.compile("#bridges")); expect(pg.get_by_text("Your Pods")).to_be_visible(timeout=T); step("Logo goes to Your Pods when signed in")
     pg.locator("#ubtn").click(); pg.locator("#umenu").get_by_text("Sign out").click(); pg.wait_for_timeout(400)
-    assert "guest" in dlg["msgs"][-1].lower(); expect(pg.locator("#ubtn")).to_be_visible(); step("Sign out (guest) shows the save-first warning; Cancel keeps you in")
+    assert "sign back in" in dlg["msgs"][-1].lower(); expect(pg.locator("#ubtn")).to_be_visible(); step("Sign out shows a confirm; Cancel keeps you in")
     dlg["accept"] = True; pg.locator("#ubtn").click(); pg.locator("#umenu").get_by_text("Sign out").click(); expect(pg.locator("#lbtn")).to_be_visible(timeout=T)
     expect(pg.locator("#ubtn")).to_have_count(0); step("Confirmed sign-out from the menu lands on Welcome")
     assert not errors, errors; step("No uncaught JS errors")
