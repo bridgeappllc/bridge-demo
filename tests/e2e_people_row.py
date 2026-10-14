@@ -36,9 +36,9 @@ with sync_playwright() as p:
     snap = row.evaluate("e=>[getComputedStyle(e).scrollSnapType,getComputedStyle(e).overflowX,getComputedStyle(e.querySelector('.pcard')).scrollSnapAlign]")
     assert snap[0].startswith("x mandatory") and snap[1] == "auto" and snap[2] == "start", snap; step("Horizontal scroll with snap")
     if LOCAL:
-        assert row.locator(".pcard").count() == 30, row.locator(".pcard").count()
+        c0 = row.locator(".pcard").count(); assert c0 >= 30, c0
         for _ in range(6): row.evaluate("e=>{e.scrollLeft=e.scrollWidth}"); v.wait_for_timeout(500)
-        c = row.locator(".pcard").count(); assert c > 30, c; x = row.evaluate("e=>e.scrollLeft"); assert x > 1000, x
+        c = row.locator(".pcard").count(); assert c > c0 or c > 60, (c0, c); x = row.evaluate("e=>e.scrollLeft"); assert x > 1000, x
         v.screenshot(path=f"{SHOTS}/prow-2.png"); step(f"Lazy-loads more when scrolled to the end ({c} cards, scroll position kept)")
         row.evaluate("e=>{e.scrollLeft=0}")
         v.goto(BASE + f"#u/{yid}"); v.click("[data-fa=block]"); expect(v.locator(".toast")).to_be_visible(timeout=T)

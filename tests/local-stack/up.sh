@@ -52,4 +52,14 @@ CONF
 nohup "$BIN/postgrest" "$RUN/postgrest.conf" > "$RUN/postgrest.log" 2>&1 & echo $! > "$RUN/postgrest.pid"
 nohup node "$HERE/gateway.js" > "$RUN/gateway.log" 2>&1 & echo $! > "$RUN/gateway.pid"
 node -e 'const c=require("crypto"),s=process.argv[1],b=o=>Buffer.from(JSON.stringify(o)).toString("base64url");const h=b({alg:"HS256",typ:"JWT"}),p=b({iss:"supabase-local",role:"anon",iat:1700000000,exp:2000000000});console.log(h+"."+p+"."+c.createHmac("sha256",s).update(h+"."+p).digest("base64url"))' "$SECRET" > "$RUN/anon.key"
+node -e 'const c=require("crypto"),s=process.argv[1],b=o=>Buffer.from(JSON.stringify(o)).toString("base64url");const h=b({alg:"HS256",typ:"JWT"}),p=b({iss:"supabase-local",role:"service_role",iat:1700000000,exp:2000000000});console.log(h+"."+p+"."+c.createHmac("sha256",s).update(h+"."+p).digest("base64url"))' "$SECRET" > "$RUN/service.key"
+# Edge Functions (deno) + a mock Resend API. Local only: the real Resend key is never passed (env -i), mail goes to the mock.
+nohup node "$HERE/resend-mock.js" > "$RUN/resend.log" 2>&1 & echo $! > "$RUN/resend.pid"
+DENO="${DENO:-$(command -v deno || echo /workspace/tools/deno)}"
+if [ -x "$DENO" ]; then
+  env -i PATH=/usr/bin:/bin HOME="$HOME" SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_ANON_KEY="$(cat "$RUN/anon.key")" SUPABASE_SERVICE_ROLE_KEY="$(cat "$RUN/service.key")" \
+    RESEND_API_KEY=re_local_mock RESEND_API_URL=http://127.0.0.1:54330/emails REMIND_APPS=http://127.0.0.1:8080/ DENO_SERVE_ADDRESS=tcp:127.0.0.1:54329 \
+    nohup "$DENO" run --allow-net --allow-env "$HERE/../../supabase/functions/remind/index.ts" > "$RUN/functions.log" 2>&1 & echo $! > "$RUN/functions.pid"
+  for i in $(seq 30); do curl -s -o /dev/null -X OPTIONS http://127.0.0.1:54329/ && break; sleep 0.5; done
+else echo "functions: deno not found — skipping"; fi
 sleep 2; echo "Stack up: API http://127.0.0.1:54321  anon key in $RUN/anon.key"
