@@ -50,7 +50,7 @@ with sync_playwright() as p:
     paul.locator("#itxt").scroll_into_view_if_needed(); paul.evaluate("window.scrollBy(0,120); const t=document.querySelector('#itxt'); t.scrollTop=t.scrollHeight"); shot(paul, "01-paul-invite"); step(f"Bridge created; invite text includes unique link {link[:60]}…")
     paul.click("#cp"); assert paul.evaluate("navigator.clipboard.readText()") == invite; step("Copy invite text puts it on the clipboard")
     paul.click("#nx")
-    expect(paul.get_by_text("Answer three questions")).to_be_visible(timeout=T)
+    expect(paul.get_by_text("Answer & rate")).to_be_visible(timeout=T)
     expect(paul.get_by_text(f"{S} hasn't joined yet.")).to_be_visible(timeout=T)
 
     # --- Sam opens the link on "his phone"
@@ -58,11 +58,11 @@ with sync_playwright() as p:
     expect(sam.get_by_text(f"{P} wants you to listen to this")).to_be_visible(timeout=T)
     expect(sam.get_by_text("Smoke test video")).to_be_visible(); shot(sam, "02-sam-invite-landing")
     sam.fill("#jname", S); sam.click("#jgo")
-    expect(sam.get_by_text("Answer three questions")).to_be_visible(timeout=T); step(f"{S} opens link, enters only a name, joins")
+    expect(sam.get_by_text("Answer & rate")).to_be_visible(timeout=T); step(f"{S} opens link, enters only a name, joins")
     expect(sam.get_by_text(f"{P} hasn't answered yet.")).to_be_visible(timeout=T)
 
     # --- Paul answers first -> his chat opens right away; Sam sees progress but not the content
-    for i, t in enumerate(["Paul moment", "Paul surprised", "Paul takeaway"]): paul.locator(".q").nth(i).fill(t)
+    paul.fill("#q3", "Paul takeaway"); paul.locator('.rate [data-rv="7"]').click()
     paul.click("#qsave"); expect(paul.get_by_text("💬 Talk")).to_be_visible(timeout=T)
     expect(paul.get_by_text(f"{S} hasn't answered yet — they'll see the chat once they do.")).to_be_visible()
     assert paul.locator(".steps button").all_inner_texts() == ["✓ Invite", "✓ Answer", "Talk"], paul.locator(".steps button").all_inner_texts()
@@ -71,17 +71,17 @@ with sync_playwright() as p:
     expect(paul.locator(".bub.me")).to_have_text("Hey, I thought it was pretty one-sided.", timeout=T)
     paul.click(".steps button:has-text('Answer')"); expect(paul.get_by_text(f"{S} hasn't answered yet — you'll see their answers here when they do.")).to_be_visible(timeout=T)
     expect(sam.get_by_text(f"🔒 {P} has answered — submit yours to see theirs.")).to_be_visible(timeout=T)
-    assert sam.get_by_text("Paul moment").count() == 0 and sam.locator("#chat").count() == 0
-    expect(sam.get_by_text("Unlocks after you answer the three questions.")).to_be_visible()
+    assert sam.get_by_text("Paul takeaway").count() == 0 and sam.locator("#chat").count() == 0
+    expect(sam.get_by_text("Unlocks after you answer and rate.")).to_be_visible()
     step(f"{S} sees {P}'s progress (live) but not his answers or the chat")
-    sam.locator(".q").nth(0).fill("Sam moment"); sam.wait_for_timeout(5000)
-    assert sam.locator(".q").nth(0).input_value() == "Sam moment"; step("Background refresh doesn't wipe typing")
-    sam.locator(".q").nth(1).fill("Sam surprised"); sam.locator(".q").nth(2).fill("Sam takeaway")
+    sam.fill("#q3", "Sam takeaway"); sam.locator('.rate [data-rv="9"]').click(); sam.wait_for_timeout(5000); sam.locator(".rate").scroll_into_view_if_needed(); shot(sam, "02b-sam-answer-rate")
+    assert sam.locator("#q3").input_value() == "Sam takeaway" and sam.locator('.rate [aria-checked=true]').get_attribute("data-rv") == "9"; step("Background refresh doesn't wipe typing")
     sam.click("#qsave"); expect(sam.get_by_text("💬 Talk")).to_be_visible(timeout=T)
     expect(sam.locator(".bub").first).to_have_text("Hey, I thought it was pretty one-sided.", timeout=T); step(f"{S} answers -> straight into Talk, sees {P}'s message")
-    sam.click(".steps button:has-text('Answer')"); expect(sam.get_by_text("Paul moment")).to_be_visible(timeout=T)
-    expect(paul.get_by_text("Sam moment")).to_be_visible(timeout=T); shot(paul, "03-paul-sees-both-answers")
-    step("After both answer, each sees the other's answers")
+    sam.click(".steps button:has-text('Answer')"); expect(sam.get_by_text("Paul takeaway")).to_be_visible(timeout=T)
+    expect(paul.get_by_text("Sam takeaway")).to_be_visible(timeout=T); expect(paul.locator(".rchip")).to_have_text(["7/10", "9/10"]); shot(paul, "03-paul-sees-both-answers")
+    expect(paul.get_by_text("If you had to describe the main takeaway in one or two sentences, what would you say?")).to_be_visible()
+    step("After both answer, each sees the other's answer + 0–10 rating (7/10, 9/10)")
     sam.click(".steps button:has-text('Talk')"); sam.fill("#ct", "Interesting — I came away convinced. Where did it lose you?"); sam.click("#cs")
     paul.click(".steps button:has-text('Talk')")
     expect(paul.locator(".bub:not(.me)")).to_have_text("Interesting — I came away convinced. Where did it lose you?", timeout=T)
@@ -136,14 +136,14 @@ with sync_playwright() as p:
 
     p2 = br.new_context(**iphone).new_page(); p2.goto(BASE + "?b=" + token); expect(p2.get_by_text("This pod is full")).to_be_visible(timeout=T); step("?b=<token> link form also works")
     import re as _re
-    bad = _re.compile(r"\brat(e|ed|ing|ings)\b|propaganda|redpill|neutral", _re.I); seen = []
+    bad = _re.compile(r"\bRate it\b|propaganda|redpill|neutral", _re.I); seen = []
     for h in ["#bridges", "#bridge/" + bridge_path + "/0", "#bridge/" + bridge_path + "/1", "#bridge/" + bridge_path + "/2", "#profile", "#new", "#clip/k1"]:
         paul.goto(BASE + h); paul.wait_for_timeout(1200); seen += [(h, m.group(0)) for m in bad.finditer(paul.locator("body").inner_text())]
     for tab in ["Library", "Discover", "Pods", "Settings"]:
         paul.goto(BASE + "#profile"); paul.click(f"[data-pt={tab}]"); paul.wait_for_timeout(500); seen += [(tab, m.group(0)) for m in bad.finditer(paul.locator("body").inner_text())]
     sam.goto(link); sam.wait_for_timeout(1500); seen += [("invite(member)", m.group(0)) for m in bad.finditer(sam.locator("body").inner_text())]
     seen += [("invite text", m.group(0)) for m in bad.finditer(invite)]
-    assert not seen, seen; step("No rating wording anywhere (bridges, all bridge steps, profile tabs, clip, invite text)")
+    assert not seen, seen; step("No old 'Rate it' step or loaded wording anywhere (bridges, all bridge steps, profile tabs, clip, invite text)")
     assert not errors, errors; step("No uncaught JS errors in any page")
     br.close()
 print(f"\nE2E: {len(results)} checks passed")

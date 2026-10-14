@@ -6,6 +6,7 @@ from playwright.sync_api import sync_playwright, expect
 BASE = os.environ.get("BASE", "http://127.0.0.1:8080/")
 SHOTS = os.environ.get("SHOTS_DIR") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "shots"); os.makedirs(SHOTS, exist_ok=True)
 T = 30000; n = 0; tag = str(int(time.time()) % 100000); A, Bn, Cn = f"SmokeAva{tag}", f"SmokeBo{tag}", f"SmokeCy{tag}"
+RATE = {"Ava": 8, "Bo": 5, "Cy": 10}
 def step(s):
     global n; n += 1; print("  ✓", s, flush=True)
 with sync_playwright() as p:
@@ -19,8 +20,9 @@ with sync_playwright() as p:
         pg.goto(BASE); pg.click("#sbtn"); pg.fill("#nm", name); pg.click("#nok")
         [pg.click(f".topic[data-t={t}]") for t in ("Politics", "Science", "Culture")]; pg.click("#tgo"); expect(pg.locator("#ubtn")).to_be_visible(timeout=T)
     def answer(pg, who):
-        for i in range(3): pg.locator(".gclip").first.locator(".gq").nth(i).fill(f"{who} answer {i+1}")
-        pg.locator(".gclip").first.locator("[data-gans]").click(); expect(pg.locator(".toast")).to_contain_text("Answers shared", timeout=T)
+        g = pg.locator(".gclip").first; g.locator(".gq").fill(f"{who} answer 1")
+        g.locator("[data-gans]").click(); expect(g.locator("[data-hint]")).to_have_text("Please pick a rating from 0 to 10.")
+        g.locator(f'.rate [data-rv="{RATE[who]}"]').click(); g.locator("[data-gans]").click(); expect(pg.locator(".toast")).to_contain_text("Answers shared", timeout=T)
     a, b, c = phone("A"), phone("B"), phone("C"); signup(a, A); signup(b, Bn); signup(c, Cn)
     # A creates the pod: search + pick two people
     a.goto(BASE + "#bridges"); expect(a.locator("#gnew")).to_be_visible(timeout=T); shot(a, "1-your-pods"); a.click("#gnew")
@@ -55,7 +57,9 @@ with sync_playwright() as p:
     b.fill("#gct", "Loved it"); b.click("#gcs"); shot(b, "5-answers-chat"); step("B answers -> sees A's answers + the chat, replies")
     c.goto(BASE + "#pod/" + pod); expect(c.get_by_text("Chat locked")).to_be_visible(timeout=T); answer(c, "Cy")
     expect(c.locator("#gchat .bub", has_text="Loved it")).to_be_visible(timeout=T); expect(c.locator(".gclip").first.locator("details")).to_contain_text("Bo answer 1"); shot(c, "6-c-chat")
-    step("C answers -> sees both answers + all messages")
+    expect(c.locator(".gclip").first.locator(".gavg")).to_contain_text("Average value: 7.7/10", timeout=T); expect(c.locator(".gclip").first.locator(".rchip")).to_have_count(3)
+    expect(c.locator(".gclip").first).to_contain_text("If you had to describe the main takeaway in one or two sentences, what would you say?")
+    step("C answers -> sees everyone's answer + rating, the group average (7.7/10) and all messages")
     def report(pg, sel, title):
         pg.locator(sel).first.click(); expect(pg.locator("#reph")).to_contain_text(title, timeout=T); pg.locator("#repsheet input[name=rr]").first.check()
         pg.click("#rsend"); expect(pg.locator(".toast")).to_contain_text("your report was sent", timeout=T)

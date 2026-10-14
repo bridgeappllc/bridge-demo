@@ -84,7 +84,7 @@ with sync_playwright() as p:
     bob.click("#mgo"); expect(bob.locator("#addednote")).to_contain_text(f"{A} is in this pod", timeout=T); bob.evaluate("document.querySelector('#addednote').scrollIntoView({block:'start'}); window.scrollBy(0,-70)"); shot(bob, "s09-friend-added", top=False)
     step("Start a pod from a friend's library item: friend prefilled and added directly")
     alice.goto(BASE + "#bridges"); card = alice.locator(".card", has_text=f"Invited by {B}"); expect(card).to_be_visible(timeout=T)
-    expect(card).to_contain_text("Cities and the climate"); card.click(); expect(alice.get_by_text("Answer three questions")).to_be_visible(timeout=T)
+    expect(card).to_contain_text("Cities and the climate"); card.click(); expect(alice.get_by_text("Answer & rate")).to_be_visible(timeout=T)
     step("Alice finds the new bridge in her Pods list without any link, ready to answer")
     alice.goto(BASE + "#u/" + bob.evaluate("ME")); expect(alice.locator("#meetfr")).to_be_visible(timeout=T); alice.click("#meetfr")
     expect(alice.locator("#mfriend")).to_have_value(B, timeout=T); expect(alice.locator("#direct")).to_be_visible(); step("'Send to <friend>: Check this out' on a friend's profile prefills the friend")

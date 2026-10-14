@@ -35,7 +35,7 @@ with sync_playwright() as p:
     expect(paul.locator("#mclip")).to_have_value(re.compile(r"[0-9a-f-]{36}"), timeout=T); paul.fill("#mfriend", S); paul.click("#mgo")
     expect(paul.locator("#itxt")).to_be_visible(timeout=T); link = re.search(r"(https?://\S+#b/[0-9a-f]{32})", paul.locator("#itxt").input_value()).group(1)
     expect(paul.locator("#savenote")).to_be_visible(); step("Bridge started from a library item; 'Save your account' prompt shown")
-    sam = page(br.new_context(**iphone), "sam"); sam.goto(link); sam.fill("#jname", S); sam.click("#jgo"); expect(sam.get_by_text("Answer three questions")).to_be_visible(timeout=T)
+    sam = page(br.new_context(**iphone), "sam"); sam.goto(link); sam.fill("#jname", S); sam.click("#jgo"); expect(sam.get_by_text("Answer & rate")).to_be_visible(timeout=T)
     sam.click(f"text={P}'s library"); expect(sam.locator(".card", has_text="Smoke test video")).to_be_visible(timeout=T)
     expect(sam.locator(".card", has_text="Smoke old saved podcast")).to_be_visible(); sam.wait_for_timeout(600); shot(sam, "friend-library")
     sam.locator(".card", has_text="Smoke test video").click(); expect(sam.get_by_text(f"{P}'s note:")).to_be_visible(timeout=T); sam.click("#addlib")
