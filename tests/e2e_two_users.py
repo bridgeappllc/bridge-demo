@@ -74,7 +74,7 @@ with sync_playwright() as p:
     assert sam.get_by_text("Paul takeaway").count() == 0 and sam.locator("#chat").count() == 0
     expect(sam.get_by_text("Unlocks after you answer and rate.")).to_be_visible()
     step(f"{S} sees {P}'s progress (live) but not his answers or the chat")
-    sam.fill("#q3", "Sam takeaway"); sam.locator('.rate [data-rv="9"]').click(); sam.wait_for_timeout(5000)
+    sam.fill("#q3", "Sam takeaway"); sam.locator('.rate [data-rv="9"]').click(); sam.wait_for_timeout(5000); sam.locator(".rate").scroll_into_view_if_needed(); shot(sam, "02b-sam-answer-rate")
     assert sam.locator("#q3").input_value() == "Sam takeaway" and sam.locator('.rate [aria-checked=true]').get_attribute("data-rv") == "9"; step("Background refresh doesn't wipe typing")
     sam.click("#qsave"); expect(sam.get_by_text("💬 Talk")).to_be_visible(timeout=T)
     expect(sam.locator(".bub").first).to_have_text("Hey, I thought it was pretty one-sided.", timeout=T); step(f"{S} answers -> straight into Talk, sees {P}'s message")
