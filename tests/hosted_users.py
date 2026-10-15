@@ -23,4 +23,4 @@ def confirm(base, pages_ids):
         os.remove(HANDOFF + ".ok"); os.remove(HANDOFF + ".ids")
     for pg, _ in pages_ids:
         pg.evaluate("async()=>{const{error}=await sb.auth.refreshSession();if(error)throw error}"); pg.reload()
-        pg.wait_for_function("typeof USER!=='undefined'&&USER&&USER.is_anonymous===false", timeout=30000)
+        pg.wait_for_function("typeof USER!=='undefined'&&USER&&USER.is_anonymous===false&&typeof PROFILE!=='undefined'&&!!PROFILE", timeout=30000)

@@ -47,7 +47,7 @@ with sync_playwright() as p:
     m = re.search(r"(https?://\S+#b/([0-9a-f]{32}))", invite); assert m, invite
     link, token = m.group(1), m.group(2)
     assert link.startswith(BASE.rstrip("/")), (link, BASE)
-    assert "Smoke test video" in invite and "youtube.com" in invite and "$5" in invite
+    assert "Smoke test video" in invite and "youtube.com" not in invite and "$5" in invite
     paul.locator("#itxt").scroll_into_view_if_needed(); paul.evaluate("window.scrollBy(0,120); const t=document.querySelector('#itxt'); t.scrollTop=t.scrollHeight"); shot(paul, "01-paul-invite"); step(f"Bridge created; invite text includes unique link {link[:60]}…")
     paul.click("#cp"); assert paul.evaluate("navigator.clipboard.readText()") == invite; step("Copy invite text puts it on the clipboard")
     paul.click("#nx")
