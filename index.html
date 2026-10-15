@@ -273,6 +273,11 @@ const MOD={t:null,
   if(!force){try{const c=JSON.parse(localStorage.getItem("bridge_mod_v1")||"null");if(c&&c.rows&&Date.now()-c.at<6*36e5){MOD.set(c.rows);return}}catch(e){}}
   try{const {data,error}=await sb.rpc("moderation_terms_list");if(!error&&Array.isArray(data)){MOD.set(data);localStorage.setItem("bridge_mod_v1",JSON.stringify({at:Date.now(),rows:data}))}}catch(e){}},
  scan(s){if(!MOD.t||!s||!String(s).trim())return null;const n=" "+MOD.norm(s)+" ";return MOD.t.some(t=>t.c==="hate"&&t.re.test(n))?"hate":MOD.t.some(t=>t.c==="profanity"&&t.re.test(n))?"profanity":null}};
+/* link filter (supabase/migrations/20261015090000_link_filter.sql): adult sites + URL shorteners are refused server-side; this asks first for an instant error. */
+const LINK_MSG="That link can't be shared on Pod Club.";
+const isLinkBlocked=e=>!!e&&e.code==="23514"&&/link_filter|can't be shared/i.test((e.details||e.detail||"")+" "+(e.message||""));
+async function linkOk(url,el){let ok=true;try{const {data,error}=await sb.rpc("link_ok",{p_url:url});if(!error&&data===false)ok=false}catch(e){}
+ if(!ok){if(el&&el.isConnected)ierr(el,LINK_MSG);else toast(LINK_MSG)}return ok}
 const isMod=e=>!!e&&e.code==="23514"&&/respectful/i.test(e.message||"");
 function ierr(el,msg){if(!el)return;const host=el.closest(".row,.at")||el;let p=host.nextElementSibling;
  if(!(p&&p.classList.contains("ierr"))){p=document.createElement("p");p.className="ierr";p.setAttribute("role","alert");host.after(p)}
@@ -299,7 +304,7 @@ async function photoChosen(f){if(f.type&&!/^image\//.test(f.type))return toast(P
  $("#avuse").onclick=async()=>{const b=$("#avuse");busy(b,true);try{await API.ensureUser();await API.setPhoto(r.blob,r.ext,r.type);closePhoto();toast("Profile photo updated");render(true)}catch(e){busy(b,false);console.error(e);toast(/size|mime|type|exceed|payload/i.test((e&&e.message)||"")?PHOTO_ERR:(e&&e.message)||"Couldn't upload the photo")}}}
 function bindPhoto(){const a=$("#avbtn");if(a)a.onclick=pickPhoto;const c=$("#avchg");if(c)c.onclick=pickPhoto;const d=$("#avdel");if(d)d.onclick=async()=>{if(!confirm("Remove your profile photo?"))return;busy(d,true);try{await API.removePhoto();toast("Profile photo removed");render(true)}catch(e){busy(d,false);fail(e)}}}
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closePhoto()});
-const fail=e=>{console.error(e);if(isMod(e)){MOD.load(true);return toast(RESPECT)}toast(e&&e.message?e.message:"Something went wrong — try again")};
+const fail=e=>{console.error(e);if(isLinkBlocked(e))return toast(LINK_MSG);if(isMod(e)){MOD.load(true);return toast(RESPECT)}toast(e&&e.message?e.message:"Something went wrong — try again")};
 const authMsg=e=>{const c=(e&&(e.code||e.error_code))||"",m=(e&&e.message)||"";
  if(c==="otp_disabled"||/signups not allowed/i.test(m))return"No Pod Club account uses that email yet. Start as a guest (Sign Up Free), then save your account with this email.";
  if(c==="email_exists"||/already been registered/i.test(m))return"That email already has a Pod Club account.";
@@ -627,7 +632,7 @@ function paintShare(id){const box=$("#gsharebox");if(!box)return;if(gShareOpen!=
 <label for="gsurl">Link</label><input id="gsurl" type="url" placeholder="https://…" maxlength="2000"><label for="gstitle">Title</label><input id="gstitle" placeholder="What is it called?" maxlength="300">
 <label for="gsnote">Note <span class="mut sm">(optional)</span></label><textarea id="gsnote" rows="2" maxlength="300" placeholder="Why should the pod listen?"></textarea><button class="btn" id="gsgo">Share with the pod</button></div>`;
  $("#gspick").onchange=()=>{const it=L.find(x=>x.id===$("#gspick").value);if(it){$("#gsurl").value=it.url;$("#gstitle").value=it.title}};
- $("#gsgo").onclick=async()=>{const url=normUrl($("#gsurl").value.trim()),title=$("#gstitle").value.trim()||url;if(!/^https?:\/\/\S+\.\S+/i.test(url))return toast("Please paste a valid link");if(!modOk($("#gsnote"),false)||!modOk($("#gstitle"),false))return;const it=L.find(x=>x.id===$("#gspick").value);const b=$("#gsgo");busy(b,true);
+ $("#gsgo").onclick=async()=>{const url=normUrl($("#gsurl").value.trim()),title=$("#gstitle").value.trim()||url;if(!/^https?:\/\/\S+\.\S+/i.test(url))return toast("Please paste a valid link");if(!modOk($("#gsnote"),false)||!modOk($("#gstitle"),false))return;if(!await linkOk(url,$("#gsurl")))return;const it=L.find(x=>x.id===$("#gspick").value);const b=$("#gsgo");busy(b,true);
   try{await API.gshare(id,{url,title:title.slice(0,300),type:it?it.kind:kindOf(url)},$("#gsnote").value.trim());gShareOpen=null;toast("Shared with the pod 📨");await loadGpod(id)}catch(e){busy(b,false);if(!modFail(e,$("#gsnote")))fail(e)}}}
 async function loadGpods(){try{DB.gl=await API.gpods();rerender()}catch(e){console.warn(e)}}
 async function loadGpod(id){try{DB.g[id]=await API.gpod(id);if(parse().id===id)rerender()}catch(e){if(DB.g[id]===undefined)DB.g[id]=null;fail(e);rerender()}}
@@ -705,7 +710,7 @@ bridges(){$$("[data-acc]").forEach(b=>b.onclick=async()=>{busy(b,true);try{const
  $$("[data-dec]").forEach(b=>b.onclick=async()=>{if(!confirm("Decline this pod? The sender will see that you passed."))return;busy(b,true);try{await API.respondDirect(b.dataset.dec,false);DB.inc=(DB.inc||[]).filter(i=>i.id!==b.dataset.dec);toast("Declined");render(true);loadNotifs()}catch(e){busy(b,false);fail(e)}});
  const n=$("#nosave");if(n)n.onclick=e=>{e.stopPropagation();S.hideSave=1;save();render()}},
 new(pre,fid){const sel=$("#mclip");const direct=fid&&isFriend(fid)?fid:null;sel.onchange=()=>$("#paste").style.display=sel.value?"none":"block";
-$("#mgo").onclick=async()=>{let c=findClip(sel.value),fresh=false;if(!c){const url=normUrl($("#murl").value);if(!url)return toast("Paste a link or pick a clip");
+$("#mgo").onclick=async()=>{let c=findClip(sel.value),fresh=false;if(!c){const url=normUrl($("#murl").value);if(!url)return toast("Paste a link or pick a clip");if(!await linkOk(url,$("#murl")))return;
  c={title:$("#mtitle").value.trim()||url,creator:"",type:kindOf(url),cat:S.topics[0]||"",url};fresh=true}
  const f=$("#mfriend").value.trim(),rew=$("#mrew").value.trim();busy($("#mgo"),true);
  try{const b=await API.createBridge({title:c.title.slice(0,300),url:c.url,type:c.type,cat:c.cat,creator:c.ex?"":c.creator,friend:f,reward:rew&&+rew>0?String(Math.round(+rew)):""});
@@ -745,7 +750,7 @@ const pu=$("#puser");if(pu){const hint=(t,c)=>{$("#uhint").textContent=t;$("#uhi
  pu.oninput=()=>{const v=pu.value.toLowerCase().replace(/[^a-z0-9_]/g,"").slice(0,20);if(v!==pu.value)pu.value=v;clearTimeout(t);if(!v)return hint("Optional. 3–20 letters, numbers or _");if(v.length<3)return hint("At least 3 characters");if(v===PROFILE.username)return hint("This is your @username");t=setTimeout(async()=>{try{{const f=await API.handleFree(v);hint(f?"✓ @"+v+" is available":"@"+v+" is not available",f?"var(--g)":"var(--r)")}}catch(e){}},300)};
  $("#pubsave").onclick=async()=>{const u=pu.value.trim()||null,bio=$("#pbio").value.trim();if(u&&!/^[a-z0-9_]{3,20}$/.test(u))return hint("3–20 letters, numbers or _","var(--r)");if(!modOk(pu,true,RESPECT+" — please choose a different @username.")||!modOk($("#pbio"),true,MSG.bio))return;busy($("#pubsave"),true);
   try{await API.updateProfile({username:u,bio});toast("Profile saved");render(true)}catch(e){busy($("#pubsave"),false);if(isMod(e)){MOD.load(true);return /bio/.test(e.details||"")?ierr($("#pbio"),MSG.bio):ierr(pu,RESPECT+" — please choose a different @username.")}hint(e.code==="23505"?"That @username is taken":e.code==="23514"&&/reserved/.test(e.message||"")?"That @username is reserved. Please pick another":e.code==="23514"?"3–20 letters, numbers or _ (no spaces)":(e.message||"Couldn't save"),"var(--r)")}}}$$("[data-cat]").forEach(b=>b.onclick=()=>{feedCat=b.dataset.cat;render()});
-const an=$("#anote");if(an){an.oninput=e=>$("#cnt").textContent=e.target.value.length;$("#asave").onclick=async()=>{const url=normUrl($("#aurl").value);if(!url)return toast("Please paste a link");if(!modOk($("#atitle"),false)||!modOk(an,false))return;busy($("#asave"),true);
+const an=$("#anote");if(an){an.oninput=e=>$("#cnt").textContent=e.target.value.length;$("#asave").onclick=async()=>{const url=normUrl($("#aurl").value);if(!url)return toast("Please paste a link");if(!modOk($("#atitle"),false)||!modOk(an,false))return;if(!await linkOk(url,$("#aurl")))return;busy($("#asave"),true);
  try{const it=await API.addLib({url,title:($("#atitle").value.trim()||url).slice(0,300),category:$("#acat").value,kind:kindOf(url),creator:"",note:an.value.trim()});DB.lib=[it,...(DB.lib||[])];toast("Saved to your Library");profTab="Library";go("clip/"+it.id)}catch(e){busy($("#asave"),false);if(e.dup)toast(e.message);else if(!modFail(e,/note/.test(e.details||"")?an:$("#atitle")))fail(e)}}}
 const ps=$("#psave");if(ps)ps.onclick=async()=>{const n=$("#pname").value.trim();if(!n)return toast("Please enter your name");if(!modOk($("#pname"),true))return;try{await API.saveProfile({display_name:n});toast("Saved");render()}catch(e){if(!modFail(e,$("#pname"),MSG.name))fail(e)}};
 bindPhoto();const db=$("#delbtn");if(db)db.onclick=()=>{S.delAsk=1;render(true);setTimeout(()=>{const i=$("#delc");if(i){i.focus();i.scrollIntoView({block:"center"})}},30)};

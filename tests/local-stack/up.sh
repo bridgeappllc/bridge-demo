@@ -39,7 +39,7 @@ for i in $(seq 30); do curl -sf http://127.0.0.1:9999/health >/dev/null && break
 # Apply the same migration files, in order, that were applied to the hosted project (once per fresh DB).
 if [ ! -f "$RUN/migrated" ]; then
   # MIGRATE_UNTIL=<timestamp> stops after that migration (used by the upgrade test)
-  for m in "$ROOT"/supabase/migrations/*.sql; do if [ -n "${MIGRATE_UNTIL:-}" ] && [[ "$(basename "$m")" > "${MIGRATE_UNTIL}~" ]]; then continue; fi; psql -h 127.0.0.1 -p 54322 -U postgres -q -v ON_ERROR_STOP=1 -f "$m" >/dev/null; done; touch "$RUN/migrated"
+  for m in "$ROOT"/supabase/migrations/*.sql; do if [ -n "${MIGRATE_UNTIL:-}" ] && [[ "$(basename "$m")" > "${MIGRATE_UNTIL}~" ]]; then continue; fi; psql -h 127.0.0.1 -p 54322 -U postgres -q -v ON_ERROR_STOP=1 -f "$m" >/dev/null; done; [ -z "${MIGRATE_UNTIL:-}" ] && for f in "$ROOT"/supabase/seed/*.sql; do psql -h 127.0.0.1 -p 54322 -U postgres -q -v ON_ERROR_STOP=1 -f "$f" >/dev/null; done; touch "$RUN/migrated"
 fi
 cat > "$RUN/postgrest.conf" <<CONF
 db-uri = "postgres://authenticator:authpass@127.0.0.1:54322/postgres"
