@@ -98,6 +98,47 @@ select * from private.content_filter_existing_matches;   -- field, row id, verdi
 
 Handle any rows like reports: edit or delete them in the Table Editor if needed.
 
+## Link filter (adult sites and URL shorteners)
+
+No one can share porn/adult links on Pod Club. The database checks every link before it is saved: pod clips (`bridges.clip_url`, including direct sends), group pod clips (`group_pod_clips.url`) and library items (`library_items.url`). A blocked link fails with **"That link can't be shared on Pod Club."** The app checks first (via `link_ok`) and shows that message under the link field. The database check is what actually enforces it, so it can't be bypassed. Pod clip titles and direct-send notes now also go through the word filter above: hate terms are blocked and profanity is masked.
+
+Migration: `supabase/migrations/20261015090000_link_filter.sql`. Domain list: `supabase/seed/blocked_domains.sql`, regenerated with `python3 tests/gen_blocked_domains.py`.
+
+### The lists (admin-only, Table Editor → schema `public`)
+| Table | What it does | Seeded with |
+|---|---|---|
+| `blocked_domains` (`domain`, `category` adult/shortener/manual, `source`) | blocks that domain **and every subdomain** | 47,568 adult domains, plus 28 URL shorteners |
+| `blocked_link_keywords` (`keyword`, `exceptions`) | blocks any host containing the word | 20 words (porn, xxx, hentai, nsfw, sex, camgirl, onlyfans, …). `sex` has exceptions (essex, sussex, middlesex, unisex, …) |
+| `allowed_domains` (`domain`) | overrides both lists (fixes false positives) | empty |
+
+To block a site, add a row to `blocked_domains` with category `manual`, for example `badsite.com`. To unblock one, add its domain to `allowed_domains`; don't delete it from the list, because a regenerate would put it back. Changes take effect immediately. Users can't read or edit these tables.
+
+**Source and license:** [StevenBlack/hosts](https://github.com/StevenBlack/hosts), "porn-only" extension (`alternates/porn-only/hosts`, 76,798 entries, downloaded 14 Oct 2026). StevenBlack/hosts is MIT-licensed. The porn extension combines these sources:
+- Clefspeare13/pornhosts (MIT)
+- Sinfonietta/hostfiles (MIT)
+- tiuxo/hosts (CC BY 4.0)
+- brijrajparmar27/host-sources (CC BY 4.0)
+- bigdargon/hostsVN (MIT)
+
+This attribution satisfies CC BY. The list was lowercased and `www.` was stripped. Subdomains of domains already on the list were dropped, because the parent domain blocks them anyway. That leaves 47,568 domains. Mainstream sites were spot-checked: reddit, x/twitter, youtube, blogspot, tumblr and spotify are not on the list.
+
+### How matching works
+The URL's host is normalized: lowercased, scheme/user:password@/port/trailing dot removed, percent-encoding decoded, Unicode dots (。) mapped to `.`, leading `www.`/`www2.` stripped, and international names converted to punycode (`bücher.de` becomes `xn--bcher-kva.de`). The host and each parent domain (`a.b.example.com`, `b.example.com`, `example.com`) are then looked up in the lists, and the keywords are matched against the host.
+
+### Limitations
+- **Shorteners are blocked outright** (bit.ly, t.co, tinyurl, linktr.ee, …). The database can't follow redirects, so a short link could hide anything. Users should paste the full link instead.
+- **Only the domain is checked, not the path.** An adult page on a mainstream site (a reddit NSFW subreddit, an X post) isn't caught. Reports and the report review cover that.
+- Any blocklist is incomplete and new sites appear all the time. Rerun the generator now and then, and use `manual` rows for anything reported.
+- Keywords can over-block (for example a domain containing "sex" that isn't on the exceptions list). Use `allowed_domains` to fix that.
+
+### Existing content
+Nothing already saved is deleted or changed. The filter only runs when a link is added or changed (editing a note on an old item still works). To list existing matches, run in the SQL editor:
+```sql
+select 'bridges' t, id, clip_url, private.link_block_reason(clip_url) from bridges where private.link_block_reason(clip_url) is not null
+union all select 'library_items', id, url, private.link_block_reason(url) from library_items where private.link_block_reason(url) is not null
+union all select 'group_pod_clips', id, url, private.link_block_reason(url) from group_pod_clips where private.link_block_reason(url) is not null;
+```
+
 ## Profile photos
 
 Added in `supabase/migrations/20261011200000_profile_photos.sql`.
