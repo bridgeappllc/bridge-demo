@@ -63,6 +63,7 @@ input:disabled,textarea:disabled,select:disabled{color:#5F6A62;background:#E9EEE
 input:focus,textarea:focus,select:focus{outline:none;border-color:var(--b);box-shadow:0 0 0 3px rgba(74,107,87,.22)}
 .lock{background:var(--sf);border:1px solid var(--l);border-radius:12px;padding:18px;text-align:center}.lock svg{width:34px;height:34px}
 .bub{max-width:80%;padding:9px 13px;border-radius:14px;margin:6px 0;background:#A9C2B0;color:var(--n)}.bub.me{margin-left:auto;background:var(--b);color:var(--onp)}
+.sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.st{text-align:center;padding:12px 6px;margin:0}.sn{font-size:1.5rem;font-weight:700}.sl{font-size:.8rem}.bars{display:flex;gap:6px;align-items:flex-end;height:110px;margin-top:8px}.bar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;font-size:.7rem}.bar i{display:block;width:100%;background:var(--ac);border-radius:4px 4px 0 0;min-height:2px}.bar em{font-style:normal;opacity:.6;white-space:nowrap;font-size:.62rem}
 .stat{display:flex;gap:0;border-top:1px solid var(--l);border-bottom:1px solid var(--l);margin:12px 0}.stat div{flex:1;padding:10px 0 9px;text-align:center;font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--m)}.stat div+div{border-left:1px solid var(--l)}.stat b{display:block;font-family:var(--serif);font-weight:700;font-size:1.55rem;line-height:1.15;letter-spacing:0;text-transform:none;color:var(--n)}
 .ierr{color:var(--r);font-size:.88rem;margin:6px 2px 0;text-align:left}
 .av{position:relative;overflow:hidden}.av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;background:var(--sf)}
@@ -350,7 +351,7 @@ function setMenu(o,focusBtn){menuOpen=o;render(true);const b=document.getElement
 document.addEventListener("click",e=>{const t=e.target.closest&&e.target.closest("#home,#ubtn,[data-um]");
  if(t&&t.id==="home"){e.preventDefault();menuOpen=false;if(PROFILE){if(location.hash==="#bridges")render(true);else go("bridges")}else{if(location.hash&&location.hash!=="#")go("");else render(true)}return}
  if(t&&t.id==="ubtn"){setMenu(!menuOpen);return}
- if(t&&t.dataset.um){const a=t.dataset.um;menuOpen=false;if(a==="out"){render(true);doSignOut();return}profTab=a==="settings"?"Settings":"Library";if(location.hash==="#profile")render();else go("profile");return}
+ if(t&&t.dataset.um){const a=t.dataset.um;menuOpen=false;if(a==="out"){render(true);doSignOut();return}if(a==="stats"){if(location.hash==="#stats")onRoute();else go("stats");return}profTab=a==="settings"?"Settings":"Library";if(location.hash==="#profile")render();else go("profile");return}
  if(menuOpen&&!(e.target.closest&&e.target.closest("#umenu")))setMenu(false)});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&menuOpen)setMenu(false,true)});
 const busy=(el,on)=>{if(el){el.disabled=on;if(on){el.dataset.t=el.textContent;el.textContent="…"}else if(el.dataset.t)el.textContent=el.dataset.t}};
@@ -532,6 +533,15 @@ ${inc.length?`<h2>Friend requests <span class="badge in">${inc.length}</span></h
 <h2>People from your pods</h2>${DB.sugg===null?loading:DB.sugg.length?DB.sugg.map(personRow).join(""):'<p class="mut sm">People you meet in a pod show up here, so you can add them as friends.</p>'}
 ${out.length?`<h2>Sent requests</h2>${out.map(r=>personRow({...r,friend_status:"outgoing"})).join("")}`:""}
 <p class="sm" style="margin-top:18px"><a href="#profile" onclick="profTab='Friends'">Your friends (${DB.friends?DB.friends.length:"…"}) →</a></p><button class="btn o" id="shme">🔗 Share my profile link</button>`},
+stats(){if(!ADMIN)return ADMIN_FOR===ME?`<h1>Stats</h1><p class="mut">This page is for admins.</p>`:loading;const T=DB.stats;if(T===undefined||T===null)return loading;if(T.err)return `<h1>Stats</h1><p class="mut">${esc(T.err)}</p>`;
+  const n=x=>x==null?"–":Number(x).toLocaleString(),pc=r=>r&&r.pct!=null?`${r.pct}%`:"–",sub=r=>r?`${r.retained} of ${r.cohort}`:"",tile=(l,v,s)=>`<div class="card st"><div class="sn">${v}</div><div class="sl">${l}</div>${s?`<div class="mut sm">${s}</div>`:""}</div>`;
+  const W=T.signups_per_week||[],mx=Math.max(1,...W.map(w=>w.n));
+  return `<p class="mut sm"><a href="#profile">← Profile</a></p><h1>Stats</h1><p class="mut sm">Anonymous, first-party usage counts. Test accounts excluded. Updated ${esc(new Date(T.generated_at).toLocaleString())}.</p>
+  <h2>Active people</h2><div class="sgrid">${tile("Daily active",n(T.dau))}${tile("Weekly active",n(T.wau))}${tile("Monthly active",n(T.mau))}</div>
+  <h2>Growth</h2><div class="sgrid">${tile("Total sign-ups",n(T.total_signups))}${tile("7-day retention",pc(T.retention_7d),sub(T.retention_7d))}${tile("30-day retention",pc(T.retention_30d),sub(T.retention_30d))}</div>
+  <div class="card"><b class="sm">New sign-ups per week</b><div class="bars">${W.map(w=>`<div class="bar" title="${esc(w.week)}: ${w.n}"><span>${w.n}</span><i style="height:${Math.round(80*w.n/mx)}%"></i><em>${+w.week.slice(5,7)}/${+w.week.slice(8)}</em></div>`).join("")}</div></div>
+  <h2>Engagement</h2><div class="sgrid">${tile("Pods created",n(T.pods_created))}${tile("Clips shared",n(T.clips_shared))}${tile("Answers",n(T.answers))}${tile("Messages",n(T.messages))}${tile("Avg rating",T.avg_rating==null?"–":T.avg_rating,"out of 10 · "+n(T.ratings)+" ratings")}${tile("Library saves",n(T.library_items))}</div>
+  <p class="mut sm">Retention: share of people who signed up at least 7 (or 30) days ago and came back on or after that day.</p>`},
 notifications(){const L=DB.ntf;return `<h1>Notifications</h1>${L&&L.some(n=>!n.read_at)?'<button class="btn o s" id="nall">Mark all as read</button>':""}${L===null?loading:L.length?`<ul class="nlist">${L.map(nItem).join("")}</ul>`:'<div class="card c"><p class="ti" style="margin:4px 0">You\'re all caught up</p><p class="mut sm">Clips sent to you, friend requests and new messages show up here.</p></div>'}`},
 u(key){key=decodeURIComponent(key||"");const P=DB.ppl[key];if(P===undefined)return loading;const p=P.p;
  if(!p)return `<p class="mut sm"><a href="#people">← People</a></p><h1>Profile not found</h1><p class="mut">This profile doesn't exist or isn't available.</p><a class="btn o" href="#people">Find people</a>`;
@@ -560,8 +570,8 @@ function navHTML(){const n=incoming().length;return ["bridges","people","new","p
 function paintNav(){if($("#nav").style.display!=="none")$("#nav").innerHTML=navHTML()}
 function render(refresh){if(PROFILE)startNotifs();else stopNotifs();const {id,sp}=parse(),v=viewOf(),key=v+"/"+id+"/"+(sp||"");const keep=refresh&&key===lastKey?snapshot():null;
 if(refresh&&v==="new"&&$("#mout")&&$("#mout").innerHTML)return; // never wipe a freshly created invite
-const app=!["welcome","topics","setup","invite","signin","keep"].includes(v);$("#hd").innerHTML=`<button id="home" aria-label="${PROFILE?"Pod Club: go to Your Pods":"Pod Club: go to Welcome"}">${LOGO}<b>Pod Club</b></button><span class="sp"></span>${PROFILE?`<button id="bell" aria-label="${bellLabel(unread())}" onclick="go('notifications')">${BELL}<span class="nb" ${unread()?"":"hidden"}>${unread()>99?"99+":unread()}</span></button><div class="um"><button id="ubtn" aria-haspopup="menu" aria-expanded="${menuOpen}" aria-controls="umenu">Hi, ${esc(PROFILE.display_name)} ▾</button>${menuOpen?`<div id="umenu" role="menu"><button role="menuitem" data-um="profile">My profile</button><button role="menuitem" data-um="settings">Settings</button><hr><button role="menuitem" id="mout2" data-um="out">↪ Sign out</button></div>`:""}</div>`:""}`;if(!PROFILE)menuOpen=false;
-$("#nav").style.display=app?"flex":"none";curTab={bridges:"bridges",bridge:"bridges",pod:"bridges",newpod:"bridges",new:"new",profile:"profile",clip:"profile",lib:"people",u:"people",people:"people",account:"profile"}[v];$("#nav").innerHTML=navHTML();
+const app=!["welcome","topics","setup","invite","signin","keep"].includes(v);$("#hd").innerHTML=`<button id="home" aria-label="${PROFILE?"Pod Club: go to Your Pods":"Pod Club: go to Welcome"}">${LOGO}<b>Pod Club</b></button><span class="sp"></span>${PROFILE?`<button id="bell" aria-label="${bellLabel(unread())}" onclick="go('notifications')">${BELL}<span class="nb" ${unread()?"":"hidden"}>${unread()>99?"99+":unread()}</span></button><div class="um"><button id="ubtn" aria-haspopup="menu" aria-expanded="${menuOpen}" aria-controls="umenu">Hi, ${esc(PROFILE.display_name)} ▾</button>${menuOpen?`<div id="umenu" role="menu"><button role="menuitem" data-um="profile">My profile</button><button role="menuitem" data-um="settings">Settings</button>${ADMIN?'<button role="menuitem" data-um="stats">📊 Stats</button>':""}<hr><button role="menuitem" id="mout2" data-um="out">↪ Sign out</button></div>`:""}</div>`:""}`;if(!PROFILE)menuOpen=false;
+$("#nav").style.display=app?"flex":"none";curTab={bridges:"bridges",bridge:"bridges",pod:"bridges",newpod:"bridges",new:"new",profile:"profile",clip:"profile",lib:"people",u:"people",people:"people",account:"profile",stats:"profile"}[v];$("#nav").innerHTML=navHTML();
 $("#app").innerHTML=V[v](id,sp);if(keep)restore(keep);else if(key!==lastKey)window.scrollTo(0,0);lastKey=key;(B[v]||(()=>{}))(id,sp);
 shown[key]=sig(viewData(v,id));
 if(v==="pod"&&$("#gchat")){const n=DB.g[id].messages.length;if(n!==lastMsgCount&&lastMsgCount>=0&&n>lastMsgCount)$("#gct").scrollIntoView({block:"end"});lastMsgCount=n}else if(v==="bridge"&&$("#chat")){const n=DB.d[id].messages.length;if(n!==lastMsgCount&&(!keep||n>lastMsgCount))window.scrollTo(0,document.body.scrollHeight);lastMsgCount=n}else lastMsgCount=-1}
@@ -646,7 +656,7 @@ async function loadPreview(t){try{const p=await API.preview(t);DB.pv[t]=p;if(p&&
 async function migrateLocal(){const items=legacyItems();if(!PROFILE||!items.length)return;
  try{await API.importLib(items.map(c=>({url:normUrl(c.url).slice(0,2000),title:String(c.title||c.url).slice(0,300),category:String(c.cat||"").slice(0,40),kind:String(c.type||kindOf(c.url)).slice(0,20),creator:c.creator==="Added by you"?"":String(c.creator||"").slice(0,120),note:String(c.note||"").slice(0,300)})).filter(r=>/^https?:\/\//i.test(r.url)));
   S.clips=S.clips.filter(c=>c.ex);save();loadLib();toast(`Moved ${items.length} saved item${items.length>1?"s":""} into your online library`)}catch(e){console.warn("library migration failed; will retry",e)}}
-function onRoute(){if(unwatch){unwatch();unwatch=null}if(/^#lib\//.test(location.hash))history.replaceState(null,"","#u/"+location.hash.slice(5));
+function onRoute(){usage();if(unwatch){unwatch();unwatch=null}if(/^#lib\//.test(location.hash))history.replaceState(null,"","#u/"+location.hash.slice(5));
  if(/^#u\//.test(location.hash)&&!PROFILE){S.after=location.hash.slice(1);save()}
  render();if(!CONFIGURED)return;const v=viewOf(),{id}=parse();
  if(PROFILE&&!["welcome","topics","setup","invite","signin","keep"].includes(v)&&Date.now()-lastSoc>15000)loadSocial();
@@ -657,6 +667,7 @@ function onRoute(){if(unwatch){unwatch();unwatch=null}if(/^#lib\//.test(location
  if(v==="newpod"){if(DB.friends===null)loadSocial();DB.srch={q:"",rows:null}}
  if(v==="pod"){gShareOpen=null;gAddOpen=null;loadGpod(id);loadRem("group",id);unwatch=API.watchG(id,()=>{loadGpod(id);loadRem("group",id)},POLL_MS)}
  if(v==="profile"){const tabData=()=>{if(profTab==="Discover")loadFeed();if(profTab==="Settings")loadBlocks()};loadList();loadLib();loadSocial();tabData();unwatch=API.watch(null,()=>{loadList();loadLib();loadSocial();tabData()},10000)}
+ if(v==="stats"&&ADMIN){DB.stats=null;sb.rpc("admin_stats").then(({data,error})=>{DB.stats=error?{err:"Couldn't load stats."}:data;if(viewOf()==="stats")render()})}
  if(v==="new"){loadLib();if(DB.list===null)loadList();if(DB.friends===null)loadSocial();if(id&&!findClip(id))loadItem(id)}
  if(v==="clip"){if(DB.list===null)loadList();(DB.lib===null?loadLib():Promise.resolve()).then(()=>{if(!EXAMPLES.some(c=>c.id===id)&&!findClip(id))loadItem(id)})}
  if(v==="lib"){if(id===ME){go("profile");return}if(DB.list===null)loadList();loadFlib(id)}
@@ -759,6 +770,14 @@ bindPhoto();const db=$("#delbtn");if(db)db.onclick=()=>{S.delAsk=1;render(true);
   busy(dy,true);try{await API.deleteAccount();history.replaceState(null,"",location.pathname);onRoute();toast("Your account and data were deleted")}catch(e){busy(dy,false);fail(e)}};
  const so=$("#sout");if(so)so.onclick=doSignOut}};
 
+/* ---------- first-party usage counts (no cookies, no ad IDs, no third parties; insert-only, own id) ---------- */
+let ADMIN=false,ADMIN_FOR=null,OPENED_FOR=null;
+function track(name,props){try{if(!CONFIGURED||!ME)return;sb.from("events").insert({name,props:props||{}}).then(()=>{},()=>{})}catch(e){}}
+{const TR={createBridge:[["pod_created",{kind:"duo"}],["clip_shared",{to:"invite"}]],sendDirect:[["pod_created",{kind:"direct"}],["clip_shared",{to:"friend"}]],gcreate:[["pod_created",{kind:"group"}]],gshare:[["clip_shared",{to:"group"}]],
+ answer:[["answer_submitted",{kind:"duo"}]],ganswer:[["answer_submitted",{kind:"group"}]],send:[["message_sent",{kind:"duo"}]],gsend:[["message_sent",{kind:"group"}]],addLib:[["library_add",{}]],join:[["invite_joined",{}]]};
+ for(const k in TR){const f=API[k];API[k]=async function(...a){const r=await f.apply(this,a);TR[k].forEach(([n,p])=>track(n,p));return r}}}
+function usage(){if(!CONFIGURED||!ME||!PROFILE)return;if(OPENED_FOR!==ME){OPENED_FOR=ME;track("app_open",{})}
+ if(ADMIN_FOR!==ME){ADMIN_FOR=ME;ADMIN=false;if(USER&&!USER.is_anonymous)sb.rpc("is_stats_admin").then(({data})=>{if(data===true&&ADMIN_FOR===ME){ADMIN=true;if(menuOpen||viewOf()==="stats")onRoute()}},()=>{})}}
 /* ---------- boot ---------- */
 (async()=>{const qb=new URLSearchParams(location.search).get("b");if(qb){history.replaceState(null,"",location.pathname+"#b/"+encodeURIComponent(qb))}
 $("#app").innerHTML=loading;if(CONFIGURED){MOD.load();try{await API.boot();await migrateLocal()}catch(e){fail(e)}}window.onhashchange=onRoute;onRoute()})();
