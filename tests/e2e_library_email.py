@@ -54,7 +54,7 @@ with sync_playwright() as p:
     step("Add to Library (URL, title, category, note) saves online; Library shows 2 items")
 
     # 3) start a pod from a library item -> save-account prompt
-    paul.locator(".card", has_text="A talk that changed my mind").click(); paul.click("text=Check this out")
+    paul.locator(".card", has_text="A talk that changed my mind").locator(".lmeta").click(); paul.click("text=Check this out")
     expect(paul.locator("#mclip")).to_have_value(re.compile(r"[0-9a-f-]{36}"), timeout=T)
     paul.fill("#mfriend", "SmokeSam"); paul.click("#mgo"); expect(paul.locator("#itxt")).to_be_visible(timeout=T)
     link = re.search(r"(https?://\S+#b/[0-9a-f]{32})", paul.locator("#itxt").input_value()).group(1)
@@ -67,7 +67,7 @@ with sync_playwright() as p:
     sam.click("text=SmokePaul's library"); expect(sam.get_by_text("SmokePaul's library").first).to_be_visible(timeout=T)
     expect(sam.locator(".card", has_text="A talk that changed my mind")).to_be_visible(timeout=T); expect(sam.locator(".card", has_text="Old saved podcast")).to_be_visible()
     shot(sam, "v2-02-friend-library")
-    sam.locator(".card", has_text="A talk that changed my mind").click(); expect(sam.get_by_text("SmokePaul's note:")).to_be_visible(timeout=T)
+    sam.locator(".card", has_text="A talk that changed my mind").locator(".lmeta").click(); expect(sam.get_by_text("SmokePaul's note:")).to_be_visible(timeout=T)
     sam.click("#addlib"); expect(sam.get_by_text("✓ In your library")).to_be_visible(timeout=T)
     sam.goto(BASE + "#profile"); expect(sam.locator(".card", has_text="A talk that changed my mind")).to_be_visible(timeout=T)
     expect(sam.locator(".chips")).to_contain_text("SmokePaul →")

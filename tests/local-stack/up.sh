@@ -61,5 +61,8 @@ if [ -x "$DENO" ]; then
     RESEND_API_KEY=re_local_mock RESEND_API_URL=http://127.0.0.1:54330/emails REMIND_APPS=http://127.0.0.1:8080/ DENO_SERVE_ADDRESS=tcp:127.0.0.1:54329 \
     nohup "$DENO" run --allow-net --allow-env "$HERE/../../supabase/functions/remind/index.ts" > "$RUN/functions.log" 2>&1 & echo $! > "$RUN/functions.pid"
   for i in $(seq 30); do curl -s -o /dev/null -X OPTIONS http://127.0.0.1:54329/ && break; sleep 0.5; done
+  env -i PATH=/usr/bin:/bin HOME="$HOME" SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_ANON_KEY="$(cat "$RUN/anon.key")" LINK_PREVIEW_ALLOW_LOCAL=1 DENO_SERVE_ADDRESS=tcp:127.0.0.1:54331 \
+    nohup "$DENO" run --allow-net --allow-env "$HERE/../../supabase/functions/link-preview/index.ts" > "$RUN/linkpreview.log" 2>&1 & echo $! > "$RUN/linkpreview.pid"
+  for i in $(seq 30); do curl -s -o /dev/null -X OPTIONS http://127.0.0.1:54331/ && break; sleep 0.5; done
 else echo "functions: deno not found — skipping"; fi
 sleep 2; echo "Stack up: API http://127.0.0.1:54321  anon key in $RUN/anon.key"
