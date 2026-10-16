@@ -441,7 +441,8 @@ function queuePv(url,it){if(PV[url]||pvOf(url,it).thumb&&!(it&&it.user_id===ME&&
 async function pumpPv(){while(pvRun<2&&pvQ.length){const [url,it]=pvQ.shift();pvRun++;fetchPv(url,it).finally(()=>{pvRun--;pumpPv()})}}
 async function fetchPv(url,it){let r={thumb:"",title:"",site:""};try{const y=ytId(url);if(y)r={thumb:`https://img.youtube.com/vi/${y}/hqdefault.jpg`,title:"",site:"YouTube"};else{const {data:{session}}=await sb.auth.getSession();const ac=new AbortController(),to=setTimeout(()=>ac.abort(),8000);
   const res=await fetch(CFG.SUPABASE_URL+"/functions/v1/link-preview",{method:"POST",signal:ac.signal,headers:{Authorization:"Bearer "+(session&&session.access_token),apikey:CFG.SUPABASE_ANON_KEY,"Content-Type":"application/json"},body:JSON.stringify({url})});clearTimeout(to);
-  if(!res.ok){if(res.status!==422)PV[url]=undefined;return}const j=await res.json();r={thumb:j.thumb_url&&/^https:\/\//.test(j.thumb_url)?j.thumb_url:"",title:j.title||"",site:j.site||""}}
+  if(!res.ok){if(res.status!==422)PV[url]=undefined;return}const j=await res.json();r={thumb:j.thumb_url&&/^https:\/\//.test(j.thumb_url)?j.thumb_url:"",title:j.title||"",site:j.site||""};
+  if(!r.thumb&&j.why&&!/^(status 4(04|10)|host|redirect)/.test(j.why))it=null}// transient miss (timeout, 403/5xx): don't cache it on the row, retry next visit
  PV[url]=r;
  if(it&&it.user_id===ME&&!it.preview_at){const row={thumb_url:r.thumb||null,preview_title:r.title?r.title.slice(0,300):null,preview_site:r.site?r.site.slice(0,80):null,preview_at:new Date().toISOString()};
   const {error}=await sb.from("library_items").update(row).eq("id",it.id).eq("user_id",ME);if(!error)for(const x of (DB.lib||[]))if(x.id===it.id)Object.assign(x,row)}

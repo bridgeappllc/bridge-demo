@@ -44,15 +44,16 @@ async function linkOk(u: string): Promise<boolean> {
   const r = await fetch(`${SB}/rest/v1/rpc/link_ok`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" }, body: JSON.stringify({ p_url: u }) });
   return r.ok && (await r.json()) === true;
 }
+let why = "";
 async function fetchHtml(start: string, signal: AbortSignal): Promise<{ url: string; html: string } | null> {
   let u = start;
   for (let hop = 0; hop <= MAX_HOPS; hop++) {
     const x = new URL(u);
-    if (!/^https?:$/.test(x.protocol) || (!ALLOW_LOCAL && privateHost(x.hostname)) || x.username || x.password) return null;
-    if (hop > 0 && !(await linkOk(u))) return null;
+    if (!/^https?:$/.test(x.protocol) || (!ALLOW_LOCAL && privateHost(x.hostname)) || x.username || x.password) { why = "host"; return null; }
+    if (hop > 0 && !(await linkOk(u))) { why = "redirect blocked"; return null; }
     const r = await fetch(u, { redirect: "manual", signal, headers: { "User-Agent": "Mozilla/5.0 (compatible; PodClubPreview/1.0; +https://bridgeappllc.github.io/bridge-demo/)", Accept: "text/html,application/xhtml+xml" } });
     if (r.status >= 300 && r.status < 400) { const loc = r.headers.get("location"); await r.body?.cancel(); if (!loc) return null; u = new URL(loc, u).href; continue; }
-    if (!r.ok || !/html/i.test(r.headers.get("content-type") ?? "")) { await r.body?.cancel(); return null; }
+    if (!r.ok || !/html/i.test(r.headers.get("content-type") ?? "")) { why = `status ${r.status} ${r.headers.get("content-type") ?? ""}`.slice(0, 80); await r.body?.cancel(); return null; }
     const rd = r.body!.getReader(); const parts: Uint8Array[] = []; let n = 0;
     while (n < MAX_BYTES) { const { done, value } = await rd.read(); if (done) break; parts.push(value); n += value.length; }
     await rd.cancel().catch(() => {});
@@ -76,12 +77,12 @@ Deno.serve(async (req) => {
   if (yt) return json({ thumb_url: `https://img.youtube.com/vi/${yt}/hqdefault.jpg`, title: null, site: "YouTube" });
   const ac = new AbortController(); const t = setTimeout(() => ac.abort(), TIMEOUT_MS);
   try {
-    const page = await fetchHtml(url, ac.signal);
-    if (!page) return json({ thumb_url: null, title: null, site: null });
+    why = ""; const page = await fetchHtml(url, ac.signal);
+    if (!page) return json({ thumb_url: null, title: null, site: null, why: why || "redirects" });
     const m = parseMeta(page.html);
     let img: string | null = null;
     if (m.image) { try { const i = new URL(m.image, page.url); if (i.protocol === "http:") i.protocol = "https:"; if (i.href.length <= 1000 && !privateHost(i.hostname) && (await linkOk(i.href))) img = i.href; } catch { /* ignore */ } }
     return json({ thumb_url: img, title: m.title ? m.title.slice(0, 300) : null, site: (m.site || host(page.url)).slice(0, 80) || null });
-  } catch { return json({ thumb_url: null, title: null, site: null }); }
+  } catch (e) { return json({ thumb_url: null, title: null, site: null, why: ac.signal.aborted ? "timeout" : String(e).slice(0, 80) }); }
   finally { clearTimeout(t); }
 });
