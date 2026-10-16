@@ -34,7 +34,10 @@ with sync_playwright() as p:
     step("og:image + og:title + og:site_name fetched by the link-preview function (title shown when the item has none)")
     expect(a.locator(".lc", has_text="No image page").locator(".lfb")).to_be_visible(timeout=T); expect(a.locator(".lc", has_text="No image page").locator(".lfb")).to_contain_text("127.0.0.1")
     expect(a.locator(".lc", has_text="No image page").locator(".lfb svg.mk")).to_have_count(1); step("No image -> Sage fallback tile with Pod Club logo + domain")
-    a.wait_for_function("async()=>{const r=(await sb.from('library_items').select('preview_at').eq('user_id',USER.id)).data;return r.every(x=>x.preview_at)}", timeout=T)
+    for _ in range(90):  # poll (wait_for_function doesn't await async predicates)
+        if a.evaluate("async()=>(await sb.from('library_items').select('preview_at').eq('user_id',USER.id)).data.every(x=>x.preview_at)"): break
+        a.wait_for_timeout(500)
+    else: raise AssertionError("previews never cached")
     expect(a.locator(".lc", has_text="Blocked image page").locator(".lfb")).to_be_visible(); step("Adult image host -> no thumbnail (fallback tile)")
     db = a.evaluate("async()=>(await sb.from('library_items').select('url,thumb_url,preview_title,preview_site,preview_at').eq('user_id',USER.id)).data")
     by = {r["url"]: r for r in db}

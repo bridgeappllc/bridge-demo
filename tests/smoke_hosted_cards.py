@@ -16,6 +16,7 @@ def step(s):
 with sync_playwright() as p:
     br = p.chromium.launch(); errors = []
     c = br.new_context(viewport={"width": 1000, "height": 1500}); a = c.new_page(); a.on("pageerror", lambda e: errors.append(str(e)))
+    a.on("response", lambda r: print("    link-preview:", r.status, r.text()[:160], flush=True) if "/functions/v1/link-preview" in r.url and r.request.method == "POST" else None)
     ia = make(a, BASE, f"SmokeCards{tag}"); confirm(BASE, [(a, ia)])
     for u, t, k, cat in ITEMS:
         e = a.evaluate("async([u,t,k,c])=>{const{error}=await sb.from('library_items').insert({user_id:USER.id,url:u,title:t,kind:k,category:c});return error}", [u, t, k, cat]); assert not e, e
@@ -24,9 +25,12 @@ with sync_playwright() as p:
         card = a.locator(".lc", has_text=t); expect(card.locator(".lth img")).to_have_count(1); assert "img.youtube.com/vi/" in card.locator(".lth img").get_attribute("src")
         assert card.locator("a.lnk").get_attribute("href") == u and card.locator("a.lnk").get_attribute("target") == "_blank"
     step("YouTube variants -> hqdefault thumbnails, new-tab links")
-    a.wait_for_function("async()=>(await sb.from('library_items').select('preview_at').eq('user_id',USER.id)).data.every(x=>x.preview_at)", timeout=45000)
+    for _ in range(90):  # poll (wait_for_function doesn't await async predicates)
+        if a.evaluate("async()=>(await sb.from('library_items').select('preview_at').eq('user_id',USER.id)).data.every(x=>x.preview_at)"): break
+        a.wait_for_timeout(500)
+    else: raise AssertionError("previews never cached")
     db = a.evaluate("async()=>(await sb.from('library_items').select('url,thumb_url,preview_site').eq('user_id',USER.id)).data"); ap = [r for r in db if "apple" in r["url"]][0]
-    print("    apple:", ap); step("Previews cached on the rows" + (" (Apple Podcasts og:image via edge function)" if ap["thumb_url"] else " (Apple: no image, fallback tile)"))
+    assert ap["thumb_url"] and ap["preview_site"] == "Apple Podcasts", ap; step("Previews cached on the rows (Apple Podcasts og:image via the link-preview edge function)")
     a.reload(); a.click("[data-pt=Library]"); expect(a.locator(".lc")).to_have_count(len(ITEMS), timeout=T)
     a.wait_for_function("[...document.querySelectorAll('.lth img')].every(i=>i.complete)", timeout=T); a.wait_for_timeout(1200)
     a.screenshot(path=f"{OUT}/library-cards.png", full_page=True); step(f"Screenshot {OUT}/library-cards.png")
