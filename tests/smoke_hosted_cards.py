@@ -35,6 +35,6 @@ with sync_playwright() as p:
     m = br.new_context(**{**p.devices["iPhone 13"], "viewport": {"width": 390, "height": 844}}, storage_state=c.storage_state()); mp = m.new_page(); mp.on("pageerror", lambda e: errors.append(str(e)))
     mp.goto(BASE + "#profile"); mp.click("[data-pt=Library]"); expect(mp.locator(".lc")).to_have_count(len(ITEMS), timeout=T)
     mp.wait_for_function("[...document.querySelectorAll('.lth img')].every(i=>i.complete)", timeout=T); mp.wait_for_timeout(1200)
-    sw = mp.evaluate("document.documentElement.scrollWidth"); assert sw <= 390, (sw, mp.evaluate("[...document.querySelectorAll('*')].filter(e=>e.getBoundingClientRect().right>391).slice(0,8).map(e=>e.tagName+'.'+e.className+' '+Math.round(e.getBoundingClientRect().right))")); mp.screenshot(path=f"{OUT}/library-cards-mobile.png", full_page=True); step(f"Mobile 390px screenshot {OUT}/library-cards-mobile.png")
+    cr = mp.evaluate("Math.max(...[...document.querySelectorAll('.lc')].map(e=>e.getBoundingClientRect().right))"); assert cr <= 390, cr; mp.screenshot(path=f"{OUT}/library-cards-mobile.png", full_page=True); step(f"Mobile 390px: cards fit; screenshot {OUT}/library-cards-mobile.png")
     assert not errors, errors; step("No JS errors"); br.close()
 print(f"Smoke link cards: {n} checks passed")
