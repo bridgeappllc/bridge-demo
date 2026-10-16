@@ -35,8 +35,8 @@ with sync_playwright() as p:
     a.goto(BASE + "#profile"); a.click("[data-pt=Settings]"); on = a.locator("#tipcard #tipon"); expect(on).to_have_text("Get paid for tips", timeout=T)
     on.click(); a.wait_for_url("**#tipsetup/return", timeout=T); expect(a.locator("#tipcard")).to_contain_text("Tips are on", timeout=T)
     row = db.execute("select stripe_account_id, payouts_enabled from tip_accounts where user_id=%s", (aid,)).fetchone(); assert row[0].startswith("acct_") and row[1], row
-    assert mock("/mock/state")["accts"][row[0]]["type"] == "express"
-    a.screenshot(path=f"{SHOTS}/tips-1-setup.png"); step("Settings → 'Get paid for tips' → Stripe Express onboarding → back in the app: 'Tips are on'")
+    ac = mock("/mock/state")["accts"][row[0]]; assert ac["type"] == "v2" and ac["dashboard"] == "express" and ac["defaults"]["responsibilities"]["losses_collector"] == "application", ac
+    a.screenshot(path=f"{SHOTS}/tips-1-setup.png"); step("Settings → 'Get paid for tips' → Stripe Accounts v2 (Express dashboard, recipient stripe_transfers) onboarding → back in the app: 'Tips are on'")
     # Pod: A shares a clip, B joins; B sees Tip on the clip sharer
     br1 = a.evaluate("async t=>{const{data,error}=await sb.rpc('create_bridge',{p_display_name:PROFILE.display_name,p_clip_title:t,p_clip_url:'https://example.org/tip',p_clip_type:'Podcast',p_clip_cat:'',p_clip_creator:'',p_friend_label:'',p_reward:''});if(error)throw error;return data[0]||data}", f"Smoke tip clip {tag}")
     b.evaluate("async([t,n])=>{const{error}=await sb.rpc('join_bridge',{p_token:t,p_display_name:n});if(error)throw error}", [br1["invite_token"], Bn])
