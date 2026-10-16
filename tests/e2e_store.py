@@ -63,7 +63,7 @@ with sync_playwright() as p:
     pb.click("#asave"); expect(pb.locator(".toast")).to_be_visible(timeout=T)
     ben_id = pa.locator("a[href^='#u/']").first.get_attribute("href")[3:]
     pa.goto(BASE + f"#u/{ben_id}"); expect(pa.get_by_text("Ben's questionable item")).to_be_visible(timeout=T)
-    pa.click("text=Ben's questionable item"); expect(pa.locator("#repi")).to_be_visible(timeout=T)
+    pa.locator(".card", has_text="Ben's questionable item").locator(".lmeta").click(); expect(pa.locator("#repi")).to_be_visible(timeout=T)
     pa.click("#repi"); pa.click("#repsheet label:has-text('Spam')"); pa.click("#rsend"); expect(pa.locator(".toast")).to_have_text("Thanks — your report was sent", timeout=T)
     if db:  # poll: the identical toast from the previous (message) report can still be on screen
         for _ in range(40):
