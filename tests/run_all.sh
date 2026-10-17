@@ -17,6 +17,7 @@ python3 "$HERE/test_link_filter.py"
 python3 "$HERE/test_link_cards_rls.py"
 python3 "$HERE/test_pod_link_cards_rls.py"
 python3 "$HERE/test_tips_rls.py"
+python3 "$HERE/test_tips2_rls.py"
 SB_KEY="$(cat "$RUN/anon.key")" nohup python3 "$HERE/serve.py" 8080 > "$RUN/serve.log" 2>&1 & echo $! > "$RUN/serve.pid"; sleep 1
 python3 "$HERE/e2e_two_users.py"
 python3 "$HERE/e2e_library_email.py"
@@ -35,4 +36,4 @@ python3 "$HERE/e2e_share_card.py"
 python3 "$HERE/e2e_link_filter.py"
 python3 "$HERE/e2e_link_cards.py"
 python3 "$HERE/e2e_pod_link_cards.py"
-python3 "$HERE/e2e_tips.py"
+python3 "$HERE/e2e_tips2.py"  # e2e_tips.py (v1 UI) lives on main; the preview UI uses tips2

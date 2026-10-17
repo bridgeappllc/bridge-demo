@@ -3,10 +3,11 @@
 // signed webhook at tips-webhook), and inspect what was sent. Webhook signing secret: whsec_local_mock.
 const http = require('http'), crypto = require('crypto');
 const PORT = 54333, HOOK = process.env.TIPS_WEBHOOK_URL || 'http://127.0.0.1:54321/functions/v1/tips-webhook', WHSEC = 'whsec_local_mock';
-const accts = {}, sessions = {}; let n = 0; const id = p => `${p}_mock${Date.now().toString(36)}${(n++).toString(36)}`;
+const HOOK2 = process.env.TIPS2_WEBHOOK_URL || 'http://127.0.0.1:54321/functions/v1/tips2-webhook';
+const accts = {}, sessions = {}, pis = {}, transfers = [], refunds = []; let n = 0; const id = p => `${p}_mock${Date.now().toString(36)}${(n++).toString(36)}`;
 const send = (res, s, b) => { res.writeHead(s, { 'content-type': 'application/json' }); res.end(JSON.stringify(b)); };
 function sign(payload, t = Math.floor(Date.now() / 1000), secret = WHSEC) { return `t=${t},v1=${crypto.createHmac('sha256', secret).update(`${t}.${payload}`).digest('hex')}`; }
-async function fire(ev, header) { const body = JSON.stringify(ev); const r = await fetch(HOOK, { method: 'POST', headers: { 'content-type': 'application/json', 'stripe-signature': header ?? sign(body) }, body }); return { status: r.status, body: await r.text() }; }
+async function fire(ev, header) { const body = JSON.stringify(ev); const h2 = header ?? sign(body); await fetch(HOOK2, { method: 'POST', headers: { 'content-type': 'application/json', 'stripe-signature': h2 }, body }).catch(() => {}); const r = await fetch(HOOK, { method: 'POST', headers: { 'content-type': 'application/json', 'stripe-signature': header ?? sign(body) }, body }); return { status: r.status, body: await r.text() }; }
 http.createServer((req, res) => {
   let raw = ''; req.on('data', c => raw += c); req.on('end', async () => {
     const f = Object.fromEntries(new URLSearchParams(raw)); const u = req.url.split('?')[0];
@@ -30,15 +31,24 @@ http.createServer((req, res) => {
     if (req.method === 'GET' && (m = u.match(/^\/v1\/accounts\/(acct_\w+)$/))) return accts[m[1]] ? send(res, 200, accts[m[1]]) : send(res, 404, { error: { message: 'No such account' } });
     if (req.method === 'POST' && u === '/v1/account_links') return send(res, 200, { object: 'account_link', url: `http://127.0.0.1:${PORT}/mock/onboard/${f.account}?return=${encodeURIComponent(f.return_url)}` });
     if (req.method === 'POST' && (m = u.match(/^\/v1\/accounts\/(acct_\w+)\/login_links$/))) return send(res, 200, { url: `http://127.0.0.1:${PORT}/mock/express/${m[1]}` });
-    if (req.method === 'POST' && u === '/v1/checkout/sessions') { if (!accts[f['payment_intent_data[transfer_data][destination]']]) return send(res, 400, { error: { message: 'No such destination' } });
+    if (req.method === 'POST' && u === '/v1/checkout/sessions') { const d = f['payment_intent_data[transfer_data][destination]']; if (d !== undefined && !accts[d]) return send(res, 400, { error: { message: 'No such destination' } });
+      if (d === undefined && f['payment_intent_data[application_fee_amount]'] !== undefined) return send(res, 400, { error: { message: 'application_fee_amount needs a destination' } });
       const s = { id: id('cs_test'), object: 'checkout.session', livemode: false, url: '', form: f, payment_status: 'unpaid', status: 'open' }; s.url = `http://127.0.0.1:${PORT}/mock/checkout/${s.id}`; sessions[s.id] = s; return send(res, 200, s); }
+    if (req.method === 'GET' && (m = u.match(/^\/v1\/payment_intents\/(pi_\w+)$/))) return pis[m[1]] ? send(res, 200, pis[m[1]]) : send(res, 404, { error: { message: 'No such payment_intent' } });
+    if (req.method === 'POST' && u === '/v1/transfers') { const k = req.headers['idempotency-key']; const dup = k && transfers.find(t => t.idem === k); if (dup) return send(res, 200, dup);
+      const a = accts[f.destination], pi = Object.values(pis).find(p => p.latest_charge === f.source_transaction);
+      if (!a || !a.payouts_enabled) return send(res, 400, { error: { message: 'destination not ready' } }); if (!pi) return send(res, 400, { error: { message: 'No such charge' } });
+      const t = { id: id('tr'), object: 'transfer', amount: +f.amount, destination: f.destination, source_transaction: f.source_transaction, transfer_group: f.transfer_group, idem: k }; transfers.push(t); return send(res, 200, t); }
+    if (req.method === 'POST' && u === '/v1/refunds') { const k = req.headers['idempotency-key']; const dup = k && refunds.find(t => t.idem === k); if (dup) return send(res, 200, dup);
+      const pi = pis[f.payment_intent]; if (!pi) return send(res, 400, { error: { message: 'No such payment_intent' } }); if (pi.refunded) return send(res, 400, { error: { message: 'already refunded' } });
+      pi.refunded = pi.amount; const r = { id: id('re'), object: 'refund', amount: pi.amount, payment_intent: pi.id, idem: k }; refunds.push(r); return send(res, 200, r); }
     // ---- test helpers
     if ((m = u.match(/^\/mock\/onboard\/(acct_\w+)$/))) { const a = accts[m[1]]; if (a) Object.assign(a, { details_submitted: true, charges_enabled: true, payouts_enabled: true }); res.writeHead(302, { location: new URL(req.url, 'http://x').searchParams.get('return') }); return res.end(); }
     if ((m = u.match(/^\/mock\/checkout\/(cs_test_\w+)$/))) { const s = sessions[m[1]]; res.writeHead(200, { 'content-type': 'text/html' }); return res.end(`<h1>Mock Checkout</h1>${s ? Object.keys(s.form).filter(k => /line_items\[\d\]\[price_data\]\[product_data\]\[name\]/.test(k)).map(k => `<p>${s.form[k]}: ${s.form[k.replace('[product_data][name]', '[unit_amount]')]}</p>`).join('') : ''}<a id="pay" href="/mock/pay/${m[1]}">Pay</a>`); }
-    if ((m = u.match(/^\/mock\/pay\/(cs_test_\w+)$/))) { const s = sessions[m[1]]; if (!s) return send(res, 404, {}); Object.assign(s, { payment_status: 'paid', status: 'complete', payment_intent: id('pi') });
+    if ((m = u.match(/^\/mock\/pay\/(cs_test_\w+)$/))) { const s = sessions[m[1]]; if (!s) return send(res, 404, {}); Object.assign(s, { payment_status: 'paid', status: 'complete', payment_intent: id('pi') }); const total = Object.keys(s.form).filter(k => /^line_items\[\d\]\[price_data\]\[unit_amount\]$/.test(k)).reduce((a, k) => a + +s.form[k], 0); pis[s.payment_intent] = { id: s.payment_intent, amount: total, latest_charge: id('ch'), refunded: 0 };
       const r = await fire({ id: id('evt'), type: 'checkout.session.completed', livemode: false, data: { object: { id: s.id, object: 'checkout.session', payment_status: 'paid', payment_intent: s.payment_intent } } });
       if (req.method === 'GET') { res.writeHead(302, { location: s.form.success_url }); return res.end(); } return send(res, 200, r); }
-    if (u === '/mock/state') return send(res, 200, { accts, sessions });
+    if (u === '/mock/state') return send(res, 200, { accts, sessions, pis, transfers, refunds });
     if (u === '/mock/enable') { const a = accts[f.account]; if (a) Object.assign(a, { details_submitted: true, charges_enabled: true, payouts_enabled: true }); return send(res, a ? 200 : 404, a || {}); }
     if (u === '/mock/fire') { const ev = JSON.parse(f.event); return send(res, 200, await fire(ev, f.header === 'bad' ? sign(JSON.stringify(ev), undefined, 'whsec_wrong') : f.header === 'old' ? sign(JSON.stringify(ev), Math.floor(Date.now() / 1000) - 3600) : undefined)); }
     send(res, 404, { error: { message: 'mock: no route ' + req.method + ' ' + u } });
