@@ -55,6 +55,7 @@ with sync_playwright() as p:
     a.click("#tipgo"); a.wait_for_url(MOCK + "/mock/checkout/**", timeout=T); cs = a.url.rsplit("/", 1)[1]; f = mock("/mock/state")["sessions"][cs]["form"]
     assert "payment_intent_data[transfer_data][destination]" not in f and "payment_intent_data[application_fee_amount]" not in f, f
     assert f["line_items[0][price_data][unit_amount]"] == "500" and f["line_items[1][price_data][unit_amount]"] == "46" and "for listening" in f["line_items[0][price_data][product_data][name]"], f
+    assert f.get("adaptive_pricing[enabled]") == "false", f  # USD-only app (TIPS_USD_ONLY_APPS)
     t = q1("select status, mode, purpose, total_cents, recipient_cents, recipient from tips2 where checkout_session_id=%s", (cs,)); assert t[:5] == ("pending", "platform", "listen", 546, 450) and str(t[5]) == bid, t
     a.click("#pay"); a.wait_for_url("**#tipped/**", timeout=T); expect(a.locator("#app")).to_contain_text(f"Your $5.00 tip is waiting for {Bn}")
     assert q1("select status from tips2 where checkout_session_id=%s", (cs,))[0] == "held"
