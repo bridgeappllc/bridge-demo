@@ -115,5 +115,10 @@ with sync_playwright() as p:
     r = fn(c, "tips2-checkout", {"recipient": bid, "amount_cents": 500}); assert "not found" in r.get("error", "").lower(), r
     assert c.evaluate("async u=>(await sb.rpc('tips2_can_tip',{p_user:u})).data", bid) is False
     ev(b, "async u=>{await sb.rpc('unblock_user',{p_user:u})}", cid); step("Blocks respected")
+    evl = json.dumps({"id": "evt_l", "type": "checkout.session.completed", "livemode": True, "data": {"object": {"id": "cs_x", "payment_status": "paid"}}})
+    import subprocess; hdr = subprocess.run(["node", "-e", "const c=require('crypto'),t=Math.floor(Date.now()/1000),b=process.argv[1];console.log('t='+t+',v1='+c.createHmac('sha256','whsec_local_mock').update(t+'.'+b).digest('hex'))", evl], capture_output=True, text=True).stdout.strip()
+    try: urllib.request.urlopen(urllib.request.Request(API + "/functions/v1/tips2-webhook", data=evl.encode(), method="POST", headers={"stripe-signature": hdr})); raise AssertionError("live event accepted with sandbox secret")
+    except urllib.error.HTTPError as e: assert e.code == 400, e.code
+    step("Webhook: a livemode event signed with the sandbox secret is rejected (mode must match the verifying secret)")
     assert not errors, errors
 print(f"\n{n} tips2 checks passed")

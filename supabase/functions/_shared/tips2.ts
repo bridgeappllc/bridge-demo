@@ -1,13 +1,28 @@
-// Shared helpers for the tips2-* edge functions (Pod Club tips, "earn first"). Preview uses the Stripe SANDBOX key
-// (secret STRIPE_SECRET_KEY_SANDBOX); a live key is refused unless TIPS2_ALLOW_LIVE=1. Never logs secrets.
+// Shared helpers for the tips2-* edge functions (Pod Club tips, "earn first"). The Stripe key is chosen per app:
+//   apps in TIPS2_LIVE_APPS (the live app) -> LIVE key STRIPE_SECRET_KEY (must be sk_live_, needs TIPS2_ALLOW_LIVE=1);
+//   apps in TIPS2_APPS (the preview)       -> SANDBOX key STRIPE_SECRET_KEY_SANDBOX (must be sk_test_).
+// Rows remember their mode (tips2.livemode, tip_accounts2.livemode); background work (payouts, refunds) uses the row's
+// mode, never the caller's. Never logs secrets.
 export const SB = Deno.env.get("SUPABASE_URL")!;
 export const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 export const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
-export const STRIPE_KEY = Deno.env.get("STRIPE_SECRET_KEY_SANDBOX") ?? "";
+const SANDBOX_KEY = Deno.env.get("STRIPE_SECRET_KEY_SANDBOX") ?? "";
+const LIVE_KEY = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
+const LIVE_ALLOWED = Deno.env.get("TIPS2_ALLOW_LIVE") === "1";
 export const STRIPE_API = Deno.env.get("STRIPE_API_URL") ?? "https://api.stripe.com";
 export const STRIPE_V2_VERSION = Deno.env.get("STRIPE_V2_VERSION") ?? "2026-09-30.endive";
-export const KEY_OK = !!STRIPE_KEY && (STRIPE_KEY.startsWith("sk_test_") || Deno.env.get("TIPS2_ALLOW_LIVE") === "1");
-export const APPS = (Deno.env.get("TIPS2_APPS") ?? "https://bridgeappllc.github.io/bridge-preview/").split(",");
+export const APPS = (Deno.env.get("TIPS2_APPS") ?? "https://bridgeappllc.github.io/bridge-preview/").split(",").filter(Boolean);
+export const LIVE_APPS = (Deno.env.get("TIPS2_LIVE_APPS") ?? "").split(",").filter(Boolean);
+// key for a mode; "" when that mode isn't configured correctly (wrong prefix / live not allowed)
+export function keyFor(live: boolean) {
+  if (live) return LIVE_ALLOWED && LIVE_KEY.startsWith("sk_live_") ? LIVE_KEY : "";
+  return SANDBOX_KEY.startsWith("sk_test_") ? SANDBOX_KEY : "";
+}
+// the caller's app -> { app (return URL base), live }; unknown apps fall back to the first sandbox app
+export function appMode(app: unknown) {
+  const l = LIVE_APPS.find((a) => a === app); if (l) return { app: l, live: true };
+  return { app: APPS.find((a) => a === app) ?? APPS[0], live: false };
+}
 export const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 export const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -20,16 +35,18 @@ export function split(tip: number) {
   return { tip, fee, total, app_cut, recipient, application_fee: app_cut + fee };
 }
 
-export async function stripe(method: string, path: string, form?: Record<string, string>, idem?: string) {
-  const h: Record<string, string> = { Authorization: `Bearer ${STRIPE_KEY}`, "Content-Type": "application/x-www-form-urlencoded" };
+export async function stripe(live: boolean, method: string, path: string, form?: Record<string, string>, idem?: string) {
+  const key = keyFor(live); if (!key) throw Object.assign(new Error("Tips aren't available yet"), { status: 503, friendly: true });
+  const h: Record<string, string> = { Authorization: `Bearer ${key}`, "Content-Type": "application/x-www-form-urlencoded" };
   if (idem) h["Idempotency-Key"] = idem;
   const r = await fetch(`${STRIPE_API}/v1/${path}`, { method, headers: h, body: form ? new URLSearchParams(form) : undefined });
   const b = await r.json().catch(() => ({}));
   if (!r.ok) throw Object.assign(new Error(b?.error?.message ?? "Stripe error"), { status: 502, code: b?.error?.code });
   return b;
 }
-export async function stripe2(method: string, path: string, body?: unknown) {
-  const r = await fetch(`${STRIPE_API}/v2/${path}`, { method, headers: { Authorization: `Bearer ${STRIPE_KEY}`, "Stripe-Version": STRIPE_V2_VERSION, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+export async function stripe2(live: boolean, method: string, path: string, body?: unknown) {
+  const key = keyFor(live); if (!key) throw Object.assign(new Error("Tips aren't available yet"), { status: 503, friendly: true });
+  const r = await fetch(`${STRIPE_API}/v2/${path}`, { method, headers: { Authorization: `Bearer ${key}`, "Stripe-Version": STRIPE_V2_VERSION, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
   const b = await r.json().catch(() => ({}));
   if (!r.ok) throw Object.assign(new Error(b?.error?.message ?? "Stripe error"), { status: 502 });
   return b;
@@ -45,7 +62,7 @@ export async function me(req: Request) {
   return u.ok ? await u.json() : null;
 }
 
-export const getAccount = (id: string) => stripe2("GET", `core/accounts/${id}?include=configuration.recipient&include=requirements`);
+export const getAccount = (live: boolean, id: string) => stripe2(live, "GET", `core/accounts/${id}?include=configuration.recipient&include=requirements`);
 export function flags(a: any) {
   const c = a?.configuration?.recipient?.capabilities?.stripe_balance ?? {};
   const transfers = c?.stripe_transfers?.status === "active", payouts = c?.payouts?.status === "active";
@@ -56,16 +73,17 @@ export const ready = (row: any) => !!row && row.payouts_enabled && row.charges_e
 
 // Transfer every earned platform tip owed to this user (idempotent: a row is claimed earned -> paying before the
 // transfer, the transfer uses a per-tip Idempotency-Key + source_transaction = the tip's charge, then -> paid_out).
-export async function payout(uid: string, acct: string) {
+// Only tips charged in the same mode as the account (live tips -> live account; sandbox -> sandbox).
+export async function payout(uid: string, acct: string, live: boolean) {
   const out = { paid: 0, cents: 0, failed: 0 };
-  const due = await rest(`tips2?recipient=eq.${uid}&status=eq.earned&mode=eq.platform&select=id`);
+  const due = await rest(`tips2?recipient=eq.${uid}&status=eq.earned&mode=eq.platform&livemode=eq.${live}&select=id`);
   for (const { id } of due ?? []) {
     const t = (await rest(`tips2?id=eq.${id}&status=eq.earned`, { method: "PATCH", body: JSON.stringify({ status: "paying" }) }))?.[0];
     if (!t) continue;
     try {
       let charge = t.charge_id;
-      if (!charge) { const pi = await stripe("GET", `payment_intents/${t.payment_intent_id}`); charge = typeof pi.latest_charge === "string" ? pi.latest_charge : pi.latest_charge?.id; }
-      const tr = await stripe("POST", "transfers", { amount: String(t.recipient_cents), currency: "usd", destination: acct, source_transaction: charge, transfer_group: `tip_${t.id}`, description: `Pod Club tip from ${t.tipper_name}`.slice(0, 200), "metadata[pod_club_tip]": t.id }, `tips2-transfer-${t.id}`);
+      if (!charge) { const pi = await stripe(live, "GET", `payment_intents/${t.payment_intent_id}`); charge = typeof pi.latest_charge === "string" ? pi.latest_charge : pi.latest_charge?.id; }
+      const tr = await stripe(live, "POST", "transfers", { amount: String(t.recipient_cents), currency: "usd", destination: acct, source_transaction: charge, transfer_group: `tip_${t.id}`, description: `Pod Club tip from ${t.tipper_name}`.slice(0, 200), "metadata[pod_club_tip]": t.id }, `tips2-transfer-${t.id}`);
       await rest(`tips2?id=eq.${t.id}`, { method: "PATCH", body: JSON.stringify({ status: "paid_out", transfer_id: tr.id, charge_id: charge, stripe_account_id: acct, paid_out_at: new Date().toISOString() }) });
       out.paid++; out.cents += t.recipient_cents;
     } catch (e: any) {
@@ -83,7 +101,7 @@ export async function refund(t: any) {
   const c = (await rest(`tips2?id=eq.${t.id}&status=eq.${prev}`, { method: "PATCH", body: JSON.stringify({ status: "refunding" }) }))?.[0];
   if (!c) return false;
   try {
-    const r = await stripe("POST", "refunds", { payment_intent: c.payment_intent_id, reason: "requested_by_customer", "metadata[pod_club_tip]": c.id }, `tips2-refund-${c.id}`);
+    const r = await stripe(!!c.livemode, "POST", "refunds", { payment_intent: c.payment_intent_id, reason: "requested_by_customer", "metadata[pod_club_tip]": c.id }, `tips2-refund-${c.id}`);
     await rest(`tips2?id=eq.${c.id}`, { method: "PATCH", body: JSON.stringify({ status: "refunded", refund_id: r.id, refunded_at: new Date().toISOString() }) });
     return true;
   } catch (e: any) {

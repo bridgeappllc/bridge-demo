@@ -2,12 +2,11 @@
 // "listen" (a tip for a pod member on a clip, held until they answer it). Same fee math as tips v1.
 //   Recipient payouts-enabled + thanks -> destination charge (application_fee_amount + transfer_data.destination).
 //   Otherwise -> plain platform charge; 90% of the tip is owed to the recipient and transferred later (tips2-connect/payout).
-import { APPS, CORS, KEY_OK, MAX, MIN, UUID, json, me, rest, split, stripe } from "../_shared/tips2.ts";
+import { CORS, MAX, MIN, UUID, appMode, json, keyFor, me, rest, split, stripe } from "../_shared/tips2.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
-  if (!KEY_OK) return json({ error: "Tips aren't available yet" }, 503);
   const u = await me(req); if (!u) return json({ error: "Not signed in" }, 401);
   let body: any; try { body = await req.json(); } catch { return json({ error: "Bad request" }, 400); }
   const { recipient, kind, ref } = body ?? {}; const purpose = body?.purpose ?? "thanks"; const tip = Number(body?.amount_cents);
@@ -15,11 +14,14 @@ Deno.serve(async (req) => {
   if (!Number.isInteger(tip) || tip % 100 !== 0) return json({ error: "Pick a whole-dollar amount" }, 400);
   if (tip < MIN) return json({ error: "The minimum tip is $2" }, 400);
   if (tip > MAX) return json({ error: "The maximum tip is $100" }, 400);
-  const app = APPS.find((a) => a === body?.app) ?? APPS[0];
+  const { app, live } = appMode(body?.app);
+  if (!keyFor(live)) return json({ error: "Tips aren't available yet" }, 503);
   try {
     const p = (await rest("rpc/tips2_prepare", { method: "POST", body: JSON.stringify({ p_tipper: u.id, p_recipient: recipient, p_purpose: purpose, p_kind: kind ?? null, p_ref: kind ? ref : null }) }))?.[0];
     if (!p) return json({ error: "Couldn't start the tip" }, 500);
-    const s = split(tip), id = crypto.randomUUID(), dest = purpose === "thanks" ? p.stripe_account_id : null;
+    // destination charge only when the recipient's ready account is in this mode (live app -> live account)
+    const acctLive = p.stripe_account_id ? (await rest(`tip_accounts2?stripe_account_id=eq.${p.stripe_account_id}&select=livemode`))?.[0]?.livemode : null;
+    const s = split(tip), id = crypto.randomUUID(), dest = purpose === "thanks" && p.stripe_account_id && !!acctLive === live ? p.stripe_account_id : null;
     const md = { pod_club_tip2: id, tipper: u.id, recipient, purpose };
     const f: Record<string, string> = {
       mode: "payment", client_reference_id: id, submit_type: "pay",
@@ -35,7 +37,8 @@ Deno.serve(async (req) => {
     };
     if (dest) { f["payment_intent_data[application_fee_amount]"] = String(s.application_fee); f["payment_intent_data[transfer_data][destination]"] = dest; }
     for (const [k, v] of Object.entries(md)) { f[`metadata[${k}]`] = v; f[`payment_intent_data[metadata][${k}]`] = v; }
-    const cs = await stripe("POST", "checkout/sessions", f, id);
+    const cs = await stripe(live, "POST", "checkout/sessions", f, id);
+    if (!!cs.livemode !== live) throw new Error("Stripe mode mismatch");
     await rest("tips2", { method: "POST", body: JSON.stringify({ id, purpose, mode: dest ? "destination" : "platform", tipper: u.id, recipient, tipper_name: p.tipper_name, title: (p.title ?? "").slice(0, 300), pod_kind: kind ?? null, pod_ref: kind ? ref : null, amount_cents: s.tip, fee_cents: s.fee, total_cents: s.total, app_cut_cents: s.app_cut, recipient_cents: s.recipient, application_fee_cents: dest ? s.application_fee : null, stripe_account_id: dest, checkout_session_id: cs.id, livemode: !!cs.livemode }) });
     return json({ ...s, url: cs.url, tip_id: id, mode: dest ? "destination" : "platform", purpose });
   } catch (e: any) {
