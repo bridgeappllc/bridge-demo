@@ -4,6 +4,8 @@
 //   Otherwise -> plain platform charge; 90% of the tip is owed to the recipient and transferred later (tips2-connect/payout).
 import { CORS, MAX, MIN, UUID, appMode, json, keyFor, me, rest, split, stripe } from "../_shared/tips2.ts";
 
+const USD_ONLY = (Deno.env.get("TIPS_USD_ONLY_APPS") ?? "").split(",").filter(Boolean);
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -35,6 +37,8 @@ Deno.serve(async (req) => {
       "payment_intent_data[description]": `Pod Club tip for ${p.recipient_name}`.slice(0, 200),
       "payment_intent_data[transfer_group]": `tip_${id}`,
     };
+    // USD-only (no Adaptive Pricing currency conversion) for apps listed in TIPS_USD_ONLY_APPS
+    if (USD_ONLY.includes(app)) f["adaptive_pricing[enabled]"] = "false";
     if (dest) { f["payment_intent_data[application_fee_amount]"] = String(s.application_fee); f["payment_intent_data[transfer_data][destination]"] = dest; }
     for (const [k, v] of Object.entries(md)) { f[`metadata[${k}]`] = v; f[`payment_intent_data[metadata][${k}]`] = v; }
     const cs = await stripe(live, "POST", "checkout/sessions", f, id);
