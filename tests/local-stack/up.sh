@@ -64,5 +64,12 @@ if [ -x "$DENO" ]; then
   env -i PATH=/usr/bin:/bin HOME="$HOME" SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_ANON_KEY="$(cat "$RUN/anon.key")" LINK_PREVIEW_ALLOW_LOCAL=1 DENO_SERVE_ADDRESS=tcp:127.0.0.1:54331 \
     nohup "$DENO" run --allow-net --allow-env "$HERE/../../supabase/functions/link-preview/index.ts" > "$RUN/linkpreview.log" 2>&1 & echo $! > "$RUN/linkpreview.pid"
   for i in $(seq 30); do curl -s -o /dev/null -X OPTIONS http://127.0.0.1:54331/ && break; sleep 0.5; done
+  # Tips: Stripe mock (no real key, no network) + the three tips-* functions.
+  nohup node "$HERE/stripe-mock.js" > "$RUN/stripemock.log" 2>&1 & echo $! > "$RUN/stripemock.pid"
+  for fn in connect:54334 checkout:54335 webhook:54336; do name="tips-${fn%%:*}"; port="${fn##*:}"
+    env -i PATH=/usr/bin:/bin HOME="$HOME" SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_ANON_KEY="$(cat "$RUN/anon.key")" SUPABASE_SERVICE_ROLE_KEY="$(cat "$RUN/service.key")" \
+      STRIPE_SECRET_KEY=sk_test_local_mock STRIPE_API_URL=http://127.0.0.1:54333 STRIPE_WEBHOOK_SECRET=whsec_local_mock TIPS_APPS=http://127.0.0.1:8080/ DENO_SERVE_ADDRESS=tcp:127.0.0.1:$port \
+      nohup "$DENO" run --allow-net --allow-env "$HERE/../../supabase/functions/$name/index.ts" > "$RUN/$name.log" 2>&1 & echo $! > "$RUN/$name.pid"
+    for i in $(seq 30); do curl -s -o /dev/null -X OPTIONS http://127.0.0.1:$port/ && break; sleep 0.5; done; done
 else echo "functions: deno not found — skipping"; fi
 sleep 2; echo "Stack up: API http://127.0.0.1:54321  anon key in $RUN/anon.key"
