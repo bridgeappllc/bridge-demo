@@ -33,12 +33,19 @@ with sync_playwright() as p:
     aid, bid, cid = a.evaluate("ME"), b.evaluate("ME"), c.evaluate("ME")
     fn = lambda pg, name, body: pg.evaluate("async([n,b])=>{try{return await tipFn(n,b)}catch(e){return{error:e.message}}}", [name, body])
     ev = lambda pg, js, arg=None: pg.evaluate(js, arg)
-    # Tip anyone: B hasn't onboarded, A still sees a Tip button on B's profile
-    a.goto(BASE + f"#u/{bid}"); expect(a.locator(f"[data-tip='{bid}']")).to_have_text(f"💸 Tip {Bn}", timeout=T)
-    assert a.locator("[data-tipno]").count() == 0 and "hasn't set up tips" not in a.inner_text("#app")
-    a.screenshot(path=f"{SHOTS}/tips2-1-tip-anyone.png")
+    LEGACY = "http://127.0.0.1:8080/legacy/"  # server regression only: an app NOT in TIPS_INVITE_ONLY_APPS keeps the old thank-you path. Live and preview are both invite-only now (like the local app below)
+    fnL = lambda pg, name, body: pg.evaluate("async([n,b])=>{const{data}=await sb.auth.getSession();const r=await fetch(CFG.SUPABASE_URL+'/functions/v1/'+n,{method:'POST',headers:{Authorization:'Bearer '+data.session.access_token,apikey:CFG.SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify(b)});const j=await r.json().catch(()=>({}));return r.ok?j:{error:j.error||'error'}}", [name, {**body, "app": LEGACY}])
+    # No standalone tipping: no Tip button on B's profile; tips2-checkout (invite-only app) rejects tips without a clip
+    a.goto(BASE + f"#u/{bid}"); expect(a.locator("#sendb")).to_be_visible(timeout=T)
+    assert a.locator("[data-tip], .tipb").count() == 0 and "💸 Tip" not in a.inner_text("#app")
+    a.screenshot(path=f"{SHOTS}/tips2-1-no-tip-button.png")
+    for body in ({"recipient": bid, "amount_cents": 500}, {"recipient": bid, "purpose": "thanks", "amount_cents": 500}, {"recipient": bid, "purpose": "listen", "amount_cents": 500}):
+        r = fn(a, "tips2-checkout", body); assert "Tips go with a clip" in r.get("error", ""), (body, r)
+    r = fn(a, "tips2-checkout", {"recipient": bid, "purpose": "listen", "kind": "bridge", "ref": "00000000-0000-4000-8000-000000000000", "amount_cents": 500}); assert "not found" in r.get("error", "").lower(), r
+    assert q1("select count(*) from tips2 where recipient=%s", (bid,))[0] == 0
+    step("No Tip button on People/profile pages; tips2-checkout (invite-only, as on live and preview) rejects tips not attached to a valid clip (thank-you, no clip, bogus clip)")
     r = fn(a, "tips-checkout", {"recipient": bid, "amount_cents": 500}); assert "hasn't set up tips yet" in r.get("error", ""), r
-    step("Tip button on a not-onboarded user (no 'hasn't set up tips yet'); live tips-checkout still refuses (unchanged)")
+    step("Live v1 tips-checkout still refuses (unchanged)")
     # Settings card hidden for people with no tips
     b.goto(BASE + "#profile"); b.click("[data-pt=Settings]"); b.wait_for_timeout(2500); assert b.locator("#tipcard").count() == 0
     step("No 'Get paid' card in Settings before earning a tip")
@@ -61,10 +68,10 @@ with sync_playwright() as p:
     assert q1("select status from tips2 where checkout_session_id=%s", (cs,))[0] == "held"
     step("Platform Checkout (no destination/application fee), $5.00 + $0.46; paid → tip 'held', amount due $4.50")
     b.goto(BASE + "#notifications"); expect(b.locator(".nlist li").first).to_contain_text(f"{A} added a $5 tip for listening to", timeout=T)
-    b.goto(BASE + f"#pod/{pod}"); w = b.locator(".tipwait").first; expect(w).to_contain_text("$5 tip waiting: answer to earn it", timeout=T)
+    b.goto(BASE + f"#pod/{pod}"); w = b.locator(".tipwait").first; expect(w).to_contain_text("$5 tip waiting: listen and answer to earn it", timeout=T)
     b.evaluate("document.querySelector('.tipwait').scrollIntoView({block:'center'})"); b.wait_for_timeout(300); b.screenshot(path=f"{SHOTS}/tips2-3-waiting.png")
     a.goto(BASE + f"#pod/{pod}"); expect(a.locator(".tipsent").first).to_contain_text(f"Your $5 tip for {Bn} is waiting", timeout=T)
-    step("Listener: notification + '$5 tip waiting: answer to earn it' on the clip; tipper sees it's waiting")
+    step("Listener: notification + '$5 tip waiting: listen and answer to earn it' on the clip; tipper sees it's waiting")
     clip = str(q1("select pod_ref from tips2 where checkout_session_id=%s", (cs,))[0])
     r = fn(a, "tips2-checkout", {"recipient": aid, "purpose": "listen", "kind": "group_clip", "ref": clip, "amount_cents": 500}); assert "yourself" in r.get("error", ""), r
     # B answers → earned
@@ -77,6 +84,16 @@ with sync_playwright() as p:
     b.goto(BASE + "#profile"); b.click("[data-pt=Settings]"); e = b.locator("#tipearned"); expect(e).to_contain_text("You've earned $4.50 in tips", timeout=T)
     b.evaluate("document.querySelector('#tipcard').scrollIntoView({block:'center'})"); b.wait_for_timeout(300); b.screenshot(path=f"{SHOTS}/tips2-4-earned.png")
     step("Answering earns it: 'You earned $5 for listening…' + Settings 'You've earned $4.50 in tips. Get paid'; no more listen tips once answered")
+    # one-friend invite with a tip: A sends B a clip from B's profile and adds a tip in the same step
+    a.goto(BASE + f"#u/{bid}"); a.click("#sendb"); a.fill("#sdurl", "https://example.org/invite-tip"); a.fill("#sdtitle", f"Smoke invite tip {tag}")
+    a.check("#sdtip"); a.click("#sdgo"); sh = a.locator("#tipsheet"); expect(sh.locator("#tiph")).to_have_text("Add a tip for listening", timeout=T)
+    expect(sh.locator(".tipbrk .tot")).to_contain_text("$5.46"); a.click("#tipgo"); a.wait_for_url("**/mock/checkout/**", timeout=T); ics = a.url.rsplit("/", 1)[1]
+    mock("/mock/pay/" + ics, {"x": "1"}); a.goto(BASE + "#bridges"); a.wait_for_function("typeof sb!=='undefined'"); it = q1("select status, purpose, pod_kind, pod_ref, recipient from tips2 where checkout_session_id=%s", (ics,))
+    assert it[:3] == ("held", "listen", "bridge") and str(it[4]) == bid, it
+    assert q1("select direct_status from bridges where id=%s", (it[3],))[0] == "pending"
+    b.goto(BASE + "#bridges"); expect(b.locator(f"#inc-{it[3]} .tipwait")).to_contain_text("$5 tip waiting: listen and answer to earn it", timeout=T)
+    step("Invite with a tip: 'Send a clip' to a friend + '💸 Add a tip for listening' → held on the pending invite; the friend sees '$5 tip waiting: listen and answer to earn it' on it")
+    b.goto(BASE + "#profile"); b.click("[data-pt=Settings]"); expect(b.locator("#tipcard #tipon")).to_be_visible(timeout=T)
     b.click("#tipcard #tipon"); b.wait_for_url("**#tipsetup/return", timeout=T); expect(b.locator("#tipcard")).to_contain_text("Payouts are on", timeout=T)
     expect(b.locator("#tipcard")).to_contain_text("$4.50 sent", timeout=T)
     tid = str(q1("select id from tips2 where checkout_session_id=%s", (cs,))[0]); mine = lambda: [x for x in mock("/mock/state")["transfers"] if x["transfer_group"] == f"tip_{tid}"]
@@ -97,12 +114,12 @@ with sync_playwright() as p:
     assert len(mine()) == 1; assert sweep("nope")[0] == 403
     step("Idempotent: repeat status + cron sweep make no second transfer; sweep needs the cron secret")
     # onboarded recipient keeps destination charges
-    r = fn(a, "tips2-checkout", {"recipient": bid, "amount_cents": 500}); assert r.get("mode") == "destination", r
+    r = fnL(a, "tips2-checkout", {"recipient": bid, "amount_cents": 500}); assert r.get("mode") == "destination", r
     f = mock("/mock/state")["sessions"][r["url"].rsplit("/", 1)[1]]["form"]; assert f["payment_intent_data[application_fee_amount]"] == "96" and f["payment_intent_data[transfer_data][destination]"] == acct, f
     mock("/mock/pay/" + r["url"].rsplit("/", 1)[1], {"x": "1"}); assert q1("select status from tips2 where id=%s", (r["tip_id"],))[0] == "paid_out"
     step("Onboarded recipient: thank-you tip is a destination charge (application fee $0.96) → paid out")
     # not-onboarded thank-you tip: earned on payment
-    r = fn(b, "tips2-checkout", {"recipient": cid, "amount_cents": 500}); assert r.get("mode") == "platform", r
+    r = fnL(b, "tips2-checkout", {"recipient": cid, "amount_cents": 500}); assert r.get("mode") == "platform", r
     mock("/mock/pay/" + r["url"].rsplit("/", 1)[1], {"x": "1"}); assert q1("select status from tips2 where id=%s", (r["tip_id"],))[0] == "earned"
     c.goto(BASE + "#notifications"); expect(c.locator(".nlist li").first).to_contain_text(f"{Bn} tipped you $5. Set up payouts to collect it", timeout=T)
     step("Not-onboarded recipient: thank-you tip on the platform, earned on payment, 'X tipped you $5. Set up payouts to collect it'")
@@ -120,7 +137,7 @@ with sync_playwright() as p:
     step("Sweep refunds earned tips unclaimed for 90 days and listening tips not earned within 30 days (once)")
     # blocks
     ev(b, "async u=>{const{error}=await sb.rpc('block_user',{p_user:u});if(error)throw error}", cid)
-    r = fn(c, "tips2-checkout", {"recipient": bid, "amount_cents": 500}); assert "not found" in r.get("error", "").lower(), r
+    r = fnL(c, "tips2-checkout", {"recipient": bid, "amount_cents": 500}); assert "not found" in r.get("error", "").lower(), r
     assert c.evaluate("async u=>(await sb.rpc('tips2_can_tip',{p_user:u})).data", bid) is False
     ev(b, "async u=>{await sb.rpc('unblock_user',{p_user:u})}", cid); step("Blocks respected")
     evl = json.dumps({"id": "evt_l", "type": "checkout.session.completed", "livemode": True, "data": {"object": {"id": "cs_x", "payment_status": "paid"}}})
