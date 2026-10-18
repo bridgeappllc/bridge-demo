@@ -135,6 +135,24 @@ with sync_playwright() as p:
     assert [q1("select status from tips2 where id=%s", (x,))[0] for x in (r["tip_id"], r2["tip_id"])] == ["refunded", "refunded"]
     assert len(mock("/mock/state")["refunds"]) == nref + 2; code, out = sweep(); assert len(mock("/mock/state")["refunds"]) == nref + 2
     step("Sweep refunds earned tips unclaimed for 90 days and listening tips not earned within 30 days (once)")
+    # listen-status prompt: "💸 Add a tip for listening" next to "hasn't answered yet", only for unanswered members
+    clip3 = ev(a, "async([p,t])=>await API.gshare(p,{url:'https://example.org/listen-3',title:t,type:'Podcast'},'')", [pod, f"Smoke listen 3 {tag}"])
+    a.goto(BASE + f"#pod/{pod}"); a.reload(); g3 = a.locator(f"#gc-{clip3}")
+    expect(g3.locator(".lrow", has_text=Bn)).to_contain_text("hasn't answered yet", timeout=T); expect(g3.locator(f"[data-lt1='{bid}']")).to_be_visible()
+    assert a.locator(f"#gc-{clip} [data-lt1='{bid}']").count() == 0  # B already answered the first clip
+    g3.locator(f"[data-lt1='{bid}']").click(); sh = a.locator("#tipsheet"); expect(sh.locator("#tiph")).to_have_text("Add a tip for listening", timeout=T)
+    expect(sh.locator(".tipbrk .tot")).to_contain_text("$5.46"); a.click("#tipgo"); a.wait_for_url("**/mock/checkout/**", timeout=T); cs3 = a.url.rsplit("/", 1)[1]
+    mock("/mock/pay/" + cs3, {"x": "1"}); assert q1("select status, pod_ref::text from tips2 where checkout_session_id=%s", (cs3,)) == ("held", clip3)
+    step("Pod page: 'Still listening · <name> hasn't answered yet · 💸 Add a tip for listening' only for unanswered members; tip tied to that clip → held")
+    b.goto(BASE + "#notifications"); b.reload(); n1 = b.locator(".nlist li").first
+    expect(n1).to_contain_text(f"{A} added a $5 tip for listening to", timeout=T); expect(n1).to_contain_text("Listen and answer to earn it.")
+    assert q1("select count(*) from notifications where user_id=%s and kind='tip_waiting' and title like %s", (bid, f"%Smoke listen 3 {tag}%"))[0] == 1
+    step("Nudge: the recipient gets one bell notification per tip: '<Sender> added a $5 tip for listening to “clip”. Listen and answer to earn it.'")
+    a.goto(BASE + f"#pod/{pod}"); a.reload(); expect(g3.locator(".lrow", has_text=Bn).locator(".tipw")).to_contain_text("$5 tip waiting", timeout=T)
+    assert g3.locator(f"[data-lt1='{bid}']").count() == 0
+    ev(b, "async c=>await API.ganswer(c,'It was about listening.',7)", clip3); a.reload(); expect(g3).to_be_visible(timeout=T); a.wait_for_timeout(1500)
+    assert g3.locator(".lrow", has_text=Bn).count() == 0 and q1("select status from tips2 where checkout_session_id=%s", (cs3,))[0] == "earned"
+    step("After the tip: '$5 tip waiting' instead of the button; after they answer, the prompt is gone and the tip is earned")
     # blocks
     ev(b, "async u=>{const{error}=await sb.rpc('block_user',{p_user:u});if(error)throw error}", cid)
     r = fnL(c, "tips2-checkout", {"recipient": bid, "amount_cents": 500}); assert "not found" in r.get("error", "").lower(), r
