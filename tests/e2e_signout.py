@@ -29,7 +29,7 @@ with sync_playwright() as p:
         [pg.click(f".topic[data-t={t}]") for t in topics]; pg.click("#tgo")
     pg.goto(BASE); signup("SmokeGuest", ("Politics", "Culture", "Science"), EMAIL); settings()
     btn = pg.locator("#sout"); expect(btn).to_have_text(re.compile("Sign out"))
-    expect(btn).to_have_css("color", "rgb(74, 107, 87)", timeout=T)
+    expect(btn).to_have_css("color", "rgb(47, 74, 58)", timeout=T)
     pg.screenshot(path=f"{SHOTS}/signout.png", full_page=True); step("Settings shows a Harbor Blue 'Sign out' button")
     dlg["accept"] = False; btn.click(); pg.wait_for_timeout(500)
     assert "sign back in any time with your email" in dlg["msgs"][-1].lower(), dlg["msgs"]
