@@ -20,7 +20,7 @@ async function prefill(uid: string, email: string, app: string) {
   const url = prof?.username ? `${app}#u/${uid}` : app;
   return {
     identity: { country: "us", entity_type: "individual", individual: { email } },
-    defaults: { profile: { business_url: url, product_description: "Receives listening tips from friends on Pod Club", doing_business_as: (prof?.display_name ?? "").slice(0, 100) || undefined } },
+    defaults: { profile: { business_url: url, doing_business_as: (prof?.display_name ?? "").slice(0, 100) || undefined } },
     configuration: { merchant: { mcc: MCC } },
   };
 }
