@@ -5,6 +5,8 @@
 import { CORS, MAX, MIN, UUID, appMode, json, keyFor, me, rest, split, stripe } from "../_shared/tips2.ts";
 
 const USD_ONLY = (Deno.env.get("TIPS_USD_ONLY_APPS") ?? "").split(",").filter(Boolean);
+// Apps in TIPS_INVITE_ONLY_APPS: a tip must be a listening tip attached to a shared clip / pod invite (tips2_prepare_invite).
+const INVITE_ONLY = (Deno.env.get("TIPS_INVITE_ONLY_APPS") ?? "").split(",").filter(Boolean);
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -18,8 +20,12 @@ Deno.serve(async (req) => {
   if (tip > MAX) return json({ error: "The maximum tip is $100" }, 400);
   const { app, live } = appMode(body?.app);
   if (!keyFor(live)) return json({ error: "Tips aren't available yet" }, 503);
+  const inviteOnly = INVITE_ONLY.includes(app);
+  if (inviteOnly && (purpose !== "listen" || !kind)) return json({ error: "Tips go with a clip you share. Add one when you invite someone to a pod or share a clip" }, 400);
   try {
-    const p = (await rest("rpc/tips2_prepare", { method: "POST", body: JSON.stringify({ p_tipper: u.id, p_recipient: recipient, p_purpose: purpose, p_kind: kind ?? null, p_ref: kind ? ref : null }) }))?.[0];
+    const p = (inviteOnly
+      ? await rest("rpc/tips2_prepare_invite", { method: "POST", body: JSON.stringify({ p_tipper: u.id, p_recipient: recipient, p_kind: kind, p_ref: ref }) })
+      : await rest("rpc/tips2_prepare", { method: "POST", body: JSON.stringify({ p_tipper: u.id, p_recipient: recipient, p_purpose: purpose, p_kind: kind ?? null, p_ref: kind ? ref : null }) }))?.[0];
     if (!p) return json({ error: "Couldn't start the tip" }, 500);
     // destination charge only when the recipient's ready account is in this mode (live app -> live account)
     const acctLive = p.stripe_account_id ? (await rest(`tip_accounts2?stripe_account_id=eq.${p.stripe_account_id}&select=livemode`))?.[0]?.livemode : null;

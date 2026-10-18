@@ -74,7 +74,7 @@ if [ -x "$DENO" ]; then
   # Tips v2 (earn first): tips2-* functions, sandbox-style secrets pointing at the same mock.
   for fn in connect:54337 checkout:54338 webhook:54339 payout:54340; do name="tips2-${fn%%:*}"; port="${fn##*:}"
     env -i PATH=/usr/bin:/bin HOME="$HOME" SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_ANON_KEY="$(cat "$RUN/anon.key")" SUPABASE_SERVICE_ROLE_KEY="$(cat "$RUN/service.key")" \
-      STRIPE_SECRET_KEY_SANDBOX=sk_test_local_mock STRIPE_API_URL=http://127.0.0.1:54333 STRIPE_WEBHOOK_SECRET_SANDBOX=whsec_local_mock TIPS2_APPS=http://127.0.0.1:8080/ TIPS_USD_ONLY_APPS=http://127.0.0.1:8080/ TIPS_PREFILL_APPS=http://127.0.0.1:8080/ TIPS2_CRON_SECRET=cron_local_mock DENO_SERVE_ADDRESS=tcp:127.0.0.1:$port \
+      STRIPE_SECRET_KEY_SANDBOX=sk_test_local_mock STRIPE_API_URL=http://127.0.0.1:54333 STRIPE_WEBHOOK_SECRET_SANDBOX=whsec_local_mock TIPS2_APPS=http://127.0.0.1:8080/,http://127.0.0.1:8080/legacy/ TIPS_INVITE_ONLY_APPS=http://127.0.0.1:8080/ TIPS_USD_ONLY_APPS=http://127.0.0.1:8080/ TIPS_PREFILL_APPS=http://127.0.0.1:8080/ TIPS2_CRON_SECRET=cron_local_mock DENO_SERVE_ADDRESS=tcp:127.0.0.1:$port \
       nohup "$DENO" run --allow-net --allow-env --allow-read "$HERE/../../supabase/functions/$name/index.ts" > "$RUN/$name.log" 2>&1 & echo $! > "$RUN/$name.pid"
     for i in $(seq 30); do curl -s -o /dev/null -X POST http://127.0.0.1:$port/ && break; sleep 0.5; done; done
 else echo "functions: deno not found — skipping"; fi
