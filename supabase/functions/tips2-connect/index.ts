@@ -11,6 +11,20 @@ async function totals(uid: string, live: boolean) {
   return { earned_cents: s((r) => r.status === "earned" || r.status === "paying"), held_cents: s((r) => r.status === "held"), paid_out_cents: s((r) => r.status === "paid_out"), tips: (rows ?? []).length };
 }
 
+// Simpler Express onboarding for apps in TIPS_PREFILL_APPS: prefill what Stripe allows so the hosted flow can skip
+// "Business details" (industry/MCC, website, product description, statement descriptor), and collect currently_due only.
+const PREFILL = (Deno.env.get("TIPS_PREFILL_APPS") ?? "").split(",").filter(Boolean);
+const MCC = Deno.env.get("TIPS_PREFILL_MCC") ?? "7299"; // Miscellaneous personal services
+async function prefill(uid: string, email: string, app: string) {
+  const prof = (await rest(`profiles?id=eq.${uid}&select=display_name,username`))?.[0];
+  const url = prof?.username ? `${app}#u/${uid}` : app;
+  return {
+    identity: { country: "us", entity_type: "individual", individual: { email } },
+    defaults: { profile: { business_url: url, product_description: "Receives listening tips from friends on Pod Club", doing_business_as: (prof?.display_name ?? "").slice(0, 100) || undefined } },
+    configuration: { merchant: { mcc: MCC } },
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -53,7 +67,12 @@ Deno.serve(async (req) => {
       });
       row = (await rest("tip_accounts2", { method: "POST", body: JSON.stringify({ user_id: u.id, stripe_account_id: a.id, livemode: live, ...flags(a) }) }))[0];
     }
-    const link = await stripe2(live, "POST", "core/account_links", { account: row.stripe_account_id, use_case: { type: "account_onboarding", account_onboarding: { refresh_url: `${app}#tipsetup/refresh`, return_url: `${app}#tipsetup/return` } } });
+    const pre = PREFILL.includes(app);
+    if (pre) {  // also brings accounts created before prefill up to date (only fields Stripe still lets us set)
+      try { await stripe2(live, "POST", `core/accounts/${row.stripe_account_id}`, await prefill(u.id, u.email, app)); }
+      catch (e: any) { console.error("tips2-connect prefill", e?.message); }
+    }
+    const link = await stripe2(live, "POST", "core/account_links", { account: row.stripe_account_id, use_case: { type: "account_onboarding", account_onboarding: { refresh_url: `${app}#tipsetup/refresh`, return_url: `${app}#tipsetup/return`, ...(pre ? { collection_options: { fields: "currently_due", future_requirements: "omit" } } : {}) } } });
     return json({ url: link.url, status: ready(row) ? "ready" : "pending" });
   } catch (e: any) {
     console.error("tips2-connect", e?.message);
