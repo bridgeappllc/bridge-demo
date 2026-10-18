@@ -33,7 +33,7 @@ with sync_playwright() as p:
     aid, bid, cid = a.evaluate("ME"), b.evaluate("ME"), c.evaluate("ME")
     fn = lambda pg, name, body: pg.evaluate("async([n,b])=>{try{return await tipFn(n,b)}catch(e){return{error:e.message}}}", [name, body])
     ev = lambda pg, js, arg=None: pg.evaluate(js, arg)
-    LEGACY = "http://127.0.0.1:8080/legacy/"  # an app NOT in TIPS_INVITE_ONLY_APPS (like live today): thank-you tips still work
+    LEGACY = "http://127.0.0.1:8080/legacy/"  # server regression only: an app NOT in TIPS_INVITE_ONLY_APPS keeps the old thank-you path. Live and preview are both invite-only now (like the local app below)
     fnL = lambda pg, name, body: pg.evaluate("async([n,b])=>{const{data}=await sb.auth.getSession();const r=await fetch(CFG.SUPABASE_URL+'/functions/v1/'+n,{method:'POST',headers:{Authorization:'Bearer '+data.session.access_token,apikey:CFG.SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify(b)});const j=await r.json().catch(()=>({}));return r.ok?j:{error:j.error||'error'}}", [name, {**body, "app": LEGACY}])
     # No standalone tipping: no Tip button on B's profile; tips2-checkout (invite-only app) rejects tips without a clip
     a.goto(BASE + f"#u/{bid}"); expect(a.locator("#sendb")).to_be_visible(timeout=T)
@@ -43,7 +43,7 @@ with sync_playwright() as p:
         r = fn(a, "tips2-checkout", body); assert "Tips go with a clip" in r.get("error", ""), (body, r)
     r = fn(a, "tips2-checkout", {"recipient": bid, "purpose": "listen", "kind": "bridge", "ref": "00000000-0000-4000-8000-000000000000", "amount_cents": 500}); assert "not found" in r.get("error", "").lower(), r
     assert q1("select count(*) from tips2 where recipient=%s", (bid,))[0] == 0
-    step("No Tip button on People/profile pages; tips2-checkout rejects tips not attached to a valid clip (thank-you, no clip, bogus clip)")
+    step("No Tip button on People/profile pages; tips2-checkout (invite-only, as on live and preview) rejects tips not attached to a valid clip (thank-you, no clip, bogus clip)")
     r = fn(a, "tips-checkout", {"recipient": bid, "amount_cents": 500}); assert "hasn't set up tips yet" in r.get("error", ""), r
     step("Live v1 tips-checkout still refuses (unchanged)")
     # Settings card hidden for people with no tips
