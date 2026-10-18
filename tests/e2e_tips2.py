@@ -86,6 +86,13 @@ with sync_playwright() as p:
     acct = q1("select stripe_account_id from tip_accounts2 where user_id=%s", (bid,))[0]; assert tr[0]["destination"] == acct
     assert q1("select count(*) from tip_accounts where user_id=%s", (bid,))[0] == 0
     step("Get paid → Stripe onboarding (v2) → return: Transfer $4.50 to the new account with source_transaction = the charge; 'paid out'")
+    ac = mock("/mock/state")["accts"][acct]; assert ac["mcc"] == "7299" and ac["identity"]["individual"]["email"] and ac["defaults"]["profile"]["business_url"].startswith(BASE), ac
+    step("Prefill (TIPS_PREFILL_APPS): new account created with MCC 7299, email and website already set")
+    mock("/mock/reject", {"account": acct}); mock("/mock/disable", {"account": acct}); fn(b, "tips2-connect", {"action": "status"})
+    n0 = len(mock("/mock/state")["updates"]); r = fn(b, "tips2-connect", {"action": "onboard"}); assert r.get("url"), r
+    ups = [x for x in mock("/mock/state")["updates"][n0:] if x["account"] == acct]; assert len(ups) >= 2, ups
+    mock("/mock/enable", {"account": acct}); fn(b, "tips2-connect", {"action": "status"})
+    step("Prefill is best effort: Stripe refuses every prefill write (combined + per field) and onboard still returns a link")
     fn(b, "tips2-connect", {"action": "status"}); code, out = sweep(); assert code == 200, out
     assert len(mine()) == 1; assert sweep("nope")[0] == 403
     step("Idempotent: repeat status + cron sweep make no second transfer; sweep needs the cron secret")
