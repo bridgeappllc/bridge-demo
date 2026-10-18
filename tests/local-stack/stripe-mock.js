@@ -4,7 +4,7 @@
 const http = require('http'), crypto = require('crypto');
 const PORT = 54333, HOOK = process.env.TIPS_WEBHOOK_URL || 'http://127.0.0.1:54321/functions/v1/tips-webhook', WHSEC = 'whsec_local_mock';
 const HOOK2 = process.env.TIPS2_WEBHOOK_URL || 'http://127.0.0.1:54321/functions/v1/tips2-webhook';
-const accts = {}, sessions = {}, pis = {}, transfers = [], refunds = []; let n = 0; const id = p => `${p}_mock${Date.now().toString(36)}${(n++).toString(36)}`;
+const updates = []; const accts = {}, sessions = {}, pis = {}, transfers = [], refunds = []; let n = 0; const id = p => `${p}_mock${Date.now().toString(36)}${(n++).toString(36)}`;
 const send = (res, s, b) => { res.writeHead(s, { 'content-type': 'application/json' }); res.end(JSON.stringify(b)); };
 function sign(payload, t = Math.floor(Date.now() / 1000), secret = WHSEC) { return `t=${t},v1=${crypto.createHmac('sha256', secret).update(`${t}.${payload}`).digest('hex')}`; }
 async function fire(ev, header) { const body = JSON.stringify(ev); const h2 = header ?? sign(body); await fetch(HOOK2, { method: 'POST', headers: { 'content-type': 'application/json', 'stripe-signature': h2 }, body }).catch(() => {}); const r = await fetch(HOOK, { method: 'POST', headers: { 'content-type': 'application/json', 'stripe-signature': header ?? sign(body) }, body }); return { status: r.status, body: await r.text() }; }
@@ -14,15 +14,20 @@ http.createServer((req, res) => {
     if ((u.startsWith('/v1/') || u.startsWith('/v2/')) && !/^Bearer sk_test_/.test(req.headers.authorization || '')) return send(res, 401, { error: { message: 'bad key' } });
     if (u.startsWith('/v2/') && !/^\d{4}-\d{2}-\d{2}\.\w+$/.test(req.headers['stripe-version'] || '')) return send(res, 400, { error: { message: 'v2 needs a Stripe-Version header' } });
     let j = {}; if (u.startsWith('/v2/') && raw) { try { j = JSON.parse(raw); } catch { return send(res, 400, { error: { message: 'bad json' } }); } }
-    const v2acct = a => ({ id: a.id, object: 'v2.core.account', dashboard: a.dashboard, contact_email: a.email, metadata: a.metadata, defaults: a.defaults,
-      configuration: { recipient: { capabilities: { stripe_balance: { stripe_transfers: { status: a.payouts_enabled ? 'active' : 'restricted' }, payouts: { status: a.payouts_enabled ? 'active' : 'restricted' } } } } },
+    const v2acct = a => ({ id: a.id, object: 'v2.core.account', dashboard: a.dashboard, contact_email: a.email, metadata: a.metadata, defaults: a.defaults, identity: a.identity || {},
+      configuration: { merchant: { mcc: a.mcc ?? null }, recipient: { capabilities: { stripe_balance: { stripe_transfers: { status: a.payouts_enabled ? 'active' : 'restricted' }, payouts: { status: a.payouts_enabled ? 'active' : 'restricted' } } } } },
       requirements: { entries: a.payouts_enabled ? [] : [{ description: 'external_account', minimum_deadline: { status: 'currently_due' } }] } });
     let m;
     if (req.method === 'POST' && u === '/v2/core/accounts') {
       const st = j?.configuration?.recipient?.capabilities?.stripe_balance?.stripe_transfers?.requested, cp = j?.configuration?.merchant?.capabilities?.card_payments?.requested;
       if (!st || !cp) return send(res, 400, { error: { message: 'mock: needs recipient stripe_transfers + merchant card_payments' } });
       if (j.dashboard === 'express' && (j?.defaults?.responsibilities?.fees_collector !== 'application' || j?.defaults?.responsibilities?.losses_collector !== 'application')) return send(res, 400, { error: { message: 'express needs application fees/losses' } });
-      const a = { id: id('acct'), type: 'v2', dashboard: j.dashboard, email: j.contact_email, defaults: j.defaults, payouts_enabled: false, charges_enabled: false, details_submitted: false, metadata: j.metadata || {} }; accts[a.id] = a; return send(res, 200, v2acct(a)); }
+      const a = { id: id('acct'), type: 'v2', dashboard: j.dashboard, email: j.contact_email, defaults: j.defaults, identity: j.identity, mcc: j?.configuration?.merchant?.mcc, payouts_enabled: false, charges_enabled: false, details_submitted: false, metadata: j.metadata || {} }; accts[a.id] = a; return send(res, 200, v2acct(a)); }
+    if (req.method === 'POST' && (m = u.match(/^\/v2\/core\/accounts\/(acct_\w+)$/))) { const a = accts[m[1]]; if (!a) return send(res, 404, { error: { message: 'not found' } }); updates.push({ account: a.id, body: j });
+      if (a.reject) return send(res, 403, { error: { code: 'forbidden', message: 'mock: You do not have permission to write to this field (account was onboarded via an Account Link).' } });
+      if (j?.configuration?.merchant?.mcc) a.mcc = j.configuration.merchant.mcc; return send(res, 200, v2acct(a)); }
+    if (u === '/mock/disable') { const a = accts[f.account]; if (a) Object.assign(a, { payouts_enabled: false }); return send(res, a ? 200 : 404, {}); }
+    if (u === '/mock/reject') { const a = accts[f.account]; if (a) Object.assign(a, { reject: true, mcc: null }); return send(res, a ? 200 : 404, {}); }
     if (req.method === 'GET' && (m = u.match(/^\/v2\/core\/accounts\/(acct_\w+)$/))) return accts[m[1]] ? send(res, 200, v2acct(accts[m[1]])) : send(res, 404, { error: { message: 'not found' } });
     if (req.method === 'POST' && u === '/v2/core/account_links') { const o = j?.use_case?.account_onboarding; if (j?.use_case?.type !== 'account_onboarding' || !o?.return_url || !o?.refresh_url || !accts[j.account]) return send(res, 400, { error: { message: 'bad account link' } });
       return send(res, 200, { object: 'v2.core.account_link', url: `http://127.0.0.1:${PORT}/mock/onboard/${j.account}?return=${encodeURIComponent(o.return_url)}` }); }
@@ -48,7 +53,7 @@ http.createServer((req, res) => {
     if ((m = u.match(/^\/mock\/pay\/(cs_test_\w+)$/))) { const s = sessions[m[1]]; if (!s) return send(res, 404, {}); Object.assign(s, { payment_status: 'paid', status: 'complete', payment_intent: id('pi') }); const total = Object.keys(s.form).filter(k => /^line_items\[\d\]\[price_data\]\[unit_amount\]$/.test(k)).reduce((a, k) => a + +s.form[k], 0); pis[s.payment_intent] = { id: s.payment_intent, amount: total, latest_charge: id('ch'), refunded: 0 };
       const r = await fire({ id: id('evt'), type: 'checkout.session.completed', livemode: false, data: { object: { id: s.id, object: 'checkout.session', payment_status: 'paid', payment_intent: s.payment_intent } } });
       if (req.method === 'GET') { res.writeHead(302, { location: s.form.success_url }); return res.end(); } return send(res, 200, r); }
-    if (u === '/mock/state') return send(res, 200, { accts, sessions, pis, transfers, refunds });
+    if (u === '/mock/state') return send(res, 200, { accts, sessions, pis, transfers, refunds, updates });
     if (u === '/mock/enable') { const a = accts[f.account]; if (a) Object.assign(a, { details_submitted: true, charges_enabled: true, payouts_enabled: true }); return send(res, a ? 200 : 404, a || {}); }
     if (u === '/mock/fire') { const ev = JSON.parse(f.event); return send(res, 200, await fire(ev, f.header === 'bad' ? sign(JSON.stringify(ev), undefined, 'whsec_wrong') : f.header === 'old' ? sign(JSON.stringify(ev), Math.floor(Date.now() / 1000) - 3600) : undefined)); }
     send(res, 404, { error: { message: 'mock: no route ' + req.method + ' ' + u } });
